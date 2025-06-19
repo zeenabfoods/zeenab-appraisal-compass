@@ -9,16 +9,315 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      appraisal_questions: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          question_text: string
+          section_id: string | null
+          sort_order: number | null
+          weight: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          question_text: string
+          section_id?: string | null
+          sort_order?: number | null
+          weight?: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          question_text?: string
+          section_id?: string | null
+          sort_order?: number | null
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appraisal_questions_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "appraisal_sections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appraisal_responses: {
+        Row: {
+          appraisal_id: string | null
+          committee_comment: string | null
+          committee_rating: number | null
+          created_at: string | null
+          emp_comment: string | null
+          emp_rating: number | null
+          id: string
+          mgr_comment: string | null
+          mgr_rating: number | null
+          question_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          appraisal_id?: string | null
+          committee_comment?: string | null
+          committee_rating?: number | null
+          created_at?: string | null
+          emp_comment?: string | null
+          emp_rating?: number | null
+          id?: string
+          mgr_comment?: string | null
+          mgr_rating?: number | null
+          question_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          appraisal_id?: string | null
+          committee_comment?: string | null
+          committee_rating?: number | null
+          created_at?: string | null
+          emp_comment?: string | null
+          emp_rating?: number | null
+          id?: string
+          mgr_comment?: string | null
+          mgr_rating?: number | null
+          question_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appraisal_responses_appraisal_id_fkey"
+            columns: ["appraisal_id"]
+            isOneToOne: false
+            referencedRelation: "appraisals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appraisal_responses_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "appraisal_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appraisal_sections: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          max_marks: number
+          name: string
+          sort_order: number | null
+          weight: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_marks: number
+          name: string
+          sort_order?: number | null
+          weight: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_marks?: number
+          name?: string
+          sort_order?: number | null
+          weight?: number
+        }
+        Relationships: []
+      }
+      appraisals: {
+        Row: {
+          committee_comments: string | null
+          completed_at: string | null
+          created_at: string | null
+          emp_comments: string | null
+          employee_id: string | null
+          goals: string | null
+          id: string
+          mgr_comments: string | null
+          noteworthy: string | null
+          overall_score: number | null
+          performance_band: string | null
+          quarter: number | null
+          status: Database["public"]["Enums"]["appraisal_status"] | null
+          submitted_at: string | null
+          training_needs: string | null
+          updated_at: string | null
+          year: number | null
+        }
+        Insert: {
+          committee_comments?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          emp_comments?: string | null
+          employee_id?: string | null
+          goals?: string | null
+          id?: string
+          mgr_comments?: string | null
+          noteworthy?: string | null
+          overall_score?: number | null
+          performance_band?: string | null
+          quarter?: number | null
+          status?: Database["public"]["Enums"]["appraisal_status"] | null
+          submitted_at?: string | null
+          training_needs?: string | null
+          updated_at?: string | null
+          year?: number | null
+        }
+        Update: {
+          committee_comments?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          emp_comments?: string | null
+          employee_id?: string | null
+          goals?: string | null
+          id?: string
+          mgr_comments?: string | null
+          noteworthy?: string | null
+          overall_score?: number | null
+          performance_band?: string | null
+          quarter?: number | null
+          status?: Database["public"]["Enums"]["appraisal_status"] | null
+          submitted_at?: string | null
+          training_needs?: string | null
+          updated_at?: string | null
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appraisals_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          message: string
+          related_appraisal_id: string | null
+          title: string
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message: string
+          related_appraisal_id?: string | null
+          title: string
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          related_appraisal_id?: string | null
+          title?: string
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_related_appraisal_id_fkey"
+            columns: ["related_appraisal_id"]
+            isOneToOne: false
+            referencedRelation: "appraisals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          department: string | null
+          email: string
+          first_name: string
+          id: string
+          is_active: boolean | null
+          last_login: string | null
+          last_name: string
+          line_manager_id: string | null
+          position: string | null
+          role: Database["public"]["Enums"]["user_role"]
+        }
+        Insert: {
+          created_at?: string | null
+          department?: string | null
+          email: string
+          first_name: string
+          id: string
+          is_active?: boolean | null
+          last_login?: string | null
+          last_name: string
+          line_manager_id?: string | null
+          position?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+        }
+        Update: {
+          created_at?: string | null
+          department?: string | null
+          email?: string
+          first_name?: string
+          id?: string
+          is_active?: boolean | null
+          last_login?: string | null
+          last_name?: string
+          line_manager_id?: string | null
+          position?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_line_manager_id_fkey"
+            columns: ["line_manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      calculate_performance_band: {
+        Args: { score: number }
+        Returns: string
+      }
     }
     Enums: {
-      [_ in never]: never
+      appraisal_status:
+        | "draft"
+        | "submitted"
+        | "manager_review"
+        | "hr_review"
+        | "completed"
+      user_role: "staff" | "manager" | "hr" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +432,15 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      appraisal_status: [
+        "draft",
+        "submitted",
+        "manager_review",
+        "hr_review",
+        "completed",
+      ],
+      user_role: ["staff", "manager", "hr", "admin"],
+    },
   },
 } as const
