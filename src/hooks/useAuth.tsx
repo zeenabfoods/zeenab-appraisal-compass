@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -40,11 +39,12 @@ export function useAuth() {
     try {
       console.log('Fetching profile for user:', userId);
       
+      // Fix the ambiguous relationship by being specific about which department relationship to use
       const { data: profileData, error } = await supabase
         .from('profiles')
         .select(`
           *,
-          department:departments(name)
+          department:departments!profiles_department_id_fkey(name)
         `)
         .eq('id', userId)
         .single();
