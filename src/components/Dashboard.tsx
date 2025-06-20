@@ -65,15 +65,12 @@ export function Dashboard() {
   const [selectedAppraisal, setSelectedAppraisal] = useState<string>('');
 
   useEffect(() => {
-    // Only wait for auth loading to complete, not profile loading
-    if (!loading && user) {
-      console.log('User authenticated, loading dashboard data for user:', user.id);
+    // Only wait for auth loading to complete
+    if (!loading) {
+      console.log('Auth loading completed, loading dashboard data');
       loadDashboardData();
-    } else if (!loading && !user) {
-      console.error('No user found after auth loading completed');
-      setDashboardLoading(false);
     }
-  }, [user, loading]); // Removed profile dependency
+  }, [loading]); // Only depend on loading, not user or profile
 
   const loadDashboardData = async () => {
     try {
@@ -145,7 +142,7 @@ export function Dashboard() {
     }
   };
 
-  // Show loading spinner only while auth is loading
+  // Show loading spinner while auth is loading
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-96">

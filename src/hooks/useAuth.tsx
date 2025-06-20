@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -39,7 +40,6 @@ export function useAuth() {
     try {
       console.log('Fetching profile for user:', userId);
       
-      // Fix the ambiguous relationship by being specific about which department relationship to use
       const { data: profileData, error } = await supabase
         .from('profiles')
         .select(`
@@ -64,30 +64,23 @@ export function useAuth() {
               last_name: user.data.user.user_metadata?.last_name || '',
               role: 'staff'
             };
+            console.log('Setting basic profile:', basicProfile);
             setProfile(basicProfile);
             return;
           }
         }
         
+        // For any other error, set null profile but don't block the app
+        console.error('Profile fetch failed, setting null profile');
         setProfile(null);
-        toast({
-          title: "Profile Error",
-          description: "Failed to load user profile. Using basic profile.",
-          variant: "destructive"
-        });
         return;
       }
       
       console.log('Profile fetched successfully:', profileData);
       setProfile(profileData);
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      console.error('Unexpected error fetching profile:', error);
       setProfile(null);
-      toast({
-        title: "Profile Error",
-        description: "Failed to load user profile. Using basic profile.",
-        variant: "destructive"
-      });
     }
   };
 
@@ -107,12 +100,16 @@ export function useAuth() {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          await fetchProfile(session.user.id);
+          // Don't await this to prevent blocking
+          fetchProfile(session.user.id).finally(() => {
+            if (mounted) {
+              setLoading(false);
+            }
+          });
         } else {
           setProfile(null);
+          setLoading(false);
         }
-        
-        setLoading(false);
       }
     );
 
@@ -137,12 +134,16 @@ export function useAuth() {
           setUser(session?.user ?? null);
           
           if (session?.user) {
-            await fetchProfile(session.user.id);
+            // Don't await this to prevent blocking
+            fetchProfile(session.user.id).finally(() => {
+              if (mounted) {
+                setLoading(false);
+              }
+            });
           } else {
             setProfile(null);
+            setLoading(false);
           }
-          
-          setLoading(false);
         }
       } catch (error) {
         console.error('Error in initializeAuth:', error);
