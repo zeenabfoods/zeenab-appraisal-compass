@@ -64,34 +64,46 @@ export function Dashboard() {
   const [selectedAppraisal, setSelectedAppraisal] = useState<string>('');
 
   useEffect(() => {
-    loadDashboardData();
-  }, []);
+    if (profile) {
+      console.log('Profile loaded, loading dashboard data for:', profile.role);
+      loadDashboardData();
+    }
+  }, [profile]);
 
   const loadDashboardData = async () => {
     try {
+      console.log('Loading dashboard data...');
+      
       // Load appraisal cycles
       const { data: cyclesData, error: cyclesError } = await supabase
         .from('appraisal_cycles')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (cyclesError) throw cyclesError;
-      setCycles(cyclesData || []);
+      if (cyclesError) {
+        console.error('Error loading cycles:', cyclesError);
+      } else {
+        console.log('Loaded cycles:', cyclesData?.length || 0);
+        setCycles(cyclesData || []);
+      }
 
-      // Load basic stats (you can expand this based on your needs)
+      // Load basic stats
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('id, is_active')
         .eq('is_active', true);
 
-      if (profilesError) throw profilesError;
-      
-      setStats({
-        totalEmployees: profilesData?.length || 0,
-        completedAppraisals: 45, // Mock data - replace with actual query
-        pendingAppraisals: 23, // Mock data - replace with actual query
-        averageScore: 87.5 // Mock data - replace with actual query
-      });
+      if (profilesError) {
+        console.error('Error loading profiles:', profilesError);
+      } else {
+        console.log('Loaded profiles:', profilesData?.length || 0);
+        setStats({
+          totalEmployees: profilesData?.length || 0,
+          completedAppraisals: 45, // Mock data - replace with actual query
+          pendingAppraisals: 23, // Mock data - replace with actual query
+          averageScore: 87.5 // Mock data - replace with actual query
+        });
+      }
 
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -128,10 +140,31 @@ export function Dashboard() {
     }
   };
 
-  if (loading) {
+  // Show loading only if we don't have a profile yet
+  if (!profile) {
     return (
       <div className="flex items-center justify-center min-h-96">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show dashboard data loading only if we're still loading dashboard data
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="backdrop-blur-md bg-white/60 border-white/40 rounded-xl p-6 shadow-lg">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            Welcome back, {profile?.first_name}!
+          </h1>
+          <p className="text-gray-600">Loading your dashboard...</p>
+        </div>
+        <div className="flex items-center justify-center min-h-48">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+        </div>
       </div>
     );
   }
