@@ -42,21 +42,29 @@ export function AppSidebar() {
   const isActive = (path: string) => currentPath === path;
   const getNavClass = (path: string) =>
     isActive(path) 
-      ? "bg-blue-50 text-blue-700 font-medium border-r-2 border-blue-700" 
-      : "hover:bg-gray-50 text-gray-700";
+      ? "bg-gradient-to-r from-orange-100 to-red-100 text-orange-700 font-medium border-r-2 border-orange-500" 
+      : "hover:bg-gradient-to-r hover:from-orange-50 hover:to-red-50 text-gray-700 hover:text-orange-600";
 
   return (
-    <Sidebar collapsible="icon">
-      <div className="p-4 border-b bg-white">
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-black rounded-md flex items-center justify-center">
-            <span className="text-white font-bold text-sm">Z</span>
+    <Sidebar collapsible="icon" className="backdrop-blur-md bg-white/60 border-white/30">
+      <div className="p-4 border-b bg-gradient-to-r from-white/80 to-white/60 backdrop-blur-sm">
+        <div className="flex items-center space-x-3">
+          <div className="w-8 h-8 rounded-lg overflow-hidden shadow-lg">
+            <img 
+              src="/lovable-uploads/382d6c71-33c6-4592-bd0f-0fb453a48ecf.png" 
+              alt="Zeenab Logo" 
+              className="w-full h-full object-contain"
+            />
           </div>
-          {!isCollapsed && <span className="font-semibold text-gray-900">Zeenab Appraisal</span>}
+          {!isCollapsed && (
+            <span className="font-semibold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+              Zeenab Appraisal
+            </span>
+          )}
         </div>
       </div>
 
-      <SidebarContent className="bg-white">
+      <SidebarContent className="bg-gradient-to-b from-white/60 to-white/40 backdrop-blur-md">
         {/* Main Menu */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-xs text-gray-500 uppercase tracking-wider px-4 py-2">
@@ -75,7 +83,7 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild>
                     <NavLink 
                       to={item.url} 
-                      className={`flex items-center px-4 py-2 text-sm ${getNavClass(item.url)}`}
+                      className={`flex items-center px-4 py-2 text-sm rounded-lg mx-2 transition-all ${getNavClass(item.url)}`}
                     >
                       <item.icon className="mr-3 h-4 w-4" />
                       {!isCollapsed && <span>{item.title}</span>}
@@ -104,7 +112,7 @@ export function AppSidebar() {
                     <SidebarMenuButton asChild>
                       <NavLink 
                         to={item.url} 
-                        className={`flex items-center px-4 py-2 text-sm ${getNavClass(item.url)}`}
+                        className={`flex items-center px-4 py-2 text-sm rounded-lg mx-2 transition-all ${getNavClass(item.url)}`}
                       >
                         <item.icon className="mr-3 h-4 w-4" />
                         {!isCollapsed && <span>{item.title}</span>}
@@ -127,6 +135,7 @@ export function AppSidebar() {
               <SidebarMenu>
                 {[
                   { title: "Employee Management", url: "/dashboard/employees", icon: Users, roles: ["hr", "admin"] },
+                  { title: "Department Management", url: "/dashboard/departments", icon: Building2, roles: ["hr", "admin"] },
                   { title: "Template Builder", url: "/dashboard/templates", icon: FileText, roles: ["hr", "admin"] },
                   { title: "Appraisal Cycles", url: "/dashboard/cycles", icon: Target, roles: ["hr", "admin"] },
                   { title: "Company Reports", url: "/dashboard/reports", icon: BarChart3, roles: ["hr", "admin"] }
@@ -135,7 +144,7 @@ export function AppSidebar() {
                     <SidebarMenuButton asChild>
                       <NavLink 
                         to={item.url} 
-                        className={`flex items-center px-4 py-2 text-sm ${getNavClass(item.url)}`}
+                        className={`flex items-center px-4 py-2 text-sm rounded-lg mx-2 transition-all ${getNavClass(item.url)}`}
                       >
                         <item.icon className="mr-3 h-4 w-4" />
                         {!isCollapsed && <span>{item.title}</span>}
@@ -164,7 +173,7 @@ export function AppSidebar() {
                     <SidebarMenuButton asChild>
                       <NavLink 
                         to={item.url} 
-                        className={`flex items-center px-4 py-2 text-sm ${getNavClass(item.url)}`}
+                        className={`flex items-center px-4 py-2 text-sm rounded-lg mx-2 transition-all ${getNavClass(item.url)}`}
                       >
                         <item.icon className="mr-3 h-4 w-4" />
                         {!isCollapsed && <span>{item.title}</span>}

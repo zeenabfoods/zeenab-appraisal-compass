@@ -13,6 +13,9 @@ import NotFound from "./pages/NotFound";
 import MyAppraisals from "./pages/MyAppraisals";
 import AppraisalCycles from "./pages/AppraisalCycles";
 import QuestionTemplates from "./pages/QuestionTemplates";
+import DepartmentManagement from "./pages/DepartmentManagement";
+import EmployeeManagement from "./pages/EmployeeManagement";
+import CompanyReports from "./pages/CompanyReports";
 
 const queryClient = new QueryClient();
 
@@ -31,18 +34,59 @@ const App = () => (
                 <Routes>
                   <Route index element={<Dashboard />} />
                   <Route path="appraisals" element={<MyAppraisals />} />
-                  <Route path="notifications" element={<div className="text-center py-8">Notifications page coming soon...</div>} />
-                  <Route path="history" element={<div className="text-center py-8">Performance History page coming soon...</div>} />
-                  <Route path="settings" element={<div className="text-center py-8">Settings page coming soon...</div>} />
-                  <Route path="team" element={<div className="text-center py-8">Team Overview page coming soon...</div>} />
-                  <Route path="reviews" element={<div className="text-center py-8">Review Appraisals page coming soon...</div>} />
-                  <Route path="analytics" element={<div className="text-center py-8">Team Analytics page coming soon...</div>} />
-                  <Route path="employees" element={<div className="text-center py-8">Employee Management page coming soon...</div>} />
+                  <Route path="notifications" element={
+                    <div className="backdrop-blur-md bg-white/60 border-white/40 rounded-xl p-8 text-center shadow-lg">
+                      <h2 className="text-2xl font-bold text-gray-900 mb-4">Notifications</h2>
+                      <p className="text-gray-600">Notification system coming soon...</p>
+                    </div>
+                  } />
+                  <Route path="history" element={
+                    <div className="backdrop-blur-md bg-white/60 border-white/40 rounded-xl p-8 text-center shadow-lg">
+                      <h2 className="text-2xl font-bold text-gray-900 mb-4">Performance History</h2>
+                      <p className="text-gray-600">Performance history tracking coming soon...</p>
+                    </div>
+                  } />
+                  <Route path="settings" element={
+                    <div className="backdrop-blur-md bg-white/60 border-white/40 rounded-xl p-8 text-center shadow-lg">
+                      <h2 className="text-2xl font-bold text-gray-900 mb-4">Settings</h2>
+                      <p className="text-gray-600">User settings panel coming soon...</p>
+                    </div>
+                  } />
+                  <Route path="team" element={
+                    <div className="backdrop-blur-md bg-white/60 border-white/40 rounded-xl p-8 text-center shadow-lg">
+                      <h2 className="text-2xl font-bold text-gray-900 mb-4">Team Overview</h2>
+                      <p className="text-gray-600">Team management dashboard coming soon...</p>
+                    </div>
+                  } />
+                  <Route path="reviews" element={
+                    <div className="backdrop-blur-md bg-white/60 border-white/40 rounded-xl p-8 text-center shadow-lg">
+                      <h2 className="text-2xl font-bold text-gray-900 mb-4">Review Appraisals</h2>
+                      <p className="text-gray-600">Appraisal review system coming soon...</p>
+                    </div>
+                  } />
+                  <Route path="analytics" element={
+                    <div className="backdrop-blur-md bg-white/60 border-white/40 rounded-xl p-8 text-center shadow-lg">
+                      <h2 className="text-2xl font-bold text-gray-900 mb-4">Team Analytics</h2>
+                      <p className="text-gray-600">Advanced analytics dashboard coming soon...</p>
+                    </div>
+                  } />
+                  <Route path="employees" element={<EmployeeManagement />} />
+                  <Route path="departments" element={<DepartmentManagement />} />
                   <Route path="templates" element={<QuestionTemplates />} />
                   <Route path="cycles" element={<AppraisalCycles />} />
-                  <Route path="reports" element={<div className="text-center py-8">Company Reports page coming soon...</div>} />
-                  <Route path="executive" element={<div className="text-center py-8">Executive Overview page coming soon...</div>} />
-                  <Route path="config" element={<div className="text-center py-8">System Configuration page coming soon...</div>} />
+                  <Route path="reports" element={<CompanyReports />} />
+                  <Route path="executive" element={
+                    <div className="backdrop-blur-md bg-white/60 border-white/40 rounded-xl p-8 text-center shadow-lg">
+                      <h2 className="text-2xl font-bold text-gray-900 mb-4">Executive Overview</h2>
+                      <p className="text-gray-600">Executive dashboard coming soon...</p>
+                    </div>
+                  } />
+                  <Route path="config" element={
+                    <div className="backdrop-blur-md bg-white/60 border-white/40 rounded-xl p-8 text-center shadow-lg">
+                      <h2 className="text-2xl font-bold text-gray-900 mb-4">System Configuration</h2>
+                      <p className="text-gray-600">System configuration panel coming soon...</p>
+                    </div>
+                  } />
                 </Routes>
               </DashboardLayout>
             </ProtectedRoute>
