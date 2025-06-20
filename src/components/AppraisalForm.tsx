@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -299,7 +298,7 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
             </CardHeader>
             <CardContent className="space-y-6">
               {sectionQuestions.map((question, index) => {
-                const response = responses[question.id] || {};
+                const response = responses[question.id] || {} as AppraisalResponse;
                 const currentRating = mode === 'employee' ? response.emp_rating : response.mgr_rating;
                 const currentComment = mode === 'employee' ? response.emp_comment : response.mgr_comment;
 

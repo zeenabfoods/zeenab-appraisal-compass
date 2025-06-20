@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -524,7 +523,6 @@ export function QuestionTemplateManager() {
                       <Switch
                         checked={question.is_active}
                         onCheckedChange={(checked) => toggleQuestionStatus(question.id, checked)}
-                        size="sm"
                       />
                       <Button size="sm" variant="ghost" onClick={() => editQuestion(question)}>
                         <Edit className="h-4 w-4" />
