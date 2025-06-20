@@ -1,16 +1,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Users } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { QuestionDialog } from './QuestionDialog';
 import { SectionDialog } from './SectionDialog';
 import { SectionCard } from './SectionCard';
+import { StaffSelector } from './StaffSelector';
+import { EmployeeQuestionActions } from './EmployeeQuestionActions';
+import { EmptyStateCard } from './EmptyStateCard';
+import { useEmployeeQuestions } from '@/hooks/useEmployeeQuestions';
 
 interface Section {
   id: string;
@@ -34,25 +33,26 @@ interface Question {
   employee_id?: string;
 }
 
-interface Profile {
-  id: string;
-  first_name: string;
-  last_name: string;
-  role: string;
-}
-
 export function EmployeeQuestionManager() {
   const { profile } = useAuth();
   const { toast } = useToast();
-  const [sections, setSections] = useState<Section[]>([]);
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [staff, setStaff] = useState<Profile[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<string>('');
-  const [loading, setLoading] = useState(true);
   const [questionDialogOpen, setQuestionDialogOpen] = useState(false);
   const [sectionDialogOpen, setSectionDialogOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [editingSection, setEditingSection] = useState<Section | null>(null);
+
+  const {
+    sections,
+    questions,
+    staff,
+    loading,
+    fetchStaff,
+    fetchSections,
+    fetchQuestions,
+    deleteQuestion,
+    toggleQuestionStatus
+  } = useEmployeeQuestions();
 
   useEffect(() => {
     fetchStaff();
@@ -61,80 +61,12 @@ export function EmployeeQuestionManager() {
   useEffect(() => {
     if (selectedStaff) {
       fetchSections();
-      fetchQuestions();
+      fetchQuestions(selectedStaff);
     }
   }, [selectedStaff]);
 
-  const fetchStaff = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, role')
-        .eq('role', 'staff')
-        .eq('is_active', true)
-        .order('first_name');
-      
-      if (error) throw error;
-      setStaff(data || []);
-    } catch (error) {
-      console.error('Error fetching staff:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch staff members",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const fetchSections = async () => {
-    if (!selectedStaff) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('appraisal_question_sections')
-        .select('*')
-        .order('sort_order');
-      
-      if (error) throw error;
-      
-      // Transform the data to match our Section interface
-      const transformedSections: Section[] = (data || []).map(section => ({
-        id: section.id,
-        name: section.name,
-        description: section.description || '',
-        sort_order: section.sort_order,
-        max_score: section.max_score,
-        weight: section.weight,
-        is_active: section.is_active
-      }));
-      
-      setSections(transformedSections);
-    } catch (error) {
-      console.error('Error fetching sections:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchQuestions = async () => {
-    if (!selectedStaff) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('employee_questions')
-        .select('*')
-        .eq('employee_id', selectedStaff)
-        .order('sort_order');
-      
-      if (error) throw error;
-      setQuestions(data || []);
-    } catch (error) {
-      console.error('Error fetching questions:', error);
-    }
-  };
-
   const handleQuestionSave = () => {
-    fetchQuestions();
+    fetchQuestions(selectedStaff);
     setQuestionDialogOpen(false);
     setEditingQuestion(null);
     toast({
@@ -154,47 +86,16 @@ export function EmployeeQuestionManager() {
   };
 
   const handleDeleteQuestion = async (questionId: string) => {
-    try {
-      const { error } = await supabase
-        .from('employee_questions')
-        .delete()
-        .eq('id', questionId);
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Success",
-        description: "Question deleted successfully"
-      });
-      
-      fetchQuestions();
-    } catch (error: any) {
-      console.error('Error deleting question:', error);
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
+    const success = await deleteQuestion(questionId);
+    if (success) {
+      fetchQuestions(selectedStaff);
     }
   };
 
   const handleToggleQuestionStatus = async (questionId: string, isActive: boolean) => {
-    try {
-      const { error } = await supabase
-        .from('employee_questions')
-        .update({ is_active: isActive })
-        .eq('id', questionId);
-      
-      if (error) throw error;
-      
-      fetchQuestions();
-    } catch (error: any) {
-      console.error('Error updating question status:', error);
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
+    const success = await toggleQuestionStatus(questionId, isActive);
+    if (success) {
+      fetchQuestions(selectedStaff);
     }
   };
 
@@ -223,56 +124,20 @@ export function EmployeeQuestionManager() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Users className="h-5 w-5 mr-2" />
-            Select Staff Member
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Select value={selectedStaff} onValueChange={setSelectedStaff}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Choose a staff member to manage their questions" />
-            </SelectTrigger>
-            <SelectContent>
-              {staff.map((member) => (
-                <SelectItem key={member.id} value={member.id}>
-                  {member.first_name} {member.last_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
+      <StaffSelector
+        staff={staff}
+        selectedStaff={selectedStaff}
+        onStaffChange={setSelectedStaff}
+      />
 
       {selectedStaff && (
         <>
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-4">
-              <Badge variant="outline" className="text-sm">
-                {questions.length} Questions
-              </Badge>
-              <Badge variant="outline" className="text-sm">
-                {sections.length} Sections
-              </Badge>
-            </div>
-            <div className="flex space-x-2">
-              <Button 
-                onClick={() => setSectionDialogOpen(true)}
-                variant="outline"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Section
-              </Button>
-              <Button 
-                onClick={() => setQuestionDialogOpen(true)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Question
-              </Button>
-            </div>
-          </div>
+          <EmployeeQuestionActions
+            questionsCount={questions.length}
+            sectionsCount={sections.length}
+            onAddSection={() => setSectionDialogOpen(true)}
+            onAddQuestion={() => setQuestionDialogOpen(true)}
+          />
 
           <div className="space-y-6">
             {sections.map((section) => (
@@ -294,15 +159,11 @@ export function EmployeeQuestionManager() {
             ))}
 
             {sections.length === 0 && !loading && (
-              <Card>
-                <CardContent className="p-12 text-center">
-                  <p className="text-gray-500 mb-4">No sections created yet</p>
-                  <Button onClick={() => setSectionDialogOpen(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create First Section
-                  </Button>
-                </CardContent>
-              </Card>
+              <EmptyStateCard
+                title="No sections created yet"
+                buttonText="Create First Section"
+                onButtonClick={() => setSectionDialogOpen(true)}
+              />
             )}
           </div>
         </>

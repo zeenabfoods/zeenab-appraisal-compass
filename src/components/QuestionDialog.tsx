@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface Section {
   id: string;
@@ -27,46 +29,112 @@ interface Question {
   is_required: boolean;
   is_active: boolean;
   sort_order: number;
-  cycle_id?: string;
+  employee_id?: string;
 }
 
 interface QuestionDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  editingQuestion: Question | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  question: Question | null;
   sections: Section[];
-  newQuestion: {
-    question_text: string;
-    section_id: string;
-    question_type: string;
-    weight: number;
-    is_required: boolean;
-    sort_order: number;
-  };
-  setNewQuestion: (question: any) => void;
+  selectedStaff: string;
   onSave: () => void;
 }
 
 export function QuestionDialog({
-  isOpen,
-  onClose,
-  editingQuestion,
+  open,
+  onOpenChange,
+  question,
   sections,
-  newQuestion,
-  setNewQuestion,
+  selectedStaff,
   onSave
 }: QuestionDialogProps) {
+  const { toast } = useToast();
+  const [formData, setFormData] = useState({
+    question_text: '',
+    section_id: '',
+    question_type: 'rating',
+    weight: 1.0,
+    is_required: true,
+    sort_order: 0,
+  });
+
+  useEffect(() => {
+    if (question) {
+      setFormData({
+        question_text: question.question_text,
+        section_id: question.section_id,
+        question_type: question.question_type,
+        weight: question.weight,
+        is_required: question.is_required,
+        sort_order: question.sort_order,
+      });
+    } else {
+      setFormData({
+        question_text: '',
+        section_id: '',
+        question_type: 'rating',
+        weight: 1.0,
+        is_required: true,
+        sort_order: 0,
+      });
+    }
+  }, [question, open]);
+
+  const handleSave = async () => {
+    if (!selectedStaff || !formData.question_text || !formData.section_id) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      if (question) {
+        const { error } = await supabase
+          .from('employee_questions')
+          .update({
+            ...formData,
+            employee_id: selectedStaff
+          })
+          .eq('id', question.id);
+        
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('employee_questions')
+          .insert({
+            ...formData,
+            employee_id: selectedStaff
+          });
+        
+        if (error) throw error;
+      }
+      
+      onSave();
+    } catch (error: any) {
+      console.error('Error saving question:', error);
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleClose = () => {
-    onClose();
+    onOpenChange(false);
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{editingQuestion ? 'Edit' : 'Create'} Question</DialogTitle>
+          <DialogTitle>{question ? 'Edit' : 'Create'} Question</DialogTitle>
           <DialogDescription>
-            {editingQuestion ? 'Update' : 'Add a new'} question to your appraisal template.
+            {question ? 'Update' : 'Add a new'} question for the selected employee.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -74,15 +142,15 @@ export function QuestionDialog({
             <Label htmlFor="question-text">Question</Label>
             <Textarea
               id="question-text"
-              value={newQuestion.question_text}
-              onChange={(e) => setNewQuestion({ ...newQuestion, question_text: e.target.value })}
+              value={formData.question_text}
+              onChange={(e) => setFormData({ ...formData, question_text: e.target.value })}
               placeholder="How effectively does the employee manage their workload?"
             />
           </div>
           
           <div>
             <Label htmlFor="section">Section</Label>
-            <Select value={newQuestion.section_id} onValueChange={(value) => setNewQuestion({ ...newQuestion, section_id: value })}>
+            <Select value={formData.section_id} onValueChange={(value) => setFormData({ ...formData, section_id: value })}>
               <SelectTrigger>
                 <SelectValue placeholder="Select a section" />
               </SelectTrigger>
@@ -99,7 +167,7 @@ export function QuestionDialog({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="question-type">Question Type</Label>
-              <Select value={newQuestion.question_type} onValueChange={(value) => setNewQuestion({ ...newQuestion, question_type: value })}>
+              <Select value={formData.question_type} onValueChange={(value) => setFormData({ ...formData, question_type: value })}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -119,8 +187,8 @@ export function QuestionDialog({
                 step="0.1"
                 min="0.1"
                 max="5"
-                value={newQuestion.weight}
-                onChange={(e) => setNewQuestion({ ...newQuestion, weight: parseFloat(e.target.value) })}
+                value={formData.weight}
+                onChange={(e) => setFormData({ ...formData, weight: parseFloat(e.target.value) })}
               />
             </div>
           </div>
@@ -128,8 +196,8 @@ export function QuestionDialog({
           <div className="flex items-center space-x-2">
             <Switch
               id="required"
-              checked={newQuestion.is_required}
-              onCheckedChange={(checked) => setNewQuestion({ ...newQuestion, is_required: checked })}
+              checked={formData.is_required}
+              onCheckedChange={(checked) => setFormData({ ...formData, is_required: checked })}
             />
             <Label htmlFor="required">Required question</Label>
           </div>
@@ -138,8 +206,8 @@ export function QuestionDialog({
             <Button variant="outline" onClick={handleClose}>
               Cancel
             </Button>
-            <Button onClick={onSave}>
-              {editingQuestion ? 'Update' : 'Create'} Question
+            <Button onClick={handleSave}>
+              {question ? 'Update' : 'Create'} Question
             </Button>
           </div>
         </div>
