@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -64,13 +63,13 @@ export default function EmployeeManagement() {
 
   const loadData = async () => {
     try {
-      // Load employees with department and manager info
+      // Load employees with department and manager info - explicitly specify the relationship
       const { data: employeesData, error: employeesError } = await supabase
         .from('profiles')
         .select(`
           *,
-          department:departments(name),
-          line_manager:profiles!line_manager_id(first_name, last_name)
+          department:departments!profiles_department_id_fkey(name),
+          line_manager:profiles!profiles_line_manager_id_fkey(first_name, last_name)
         `)
         .order('first_name');
 
