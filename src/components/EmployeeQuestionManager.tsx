@@ -133,90 +133,24 @@ export function EmployeeQuestionManager() {
     }
   };
 
-  const handleQuestionSave = async (questionData: any) => {
-    try {
-      if (editingQuestion) {
-        const { error } = await supabase
-          .from('employee_questions')
-          .update({
-            ...questionData,
-            employee_id: selectedStaff
-          })
-          .eq('id', editingQuestion.id);
-        
-        if (error) throw error;
-        
-        toast({
-          title: "Success",
-          description: "Question updated successfully"
-        });
-      } else {
-        const { error } = await supabase
-          .from('employee_questions')
-          .insert({
-            ...questionData,
-            employee_id: selectedStaff
-          });
-        
-        if (error) throw error;
-        
-        toast({
-          title: "Success",
-          description: "Question created successfully"
-        });
-      }
-      
-      fetchQuestions();
-      setQuestionDialogOpen(false);
-      setEditingQuestion(null);
-    } catch (error: any) {
-      console.error('Error saving question:', error);
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
+  const handleQuestionSave = () => {
+    fetchQuestions();
+    setQuestionDialogOpen(false);
+    setEditingQuestion(null);
+    toast({
+      title: "Success",
+      description: editingQuestion ? "Question updated successfully" : "Question created successfully"
+    });
   };
 
-  const handleSectionSave = async (sectionData: any) => {
-    try {
-      if (editingSection) {
-        const { error } = await supabase
-          .from('appraisal_question_sections')
-          .update(sectionData)
-          .eq('id', editingSection.id);
-        
-        if (error) throw error;
-        
-        toast({
-          title: "Success",
-          description: "Section updated successfully"
-        });
-      } else {
-        const { error } = await supabase
-          .from('appraisal_question_sections')
-          .insert(sectionData);
-        
-        if (error) throw error;
-        
-        toast({
-          title: "Success",
-          description: "Section created successfully"
-        });
-      }
-      
-      fetchSections();
-      setSectionDialogOpen(false);
-      setEditingSection(null);
-    } catch (error: any) {
-      console.error('Error saving section:', error);
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
+  const handleSectionSave = () => {
+    fetchSections();
+    setSectionDialogOpen(false);
+    setEditingSection(null);
+    toast({
+      title: "Success",
+      description: editingSection ? "Section updated successfully" : "Section created successfully"
+    });
   };
 
   const handleDeleteQuestion = async (questionId: string) => {
@@ -379,6 +313,7 @@ export function EmployeeQuestionManager() {
         onOpenChange={setQuestionDialogOpen}
         question={editingQuestion}
         sections={sections}
+        selectedStaff={selectedStaff}
         onSave={handleQuestionSave}
       />
 
