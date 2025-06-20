@@ -98,7 +98,7 @@ export default function DepartmentManagement() {
     const departmentData = {
       name: formData.get('name') as string,
       description: formData.get('description') as string || null,
-      line_manager_id: selectedLineManager || null,
+      line_manager_id: selectedLineManager === 'none' ? null : selectedLineManager || null,
       is_active: true
     };
 
@@ -186,13 +186,13 @@ export default function DepartmentManagement() {
 
   const editDepartment = (department: Department) => {
     setEditingDepartment(department);
-    setSelectedLineManager(department.line_manager_id || '');
+    setSelectedLineManager(department.line_manager_id || 'none');
     setIsDialogOpen(true);
   };
 
   const openCreateDialog = () => {
     setEditingDepartment(null);
-    setSelectedLineManager('');
+    setSelectedLineManager('none');
     setIsDialogOpen(true);
   };
 
@@ -260,7 +260,7 @@ export default function DepartmentManagement() {
                     <SelectValue placeholder="Select a line manager (optional)" />
                   </SelectTrigger>
                   <SelectContent className="bg-white z-50">
-                    <SelectItem value="">No line manager</SelectItem>
+                    <SelectItem value="none">No line manager</SelectItem>
                     {profiles.map((profile) => (
                       <SelectItem key={profile.id} value={profile.id}>
                         {profile.first_name} {profile.last_name} ({profile.role})
