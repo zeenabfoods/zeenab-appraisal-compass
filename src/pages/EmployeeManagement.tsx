@@ -1,10 +1,227 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, Plus, Search, Filter } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { useToast } from '@/hooks/use-toast';
+import { Plus, Edit, Trash2, Users, Search, Filter, UserPlus, Building2 } from 'lucide-react';
+
+interface Employee {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  role: string;
+  position: string | null;
+  department_id: string | null;
+  line_manager_id: string | null;
+  is_active: boolean;
+  created_at: string;
+  department?: {
+    name: string;
+  };
+  line_manager?: {
+    first_name: string;
+    last_name: string;
+  };
+}
+
+interface Department {
+  id: string;
+  name: string;
+}
 
 export default function EmployeeManagement() {
+  const { profile } = useAuth();
+  const { toast } = useToast();
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterRole, setFilterRole] = useState('all');
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [newEmployee, setNewEmployee] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    role: 'staff',
+    position: '',
+    department_id: '',
+    line_manager_id: ''
+  });
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      // Load employees with department and manager info
+      const { data: employeesData, error: employeesError } = await supabase
+        .from('profiles')
+        .select(`
+          *,
+          department:departments(name),
+          line_manager:profiles!line_manager_id(first_name, last_name)
+        `)
+        .order('first_name');
+
+      if (employeesError) throw employeesError;
+      setEmployees(employeesData || []);
+
+      // Load departments
+      const { data: departmentsData, error: departmentsError } = await supabase
+        .from('departments')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name');
+
+      if (departmentsError) throw departmentsError;
+      setDepartments(departmentsData || []);
+    } catch (error) {
+      console.error('Error loading data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load employee data",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingEmployee) {
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            first_name: newEmployee.first_name,
+            last_name: newEmployee.last_name,
+            email: newEmployee.email,
+            role: newEmployee.role as any,
+            position: newEmployee.position || null,
+            department_id: newEmployee.department_id || null,
+            line_manager_id: newEmployee.line_manager_id || null
+          })
+          .eq('id', editingEmployee.id);
+
+        if (error) throw error;
+        toast({ title: "Success", description: "Employee updated successfully" });
+      } else {
+        // For new employees, you'd typically need to handle auth user creation
+        // This is a simplified version - in production you'd need proper user creation flow
+        toast({ 
+          title: "Info", 
+          description: "Employee creation requires proper authentication setup",
+          variant: "default"
+        });
+      }
+
+      setShowAddDialog(false);
+      setEditingEmployee(null);
+      resetForm();
+      loadData();
+    } catch (error) {
+      console.error('Error saving employee:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save employee",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const toggleEmployeeStatus = async (id: string, isActive: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_active: isActive })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      setEmployees(employees.map(emp => 
+        emp.id === id ? { ...emp, is_active: isActive } : emp
+      ));
+      
+      toast({
+        title: "Success",
+        description: `Employee ${isActive ? 'activated' : 'deactivated'} successfully`
+      });
+    } catch (error) {
+      console.error('Error updating employee status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update employee status",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const editEmployee = (employee: Employee) => {
+    setEditingEmployee(employee);
+    setNewEmployee({
+      first_name: employee.first_name,
+      last_name: employee.last_name,
+      email: employee.email,
+      role: employee.role,
+      position: employee.position || '',
+      department_id: employee.department_id || '',
+      line_manager_id: employee.line_manager_id || ''
+    });
+    setShowAddDialog(true);
+  };
+
+  const resetForm = () => {
+    setNewEmployee({
+      first_name: '',
+      last_name: '',
+      email: '',
+      role: 'staff',
+      position: '',
+      department_id: '',
+      line_manager_id: ''
+    });
+  };
+
+  const filteredEmployees = employees.filter(employee => {
+    const matchesSearch = 
+      employee.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.email.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesRole = filterRole === 'all' || employee.role === filterRole;
+    
+    return matchesSearch && matchesRole;
+  });
+
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case 'admin': return 'bg-red-100 text-red-800';
+      case 'hr': return 'bg-purple-100 text-purple-800';
+      case 'manager': return 'bg-blue-100 text-blue-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-96">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -13,76 +230,273 @@ export default function EmployeeManagement() {
           <p className="text-gray-600 mt-2">Manage employee profiles, roles, and organizational structure</p>
         </div>
         
-        <Button className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Employee
-        </Button>
+        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+          <DialogTrigger asChild>
+            <Button 
+              className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+              onClick={() => {
+                setEditingEmployee(null);
+                resetForm();
+              }}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Employee
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="backdrop-blur-md bg-white/90 max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>{editingEmployee ? 'Edit Employee' : 'Add New Employee'}</DialogTitle>
+              <DialogDescription>
+                {editingEmployee ? 'Update employee information' : 'Add a new employee to your organization'}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="first_name">First Name</Label>
+                  <Input
+                    id="first_name"
+                    value={newEmployee.first_name}
+                    onChange={(e) => setNewEmployee({ ...newEmployee, first_name: e.target.value })}
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="last_name">Last Name</Label>
+                  <Input
+                    id="last_name"
+                    value={newEmployee.last_name}
+                    onChange={(e) => setNewEmployee({ ...newEmployee, last_name: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={newEmployee.email}
+                  onChange={(e) => setNewEmployee({ ...newEmployee, email: e.target.value })}
+                  required
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="role">Role</Label>
+                  <Select value={newEmployee.role} onValueChange={(value) => setNewEmployee({ ...newEmployee, role: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="staff">Staff</SelectItem>
+                      <SelectItem value="manager">Manager</SelectItem>
+                      <SelectItem value="hr">HR</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="position">Position</Label>
+                  <Input
+                    id="position"
+                    value={newEmployee.position}
+                    onChange={(e) => setNewEmployee({ ...newEmployee, position: e.target.value })}
+                    placeholder="Software Engineer, Marketing Manager, etc."
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="department">Department</Label>
+                  <Select value={newEmployee.department_id} onValueChange={(value) => setNewEmployee({ ...newEmployee, department_id: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">No Department</SelectItem>
+                      {departments.map(dept => (
+                        <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="line_manager">Line Manager</Label>
+                  <Select value={newEmployee.line_manager_id} onValueChange={(value) => setNewEmployee({ ...newEmployee, line_manager_id: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select manager" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">No Manager</SelectItem>
+                      {employees
+                        .filter(emp => emp.role === 'manager' || emp.role === 'hr' || emp.role === 'admin')
+                        .map(manager => (
+                          <SelectItem key={manager.id} value={manager.id}>
+                            {manager.first_name} {manager.last_name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="flex gap-2 pt-4">
+                <Button 
+                  type="submit" 
+                  className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+                >
+                  {editingEmployee ? 'Update' : 'Add'} Employee
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setShowAddDialog(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg">
-          <CardHeader>
-            <div className="flex items-center space-x-2">
-              <Users className="h-6 w-6 text-orange-600" />
-              <CardTitle>Employee Directory</CardTitle>
-            </div>
-            <CardDescription>
-              View and manage all employee profiles
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" className="w-full">
-              <Search className="h-4 w-4 mr-2" />
-              Browse Employees
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg">
-          <CardHeader>
-            <div className="flex items-center space-x-2">
-              <Filter className="h-6 w-6 text-blue-600" />
-              <CardTitle>Role Management</CardTitle>
-            </div>
-            <CardDescription>
-              Assign and modify employee roles
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" className="w-full">
-              Manage Roles
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg">
-          <CardHeader>
-            <div className="flex items-center space-x-2">
-              <Plus className="h-6 w-6 text-green-600" />
-              <CardTitle>Bulk Operations</CardTitle>
-            </div>
-            <CardDescription>
-              Import/export employee data
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" className="w-full">
-              Import/Export
-            </Button>
-          </CardContent>
-        </Card>
+      {/* Search and Filter */}
+      <div className="flex gap-4 items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input 
+            placeholder="Search employees..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        
+        <Select value={filterRole} onValueChange={setFilterRole}>
+          <SelectTrigger className="w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Roles</SelectItem>
+            <SelectItem value="staff">Staff</SelectItem>
+            <SelectItem value="manager">Manager</SelectItem>
+            <SelectItem value="hr">HR</SelectItem>
+            <SelectItem value="admin">Admin</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      <Card className="backdrop-blur-md bg-white/60 border-white/40">
-        <CardContent className="flex flex-col items-center justify-center py-12">
-          <Users className="h-16 w-16 text-gray-400 mb-4" />
-          <h3 className="text-xl font-medium text-gray-900 mb-2">Employee Management System</h3>
-          <p className="text-gray-600 text-center max-w-md">
-            This comprehensive employee management system is under development. 
-            Soon you'll be able to manage employee profiles, assignments, and organizational hierarchy.
-          </p>
-        </CardContent>
-      </Card>
+      {/* Employee Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {filteredEmployees.map((employee) => (
+          <Card key={employee.id} className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg hover:shadow-xl transition-all">
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-orange-400 to-red-400 flex items-center justify-center text-white font-semibold">
+                    {employee.first_name[0]}{employee.last_name[0]}
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">
+                      {employee.first_name} {employee.last_name}
+                    </CardTitle>
+                    <CardDescription className="text-sm">
+                      {employee.email}
+                    </CardDescription>
+                  </div>
+                </div>
+                <Badge className={getRoleBadgeColor(employee.role)}>
+                  {employee.role.toUpperCase()}
+                </Badge>
+              </div>
+            </CardHeader>
+            
+            <CardContent>
+              <div className="space-y-2 text-sm">
+                {employee.position && (
+                  <div className="flex items-center text-gray-600">
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    {employee.position}
+                  </div>
+                )}
+                
+                {employee.department && (
+                  <div className="flex items-center text-gray-600">
+                    <Building2 className="h-4 w-4 mr-2" />
+                    {employee.department.name}
+                  </div>
+                )}
+                
+                {employee.line_manager && (
+                  <div className="flex items-center text-gray-600">
+                    <Users className="h-4 w-4 mr-2" />
+                    Reports to: {employee.line_manager.first_name} {employee.line_manager.last_name}
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex items-center justify-between mt-4 pt-3 border-t">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    checked={employee.is_active}
+                    onCheckedChange={(checked) => toggleEmployeeStatus(employee.id, checked)}
+                  />
+                  <span className="text-sm text-gray-600">
+                    {employee.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+                
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => editEmployee(employee)}
+                  className="hover:bg-orange-100"
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              <div className="mt-2 text-xs text-gray-500">
+                Joined: {new Date(employee.created_at).toLocaleDateString()}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {filteredEmployees.length === 0 && (
+        <Card className="backdrop-blur-md bg-white/60 border-white/40">
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Users className="h-12 w-12 text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              {searchTerm || filterRole !== 'all' ? 'No employees found' : 'No employees yet'}
+            </h3>
+            <p className="text-gray-600 text-center mb-4">
+              {searchTerm || filterRole !== 'all' 
+                ? 'Try adjusting your search or filter criteria'
+                : 'Get started by adding your first employee'
+              }
+            </p>
+            {!searchTerm && filterRole === 'all' && (
+              <Button 
+                onClick={() => setShowAddDialog(true)}
+                className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add First Employee
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

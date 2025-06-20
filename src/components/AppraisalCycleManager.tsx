@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Calendar, Users, TrendingUp, Settings } from 'lucide-react';
+import { Plus, Calendar, Users, TrendingUp, Settings, Edit, Trash2 } from 'lucide-react';
 
 interface AppraisalCycle {
   id: string;
@@ -29,6 +29,7 @@ export function AppraisalCycleManager() {
   const [cycles, setCycles] = useState<AppraisalCycle[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [editingCycle, setEditingCycle] = useState<AppraisalCycle | null>(null);
   const [newCycle, setNewCycle] = useState({
     name: '',
     quarter: 1,
@@ -62,40 +63,51 @@ export function AppraisalCycleManager() {
     }
   };
 
-  const createCycle = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!profile) return;
 
     try {
-      const { data, error } = await supabase
-        .from('appraisal_cycles')
-        .insert({
-          ...newCycle,
-          created_by: profile.id,
-        })
-        .select()
-        .single();
+      if (editingCycle) {
+        const { error } = await supabase
+          .from('appraisal_cycles')
+          .update(newCycle)
+          .eq('id', editingCycle.id);
 
-      if (error) throw error;
+        if (error) throw error;
+        
+        toast({
+          title: "Success",
+          description: "Appraisal cycle updated successfully",
+        });
+      } else {
+        const { data, error } = await supabase
+          .from('appraisal_cycles')
+          .insert({
+            ...newCycle,
+            created_by: profile.id,
+          })
+          .select()
+          .single();
 
-      setCycles([data, ...cycles]);
+        if (error) throw error;
+
+        setCycles([data, ...cycles]);
+        toast({
+          title: "Success",
+          description: "Appraisal cycle created successfully",
+        });
+      }
+
       setShowCreateDialog(false);
-      setNewCycle({
-        name: '',
-        quarter: 1,
-        year: new Date().getFullYear(),
-        start_date: '',
-        end_date: '',
-      });
-
-      toast({
-        title: "Success",
-        description: "Appraisal cycle created successfully",
-      });
+      setEditingCycle(null);
+      resetForm();
+      loadCycles();
     } catch (error) {
-      console.error('Error creating cycle:', error);
+      console.error('Error saving cycle:', error);
       toast({
         title: "Error",
-        description: "Failed to create appraisal cycle",
+        description: "Failed to save appraisal cycle",
         variant: "destructive",
       });
     }
@@ -128,6 +140,56 @@ export function AppraisalCycleManager() {
     }
   };
 
+  const deleteCycle = async (cycleId: string) => {
+    if (!confirm('Are you sure you want to delete this appraisal cycle? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('appraisal_cycles')
+        .delete()
+        .eq('id', cycleId);
+
+      if (error) throw error;
+
+      setCycles(cycles.filter(cycle => cycle.id !== cycleId));
+      toast({
+        title: "Success",
+        description: "Appraisal cycle deleted successfully",
+      });
+    } catch (error) {
+      console.error('Error deleting cycle:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete appraisal cycle",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const editCycle = (cycle: AppraisalCycle) => {
+    setEditingCycle(cycle);
+    setNewCycle({
+      name: cycle.name,
+      quarter: cycle.quarter,
+      year: cycle.year,
+      start_date: cycle.start_date,
+      end_date: cycle.end_date,
+    });
+    setShowCreateDialog(true);
+  };
+
+  const resetForm = () => {
+    setNewCycle({
+      name: '',
+      quarter: 1,
+      year: new Date().getFullYear(),
+      start_date: '',
+      end_date: '',
+    });
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return 'bg-green-100 text-green-800';
@@ -140,7 +202,7 @@ export function AppraisalCycleManager() {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
       </div>
     );
   }
@@ -157,19 +219,30 @@ export function AppraisalCycleManager() {
         {(profile?.role === 'hr' || profile?.role === 'admin') && (
           <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
             <DialogTrigger asChild>
-              <Button>
+              <Button 
+                className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+                onClick={() => {
+                  setEditingCycle(null);
+                  resetForm();
+                }}
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Create Cycle
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="backdrop-blur-md bg-white/90">
               <DialogHeader>
-                <DialogTitle>Create New Appraisal Cycle</DialogTitle>
+                <DialogTitle>
+                  {editingCycle ? 'Edit Appraisal Cycle' : 'Create New Appraisal Cycle'}
+                </DialogTitle>
                 <DialogDescription>
-                  Set up a new performance appraisal cycle for your organization.
+                  {editingCycle 
+                    ? 'Update the appraisal cycle details below.'
+                    : 'Set up a new performance appraisal cycle for your organization.'
+                  }
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <Label htmlFor="name">Cycle Name</Label>
                   <Input
@@ -177,13 +250,17 @@ export function AppraisalCycleManager() {
                     value={newCycle.name}
                     onChange={(e) => setNewCycle({ ...newCycle, name: e.target.value })}
                     placeholder="Q1 2024 Performance Review"
+                    required
                   />
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="quarter">Quarter</Label>
-                    <Select value={newCycle.quarter.toString()} onValueChange={(value) => setNewCycle({ ...newCycle, quarter: parseInt(value) })}>
+                    <Select 
+                      value={newCycle.quarter.toString()} 
+                      onValueChange={(value) => setNewCycle({ ...newCycle, quarter: parseInt(value) })}
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -203,6 +280,7 @@ export function AppraisalCycleManager() {
                       type="number"
                       value={newCycle.year}
                       onChange={(e) => setNewCycle({ ...newCycle, year: parseInt(e.target.value) })}
+                      required
                     />
                   </div>
                 </div>
@@ -215,6 +293,7 @@ export function AppraisalCycleManager() {
                       type="date"
                       value={newCycle.start_date}
                       onChange={(e) => setNewCycle({ ...newCycle, start_date: e.target.value })}
+                      required
                     />
                   </div>
                   
@@ -225,19 +304,30 @@ export function AppraisalCycleManager() {
                       type="date"
                       value={newCycle.end_date}
                       onChange={(e) => setNewCycle({ ...newCycle, end_date: e.target.value })}
+                      required
                     />
                   </div>
                 </div>
                 
                 <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => {
+                      setShowCreateDialog(false);
+                      setEditingCycle(null);
+                    }}
+                  >
                     Cancel
                   </Button>
-                  <Button onClick={createCycle}>
-                    Create Cycle
+                  <Button 
+                    type="submit"
+                    className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+                  >
+                    {editingCycle ? 'Update' : 'Create'} Cycle
                   </Button>
                 </div>
-              </div>
+              </form>
             </DialogContent>
           </Dialog>
         )}
@@ -246,7 +336,7 @@ export function AppraisalCycleManager() {
       {/* Cycles Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {cycles.map((cycle) => (
-          <Card key={cycle.id}>
+          <Card key={cycle.id} className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg hover:shadow-xl transition-all">
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div>
@@ -279,11 +369,12 @@ export function AppraisalCycleManager() {
                 </div>
                 
                 {(profile?.role === 'hr' || profile?.role === 'admin') && (
-                  <div className="flex space-x-2">
+                  <div className="flex flex-wrap gap-2">
                     {cycle.status === 'draft' && (
                       <Button
                         size="sm"
                         onClick={() => updateCycleStatus(cycle.id, 'active')}
+                        className="bg-green-600 hover:bg-green-700"
                       >
                         Activate
                       </Button>
@@ -297,8 +388,21 @@ export function AppraisalCycleManager() {
                         Complete
                       </Button>
                     )}
-                    <Button size="sm" variant="ghost">
-                      <Settings className="h-4 w-4" />
+                    <Button 
+                      size="sm" 
+                      variant="ghost"
+                      onClick={() => editCycle(cycle)}
+                      className="hover:bg-blue-100"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="ghost"
+                      onClick={() => deleteCycle(cycle.id)}
+                      className="hover:bg-red-100 text-red-600"
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 )}
@@ -309,7 +413,7 @@ export function AppraisalCycleManager() {
       </div>
 
       {cycles.length === 0 && (
-        <Card>
+        <Card className="backdrop-blur-md bg-white/60 border-white/40">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Calendar className="h-12 w-12 text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-900">No appraisal cycles</h3>
@@ -317,7 +421,14 @@ export function AppraisalCycleManager() {
               Get started by creating your first appraisal cycle.
             </p>
             {(profile?.role === 'hr' || profile?.role === 'admin') && (
-              <Button onClick={() => setShowCreateDialog(true)}>
+              <Button 
+                onClick={() => {
+                  setEditingCycle(null);
+                  resetForm();
+                  setShowCreateDialog(true);
+                }}
+                className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Create First Cycle
               </Button>
