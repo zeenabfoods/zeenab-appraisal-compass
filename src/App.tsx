@@ -27,18 +27,19 @@ const App = () => (
               <DashboardLayout>
                 <Routes>
                   <Route index element={<Dashboard />} />
-                  <Route path="tasks" element={<div className="text-center py-8">Tasks page coming soon...</div>} />
-                  <Route path="calendar" element={<div className="text-center py-8">Calendar page coming soon...</div>} />
+                  <Route path="appraisals" element={<div className="text-center py-8">My Appraisals page coming soon...</div>} />
+                  <Route path="notifications" element={<div className="text-center py-8">Notifications page coming soon...</div>} />
+                  <Route path="history" element={<div className="text-center py-8">Performance History page coming soon...</div>} />
                   <Route path="settings" element={<div className="text-center py-8">Settings page coming soon...</div>} />
-                  <Route path="help" element={<div className="text-center py-8">Help & Center page coming soon...</div>} />
-                  <Route path="performance" element={<div className="text-center py-8">Performance page coming soon...</div>} />
-                  <Route path="payrolls" element={<div className="text-center py-8">Payrolls page coming soon...</div>} />
-                  <Route path="invoices" element={<div className="text-center py-8">Invoices page coming soon...</div>} />
-                  <Route path="employees" element={<div className="text-center py-8">Employees page coming soon...</div>} />
-                  <Route path="hiring" element={<div className="text-center py-8">Hiring page coming soon...</div>} />
-                  <Route path="salary" element={<div className="text-center py-8">Salary Information page coming soon...</div>} />
-                  <Route path="compensation" element={<div className="text-center py-8">Compensation Breakdown page coming soon...</div>} />
-                  <Route path="projects" element={<div className="text-center py-8">Project-specific Data page coming soon...</div>} />
+                  <Route path="team" element={<div className="text-center py-8">Team Overview page coming soon...</div>} />
+                  <Route path="reviews" element={<div className="text-center py-8">Review Appraisals page coming soon...</div>} />
+                  <Route path="analytics" element={<div className="text-center py-8">Team Analytics page coming soon...</div>} />
+                  <Route path="employees" element={<div className="text-center py-8">Employee Management page coming soon...</div>} />
+                  <Route path="templates" element={<div className="text-center py-8">Template Builder page coming soon...</div>} />
+                  <Route path="cycles" element={<div className="text-center py-8">Appraisal Cycles page coming soon...</div>} />
+                  <Route path="reports" element={<div className="text-center py-8">Company Reports page coming soon...</div>} />
+                  <Route path="executive" element={<div className="text-center py-8">Executive Overview page coming soon...</div>} />
+                  <Route path="config" element={<div className="text-center py-8">System Configuration page coming soon...</div>} />
                 </Routes>
               </DashboardLayout>
             </ProtectedRoute>

@@ -35,7 +35,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   return (
-    <SidebarProvider collapsedWidth={64}>
+    <SidebarProvider>
       <div className="min-h-screen flex w-full bg-gray-50">
         <AppSidebar />
         
@@ -45,7 +45,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <div className="flex items-center space-x-4">
               <SidebarTrigger className="lg:hidden" />
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">Dashboard</h1>
+                <h1 className="text-xl font-semibold text-gray-900">Appraisal Dashboard</h1>
               </div>
             </div>
             
@@ -54,34 +54,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input 
-                  placeholder="Search anything..." 
+                  placeholder="Search appraisals..." 
                   className="pl-10 w-80 bg-gray-50 border-gray-200"
                 />
               </div>
               
               {/* Action buttons */}
               <Button variant="ghost" size="sm">
-                <Mail className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="sm">
                 <Bell className="h-4 w-4" />
-              </Button>
-              
-              {/* User avatars */}
-              <div className="flex items-center space-x-1">
-                <div className="flex -space-x-2">
-                  <div className="w-8 h-8 bg-blue-500 rounded-full border-2 border-white"></div>
-                  <div className="w-8 h-8 bg-green-500 rounded-full border-2 border-white"></div>
-                  <div className="w-8 h-8 bg-purple-500 rounded-full border-2 border-white"></div>
-                  <div className="w-8 h-8 bg-gray-200 rounded-full border-2 border-white flex items-center justify-center">
-                    <span className="text-xs text-gray-600">+10</span>
-                  </div>
-                </div>
-              </div>
-              
-              <Button variant="outline" size="sm">
-                <Plus className="h-4 w-4 mr-1" />
-                Invite
               </Button>
               
               {/* User profile */}
