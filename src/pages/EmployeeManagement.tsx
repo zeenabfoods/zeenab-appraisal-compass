@@ -63,7 +63,7 @@ export default function EmployeeManagement() {
 
   const loadData = async () => {
     try {
-      // Load employees with department and manager info - explicitly specify the relationship
+      // Load employees with department and manager info - use single() for line manager
       const { data: employeesData, error: employeesError } = await supabase
         .from('profiles')
         .select(`
@@ -74,7 +74,16 @@ export default function EmployeeManagement() {
         .order('first_name');
 
       if (employeesError) throw employeesError;
-      setEmployees(employeesData || []);
+      
+      // Transform the data to handle the line_manager array issue
+      const transformedEmployees = (employeesData || []).map(employee => ({
+        ...employee,
+        line_manager: Array.isArray(employee.line_manager) 
+          ? employee.line_manager[0] || null 
+          : employee.line_manager
+      }));
+      
+      setEmployees(transformedEmployees);
 
       // Load departments
       const { data: departmentsData, error: departmentsError } = await supabase
