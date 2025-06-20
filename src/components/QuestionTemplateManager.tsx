@@ -342,28 +342,31 @@ export function QuestionTemplateManager() {
 
       {/* Dialogs */}
       <SectionDialog
-        isOpen={showSectionDialog}
-        onClose={() => {
-          setShowSectionDialog(false);
-          setEditingSection(null);
+        open={showSectionDialog}
+        onOpenChange={(open) => {
+          setShowSectionDialog(open);
+          if (!open) setEditingSection(null);
         }}
-        editingSection={editingSection}
-        newSection={newSection}
-        setNewSection={setNewSection}
-        onSave={saveSection}
+        section={editingSection}
+        onSave={() => {
+          saveSection();
+          setShowSectionDialog(false);
+        }}
       />
 
       <QuestionDialog
-        isOpen={showQuestionDialog}
-        onClose={() => {
-          setShowQuestionDialog(false);
-          setEditingQuestion(null);
+        open={showQuestionDialog}
+        onOpenChange={(open) => {
+          setShowQuestionDialog(open);
+          if (!open) setEditingQuestion(null);
         }}
-        editingQuestion={editingQuestion}
+        question={editingQuestion}
         sections={sections}
-        newQuestion={newQuestion}
-        setNewQuestion={setNewQuestion}
-        onSave={saveQuestion}
+        selectedStaff=""
+        onSave={() => {
+          saveQuestion();
+          setShowQuestionDialog(false);
+        }}
       />
     </div>
   );
