@@ -383,6 +383,7 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean
+          line_manager_id: string | null
           name: string
           updated_at: string
         }
@@ -391,6 +392,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          line_manager_id?: string | null
           name: string
           updated_at?: string
         }
@@ -399,10 +401,19 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          line_manager_id?: string | null
           name?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "departments_line_manager_id_fkey"
+            columns: ["line_manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       employee_questions: {
         Row: {
@@ -467,6 +478,48 @@ export type Database = {
             columns: ["section_id"]
             isOneToOne: false
             referencedRelation: "appraisal_question_sections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      line_managers: {
+        Row: {
+          created_at: string
+          department_id: string
+          id: string
+          is_active: boolean
+          manager_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          department_id: string
+          id?: string
+          is_active?: boolean
+          manager_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          department_id?: string
+          id?: string
+          is_active?: boolean
+          manager_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "line_managers_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: true
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "line_managers_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

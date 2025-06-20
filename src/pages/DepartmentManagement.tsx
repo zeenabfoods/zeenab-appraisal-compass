@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Building2, Plus, Edit, Trash2, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -18,27 +19,46 @@ interface Department {
   name: string;
   description: string | null;
   is_active: boolean;
+  line_manager_id: string | null;
   created_at: string;
   updated_at: string;
+  line_manager?: {
+    first_name: string;
+    last_name: string;
+  };
+}
+
+interface Profile {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  role: string;
 }
 
 export default function DepartmentManagement() {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedLineManager, setSelectedLineManager] = useState<string>('');
 
   useEffect(() => {
     loadDepartments();
+    loadProfiles();
   }, []);
 
   const loadDepartments = async () => {
     try {
       const { data, error } = await supabase
         .from('departments')
-        .select('*')
+        .select(`
+          *,
+          line_manager:profiles!line_manager_id(first_name, last_name)
+        `)
         .order('name');
 
       if (error) throw error;
@@ -55,6 +75,22 @@ export default function DepartmentManagement() {
     }
   };
 
+  const loadProfiles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email, role')
+        .eq('is_active', true)
+        .in('role', ['manager', 'hr', 'admin'])
+        .order('first_name');
+
+      if (error) throw error;
+      setProfiles(data || []);
+    } catch (error) {
+      console.error('Error loading profiles:', error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -62,6 +98,7 @@ export default function DepartmentManagement() {
     const departmentData = {
       name: formData.get('name') as string,
       description: formData.get('description') as string || null,
+      line_manager_id: selectedLineManager || null,
       is_active: true
     };
 
@@ -85,6 +122,7 @@ export default function DepartmentManagement() {
 
       setIsDialogOpen(false);
       setEditingDepartment(null);
+      setSelectedLineManager('');
       loadDepartments();
     } catch (error) {
       console.error('Error saving department:', error);
@@ -148,6 +186,13 @@ export default function DepartmentManagement() {
 
   const editDepartment = (department: Department) => {
     setEditingDepartment(department);
+    setSelectedLineManager(department.line_manager_id || '');
+    setIsDialogOpen(true);
+  };
+
+  const openCreateDialog = () => {
+    setEditingDepartment(null);
+    setSelectedLineManager('');
     setIsDialogOpen(true);
   };
 
@@ -171,7 +216,7 @@ export default function DepartmentManagement() {
           <DialogTrigger asChild>
             <Button 
               className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
-              onClick={() => setEditingDepartment(null)}
+              onClick={openCreateDialog}
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Department
@@ -206,6 +251,23 @@ export default function DepartmentManagement() {
                   placeholder="Brief description of the department's role and responsibilities"
                   rows={3}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="line_manager">Line Manager</Label>
+                <Select value={selectedLineManager} onValueChange={setSelectedLineManager}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a line manager (optional)" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white z-50">
+                    <SelectItem value="">No line manager</SelectItem>
+                    {profiles.map((profile) => (
+                      <SelectItem key={profile.id} value={profile.id}>
+                        {profile.first_name} {profile.last_name} ({profile.role})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               
               <div className="flex gap-2 pt-4">
@@ -245,6 +307,12 @@ export default function DepartmentManagement() {
                 <CardDescription className="text-sm text-gray-600">
                   {department.description}
                 </CardDescription>
+              )}
+              {department.line_manager && (
+                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <Users className="h-4 w-4" />
+                  <span>Manager: {department.line_manager.first_name} {department.line_manager.last_name}</span>
+                </div>
               )}
             </CardHeader>
             
@@ -297,7 +365,7 @@ export default function DepartmentManagement() {
               Get started by creating your first department
             </p>
             <Button 
-              onClick={() => setIsDialogOpen(true)}
+              onClick={openCreateDialog}
               className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
             >
               <Plus className="h-4 w-4 mr-2" />
