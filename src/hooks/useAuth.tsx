@@ -34,13 +34,11 @@ export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [profileLoading, setProfileLoading] = useState(false);
   const { toast } = useToast();
 
   const fetchProfile = async (userId: string) => {
     try {
       console.log('Fetching profile for user:', userId);
-      setProfileLoading(true);
       
       const { data: profileData, error } = await supabase
         .from('profiles')
@@ -53,10 +51,28 @@ export function useAuth() {
       
       if (error) {
         console.error('Error fetching profile:', error);
+        
+        // If no profile exists, create a basic one from user data
+        if (error.code === 'PGRST116') {
+          console.log('No profile found, creating basic profile from user data');
+          const user = await supabase.auth.getUser();
+          if (user.data.user) {
+            const basicProfile: Profile = {
+              id: userId,
+              email: user.data.user.email || '',
+              first_name: user.data.user.user_metadata?.first_name || 'User',
+              last_name: user.data.user.user_metadata?.last_name || '',
+              role: 'staff'
+            };
+            setProfile(basicProfile);
+            return;
+          }
+        }
+        
         setProfile(null);
         toast({
           title: "Profile Error",
-          description: "Failed to load user profile. Please try refreshing the page.",
+          description: "Failed to load user profile. Using basic profile.",
           variant: "destructive"
         });
         return;
@@ -69,11 +85,9 @@ export function useAuth() {
       setProfile(null);
       toast({
         title: "Profile Error",
-        description: "Failed to load user profile. Please try refreshing the page.",
+        description: "Failed to load user profile. Using basic profile.",
         variant: "destructive"
       });
-    } finally {
-      setProfileLoading(false);
     }
   };
 
@@ -96,7 +110,6 @@ export function useAuth() {
           await fetchProfile(session.user.id);
         } else {
           setProfile(null);
-          setProfileLoading(false);
         }
         
         setLoading(false);
@@ -127,7 +140,6 @@ export function useAuth() {
             await fetchProfile(session.user.id);
           } else {
             setProfile(null);
-            setProfileLoading(false);
           }
           
           setLoading(false);
@@ -136,7 +148,6 @@ export function useAuth() {
         console.error('Error in initializeAuth:', error);
         if (mounted) {
           setLoading(false);
-          setProfileLoading(false);
         }
       }
     };
@@ -253,15 +264,14 @@ export function useAuth() {
   console.log('Auth state:', { 
     user: !!user, 
     profile: !!profile, 
-    loading, 
-    profileLoading 
+    loading
   });
 
   return {
     user,
     session,
     profile,
-    loading: loading || profileLoading,
+    loading,
     signUp,
     signIn,
     signOut

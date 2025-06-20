@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -64,15 +65,14 @@ export function Dashboard() {
   const [selectedAppraisal, setSelectedAppraisal] = useState<string>('');
 
   useEffect(() => {
-    if (profile) {
-      console.log('Profile loaded, loading dashboard data for:', profile.role);
+    if (!loading && user) {
+      console.log('User loaded, loading dashboard data for user:', user.id);
       loadDashboardData();
-    } else if (user && !loading) {
-      // User exists but no profile - this is an error state
-      console.error('User exists but no profile found');
+    } else if (!loading && !user) {
+      console.error('No user found after loading completed');
       setDashboardLoading(false);
     }
-  }, [profile, user, loading]);
+  }, [user, loading]);
 
   const loadDashboardData = async () => {
     try {
@@ -156,39 +156,29 @@ export function Dashboard() {
     );
   }
 
-  // Show error state if user exists but no profile
-  if (user && !profile) {
+  // Show error state if no user after loading
+  if (!user) {
     return (
       <div className="flex items-center justify-center min-h-96">
         <div className="text-center backdrop-blur-md bg-white/60 border-white/40 rounded-xl p-8 shadow-lg">
           <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-amber-500" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Profile Not Found</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Authentication Error</h2>
           <p className="text-gray-600 mb-4">
-            We couldn't load your profile information. This might be a temporary issue.
+            You are not properly authenticated. Please sign in again.
           </p>
           <Button 
-            onClick={() => window.location.reload()} 
+            onClick={() => window.location.href = '/auth'} 
             className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
           >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh Page
+            Sign In
           </Button>
         </div>
       </div>
     );
   }
 
-  // Show profile loading message (shouldn't happen now, but just in case)
-  if (!profile) {
-    return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Loading profile...</p>
-        </div>
-      </div>
-    );
-  }
+  // Get display name from profile or user
+  const displayName = profile?.first_name || user?.user_metadata?.first_name || user?.email?.split('@')[0] || 'User';
 
   // Show dashboard data loading
   if (dashboardLoading) {
@@ -196,7 +186,7 @@ export function Dashboard() {
       <div className="space-y-6">
         <div className="backdrop-blur-md bg-white/60 border-white/40 rounded-xl p-6 shadow-lg">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Welcome back, {profile?.first_name}!
+            Welcome back, {displayName}!
           </h1>
           <p className="text-gray-600">Loading your dashboard...</p>
         </div>
@@ -212,11 +202,16 @@ export function Dashboard() {
       {/* Welcome Section */}
       <div className="backdrop-blur-md bg-white/60 border-white/40 rounded-xl p-6 shadow-lg">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">
-          Welcome back, {profile?.first_name}!
+          Welcome back, {displayName}!
         </h1>
         <p className="text-gray-600">
           Here's your performance dashboard overview
         </p>
+        {!profile && (
+          <div className="mt-2 text-sm text-amber-600">
+            Note: Running with limited profile information. Some features may be restricted.
+          </div>
+        )}
       </div>
 
       {/* Stats Grid */}
