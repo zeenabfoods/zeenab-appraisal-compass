@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,7 +16,8 @@ import {
   Clock, 
   AlertTriangle,
   Target,
-  Star
+  Star,
+  RefreshCw
 } from 'lucide-react';
 
 interface AppraisalCycle {
@@ -51,7 +51,7 @@ const statusData = [
 ];
 
 export function Dashboard() {
-  const { profile } = useAuth();
+  const { profile, user, loading } = useAuth();
   const [cycles, setCycles] = useState<AppraisalCycle[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     totalEmployees: 0,
@@ -59,7 +59,7 @@ export function Dashboard() {
     pendingAppraisals: 0,
     averageScore: 0
   });
-  const [loading, setLoading] = useState(true);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
   const [showAccessDialog, setShowAccessDialog] = useState(false);
   const [selectedAppraisal, setSelectedAppraisal] = useState<string>('');
 
@@ -67,8 +67,12 @@ export function Dashboard() {
     if (profile) {
       console.log('Profile loaded, loading dashboard data for:', profile.role);
       loadDashboardData();
+    } else if (user && !loading) {
+      // User exists but no profile - this is an error state
+      console.error('User exists but no profile found');
+      setDashboardLoading(false);
     }
-  }, [profile]);
+  }, [profile, user, loading]);
 
   const loadDashboardData = async () => {
     try {
@@ -108,7 +112,7 @@ export function Dashboard() {
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
-      setLoading(false);
+      setDashboardLoading(false);
     }
   };
 
@@ -140,7 +144,41 @@ export function Dashboard() {
     }
   };
 
-  // Show loading only if we don't have a profile yet
+  // Show loading spinner while auth is loading
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-96">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if user exists but no profile
+  if (user && !profile) {
+    return (
+      <div className="flex items-center justify-center min-h-96">
+        <div className="text-center backdrop-blur-md bg-white/60 border-white/40 rounded-xl p-8 shadow-lg">
+          <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-amber-500" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Profile Not Found</h2>
+          <p className="text-gray-600 mb-4">
+            We couldn't load your profile information. This might be a temporary issue.
+          </p>
+          <Button 
+            onClick={() => window.location.reload()} 
+            className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh Page
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show profile loading message (shouldn't happen now, but just in case)
   if (!profile) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -152,8 +190,8 @@ export function Dashboard() {
     );
   }
 
-  // Show dashboard data loading only if we're still loading dashboard data
-  if (loading) {
+  // Show dashboard data loading
+  if (dashboardLoading) {
     return (
       <div className="space-y-6">
         <div className="backdrop-blur-md bg-white/60 border-white/40 rounded-xl p-6 shadow-lg">

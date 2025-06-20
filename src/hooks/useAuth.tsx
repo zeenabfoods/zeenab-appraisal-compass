@@ -34,11 +34,14 @@ export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
   const { toast } = useToast();
 
   const fetchProfile = async (userId: string) => {
     try {
       console.log('Fetching profile for user:', userId);
+      setProfileLoading(true);
+      
       const { data: profileData, error } = await supabase
         .from('profiles')
         .select(`
@@ -50,24 +53,41 @@ export function useAuth() {
       
       if (error) {
         console.error('Error fetching profile:', error);
-        throw error;
+        setProfile(null);
+        toast({
+          title: "Profile Error",
+          description: "Failed to load user profile. Please try refreshing the page.",
+          variant: "destructive"
+        });
+        return;
       }
       
       console.log('Profile fetched successfully:', profileData);
       setProfile(profileData);
     } catch (error) {
       console.error('Error fetching profile:', error);
-      // Don't set profile to null here, let it remain in previous state
+      setProfile(null);
+      toast({
+        title: "Profile Error",
+        description: "Failed to load user profile. Please try refreshing the page.",
+        variant: "destructive"
+      });
+    } finally {
+      setProfileLoading(false);
     }
   };
 
   useEffect(() => {
     console.log('Setting up auth state listener');
     
+    let mounted = true;
+    
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.id);
+        
+        if (!mounted) return;
         
         setSession(session);
         setUser(session?.user ?? null);
@@ -76,42 +96,55 @@ export function useAuth() {
           await fetchProfile(session.user.id);
         } else {
           setProfile(null);
+          setProfileLoading(false);
         }
         
         setLoading(false);
       }
     );
 
-    // Check for existing session immediately
-    const getInitialSession = async () => {
+    // Check for existing session
+    const initializeAuth = async () => {
       try {
         console.log('Checking for existing session');
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('Error getting session:', error);
-          setLoading(false);
+          if (mounted) {
+            setLoading(false);
+          }
           return;
         }
         
         console.log('Initial session:', session?.user?.id);
-        setSession(session);
-        setUser(session?.user ?? null);
         
-        if (session?.user) {
-          await fetchProfile(session.user.id);
+        if (mounted) {
+          setSession(session);
+          setUser(session?.user ?? null);
+          
+          if (session?.user) {
+            await fetchProfile(session.user.id);
+          } else {
+            setProfile(null);
+            setProfileLoading(false);
+          }
+          
+          setLoading(false);
         }
-        
-        setLoading(false);
       } catch (error) {
-        console.error('Error in getInitialSession:', error);
-        setLoading(false);
+        console.error('Error in initializeAuth:', error);
+        if (mounted) {
+          setLoading(false);
+          setProfileLoading(false);
+        }
       }
     };
 
-    getInitialSession();
+    initializeAuth();
 
     return () => {
+      mounted = false;
       console.log('Cleaning up auth subscription');
       subscription.unsubscribe();
     };
@@ -217,13 +250,18 @@ export function useAuth() {
     }
   };
 
-  console.log('Auth state:', { user: !!user, profile: !!profile, loading });
+  console.log('Auth state:', { 
+    user: !!user, 
+    profile: !!profile, 
+    loading, 
+    profileLoading 
+  });
 
   return {
     user,
     session,
     profile,
-    loading,
+    loading: loading || profileLoading,
     signUp,
     signIn,
     signOut
