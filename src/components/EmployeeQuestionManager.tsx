@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Edit, Trash2, Users } from 'lucide-react';
+import { Plus, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { QuestionDialog } from './QuestionDialog';
 import { SectionDialog } from './SectionDialog';
@@ -31,7 +31,7 @@ interface Question {
   is_required: boolean;
   is_active: boolean;
   sort_order: number;
-  cycle_id?: string;
+  employee_id?: string;
 }
 
 interface Profile {
@@ -91,13 +91,24 @@ export function EmployeeQuestionManager() {
     
     try {
       const { data, error } = await supabase
-        .from('appraisal_sections')
+        .from('appraisal_question_sections')
         .select('*')
-        .eq('staff_id', selectedStaff)
         .order('sort_order');
       
       if (error) throw error;
-      setSections(data || []);
+      
+      // Transform the data to match our Section interface
+      const transformedSections: Section[] = (data || []).map(section => ({
+        id: section.id,
+        name: section.name,
+        description: section.description || '',
+        sort_order: section.sort_order,
+        max_score: section.max_score,
+        weight: section.weight,
+        is_active: section.is_active
+      }));
+      
+      setSections(transformedSections);
     } catch (error) {
       console.error('Error fetching sections:', error);
     } finally {
@@ -110,9 +121,9 @@ export function EmployeeQuestionManager() {
     
     try {
       const { data, error } = await supabase
-        .from('appraisal_questions')
+        .from('employee_questions')
         .select('*')
-        .eq('staff_id', selectedStaff)
+        .eq('employee_id', selectedStaff)
         .order('sort_order');
       
       if (error) throw error;
@@ -126,10 +137,10 @@ export function EmployeeQuestionManager() {
     try {
       if (editingQuestion) {
         const { error } = await supabase
-          .from('appraisal_questions')
+          .from('employee_questions')
           .update({
             ...questionData,
-            staff_id: selectedStaff
+            employee_id: selectedStaff
           })
           .eq('id', editingQuestion.id);
         
@@ -141,10 +152,10 @@ export function EmployeeQuestionManager() {
         });
       } else {
         const { error } = await supabase
-          .from('appraisal_questions')
+          .from('employee_questions')
           .insert({
             ...questionData,
-            staff_id: selectedStaff
+            employee_id: selectedStaff
           });
         
         if (error) throw error;
@@ -172,11 +183,8 @@ export function EmployeeQuestionManager() {
     try {
       if (editingSection) {
         const { error } = await supabase
-          .from('appraisal_sections')
-          .update({
-            ...sectionData,
-            staff_id: selectedStaff
-          })
+          .from('appraisal_question_sections')
+          .update(sectionData)
           .eq('id', editingSection.id);
         
         if (error) throw error;
@@ -187,11 +195,8 @@ export function EmployeeQuestionManager() {
         });
       } else {
         const { error } = await supabase
-          .from('appraisal_sections')
-          .insert({
-            ...sectionData,
-            staff_id: selectedStaff
-          });
+          .from('appraisal_question_sections')
+          .insert(sectionData);
         
         if (error) throw error;
         
@@ -217,7 +222,7 @@ export function EmployeeQuestionManager() {
   const handleDeleteQuestion = async (questionId: string) => {
     try {
       const { error } = await supabase
-        .from('appraisal_questions')
+        .from('employee_questions')
         .delete()
         .eq('id', questionId);
       
@@ -242,7 +247,7 @@ export function EmployeeQuestionManager() {
   const handleToggleQuestionStatus = async (questionId: string, isActive: boolean) => {
     try {
       const { error } = await supabase
-        .from('appraisal_questions')
+        .from('employee_questions')
         .update({ is_active: isActive })
         .eq('id', questionId);
       
