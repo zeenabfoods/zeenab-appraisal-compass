@@ -9,35 +9,129 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      appraisal_cycles: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          end_date: string
+          id: string
+          name: string
+          quarter: number
+          start_date: string
+          status: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          end_date: string
+          id?: string
+          name: string
+          quarter: number
+          start_date: string
+          status?: string
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          end_date?: string
+          id?: string
+          name?: string
+          quarter?: number
+          start_date?: string
+          status?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
+      appraisal_question_sections: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          max_score: number
+          name: string
+          sort_order: number
+          weight: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          max_score?: number
+          name: string
+          sort_order?: number
+          weight?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          max_score?: number
+          name?: string
+          sort_order?: number
+          weight?: number
+        }
+        Relationships: []
+      }
       appraisal_questions: {
         Row: {
+          applies_to_departments: string[] | null
+          applies_to_roles: string[] | null
           created_at: string | null
+          cycle_id: string | null
           id: string
           is_active: boolean | null
+          is_required: boolean
           question_text: string
+          question_type: string
           section_id: string | null
           sort_order: number | null
           weight: number
         }
         Insert: {
+          applies_to_departments?: string[] | null
+          applies_to_roles?: string[] | null
           created_at?: string | null
+          cycle_id?: string | null
           id?: string
           is_active?: boolean | null
+          is_required?: boolean
           question_text: string
+          question_type?: string
           section_id?: string | null
           sort_order?: number | null
           weight?: number
         }
         Update: {
+          applies_to_departments?: string[] | null
+          applies_to_roles?: string[] | null
           created_at?: string | null
+          cycle_id?: string | null
           id?: string
           is_active?: boolean | null
+          is_required?: boolean
           question_text?: string
+          question_type?: string
           section_id?: string | null
           sort_order?: number | null
           weight?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "appraisal_questions_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "appraisal_cycles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "appraisal_questions_section_id_fkey"
             columns: ["section_id"]
@@ -53,12 +147,19 @@ export type Database = {
           committee_comment: string | null
           committee_rating: number | null
           created_at: string | null
+          cycle_id: string | null
           emp_comment: string | null
           emp_rating: number | null
+          employee_id: string | null
+          employee_submitted_at: string | null
+          hr_finalized_at: string | null
           id: string
+          manager_id: string | null
+          manager_reviewed_at: string | null
           mgr_comment: string | null
           mgr_rating: number | null
           question_id: string | null
+          status: string
           updated_at: string | null
         }
         Insert: {
@@ -66,12 +167,19 @@ export type Database = {
           committee_comment?: string | null
           committee_rating?: number | null
           created_at?: string | null
+          cycle_id?: string | null
           emp_comment?: string | null
           emp_rating?: number | null
+          employee_id?: string | null
+          employee_submitted_at?: string | null
+          hr_finalized_at?: string | null
           id?: string
+          manager_id?: string | null
+          manager_reviewed_at?: string | null
           mgr_comment?: string | null
           mgr_rating?: number | null
           question_id?: string | null
+          status?: string
           updated_at?: string | null
         }
         Update: {
@@ -79,12 +187,19 @@ export type Database = {
           committee_comment?: string | null
           committee_rating?: number | null
           created_at?: string | null
+          cycle_id?: string | null
           emp_comment?: string | null
           emp_rating?: number | null
+          employee_id?: string | null
+          employee_submitted_at?: string | null
+          hr_finalized_at?: string | null
           id?: string
+          manager_id?: string | null
+          manager_reviewed_at?: string | null
           mgr_comment?: string | null
           mgr_rating?: number | null
           question_id?: string | null
+          status?: string
           updated_at?: string | null
         }
         Relationships: [
@@ -93,6 +208,27 @@ export type Database = {
             columns: ["appraisal_id"]
             isOneToOne: false
             referencedRelation: "appraisals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appraisal_responses_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "appraisal_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appraisal_responses_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appraisal_responses_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
@@ -139,10 +275,16 @@ export type Database = {
           committee_comments: string | null
           completed_at: string | null
           created_at: string | null
+          cycle_id: string | null
           emp_comments: string | null
           employee_id: string | null
+          employee_submitted_at: string | null
           goals: string | null
+          hr_finalized_at: string | null
+          hr_reviewer_id: string | null
           id: string
+          manager_id: string | null
+          manager_reviewed_at: string | null
           mgr_comments: string | null
           noteworthy: string | null
           overall_score: number | null
@@ -158,10 +300,16 @@ export type Database = {
           committee_comments?: string | null
           completed_at?: string | null
           created_at?: string | null
+          cycle_id?: string | null
           emp_comments?: string | null
           employee_id?: string | null
+          employee_submitted_at?: string | null
           goals?: string | null
+          hr_finalized_at?: string | null
+          hr_reviewer_id?: string | null
           id?: string
+          manager_id?: string | null
+          manager_reviewed_at?: string | null
           mgr_comments?: string | null
           noteworthy?: string | null
           overall_score?: number | null
@@ -177,10 +325,16 @@ export type Database = {
           committee_comments?: string | null
           completed_at?: string | null
           created_at?: string | null
+          cycle_id?: string | null
           emp_comments?: string | null
           employee_id?: string | null
+          employee_submitted_at?: string | null
           goals?: string | null
+          hr_finalized_at?: string | null
+          hr_reviewer_id?: string | null
           id?: string
+          manager_id?: string | null
+          manager_reviewed_at?: string | null
           mgr_comments?: string | null
           noteworthy?: string | null
           overall_score?: number | null
@@ -194,13 +348,61 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "appraisals_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "appraisal_cycles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "appraisals_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "appraisals_hr_reviewer_id_fkey"
+            columns: ["hr_reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appraisals_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      departments: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -250,10 +452,68 @@ export type Database = {
           },
         ]
       }
+      performance_analytics: {
+        Row: {
+          created_at: string
+          cycle_id: string
+          employee_id: string
+          id: string
+          overall_score: number | null
+          performance_band: string | null
+          predictions: Json | null
+          recommendations: Json | null
+          section_scores: Json | null
+          trends: Json | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cycle_id: string
+          employee_id: string
+          id?: string
+          overall_score?: number | null
+          performance_band?: string | null
+          predictions?: Json | null
+          recommendations?: Json | null
+          section_scores?: Json | null
+          trends?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cycle_id?: string
+          employee_id?: string
+          id?: string
+          overall_score?: number | null
+          performance_band?: string | null
+          predictions?: Json | null
+          recommendations?: Json | null
+          section_scores?: Json | null
+          trends?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_analytics_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "appraisal_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_analytics_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string | null
           department: string | null
+          department_id: string | null
           email: string
           first_name: string
           id: string
@@ -267,6 +527,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           department?: string | null
+          department_id?: string | null
           email: string
           first_name: string
           id: string
@@ -280,6 +541,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           department?: string | null
+          department_id?: string | null
           email?: string
           first_name?: string
           id?: string
@@ -291,6 +553,13 @@ export type Database = {
           role?: Database["public"]["Enums"]["user_role"]
         }
         Relationships: [
+          {
+            foreignKeyName: "profiles_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "profiles_line_manager_id_fkey"
             columns: ["line_manager_id"]

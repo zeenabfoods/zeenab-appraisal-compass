@@ -10,6 +10,9 @@ import { Dashboard } from "@/components/Dashboard";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import MyAppraisals from "./pages/MyAppraisals";
+import AppraisalCycles from "./pages/AppraisalCycles";
+import QuestionTemplates from "./pages/QuestionTemplates";
 
 const queryClient = new QueryClient();
 
@@ -27,7 +30,7 @@ const App = () => (
               <DashboardLayout>
                 <Routes>
                   <Route index element={<Dashboard />} />
-                  <Route path="appraisals" element={<div className="text-center py-8">My Appraisals page coming soon...</div>} />
+                  <Route path="appraisals" element={<MyAppraisals />} />
                   <Route path="notifications" element={<div className="text-center py-8">Notifications page coming soon...</div>} />
                   <Route path="history" element={<div className="text-center py-8">Performance History page coming soon...</div>} />
                   <Route path="settings" element={<div className="text-center py-8">Settings page coming soon...</div>} />
@@ -35,8 +38,8 @@ const App = () => (
                   <Route path="reviews" element={<div className="text-center py-8">Review Appraisals page coming soon...</div>} />
                   <Route path="analytics" element={<div className="text-center py-8">Team Analytics page coming soon...</div>} />
                   <Route path="employees" element={<div className="text-center py-8">Employee Management page coming soon...</div>} />
-                  <Route path="templates" element={<div className="text-center py-8">Template Builder page coming soon...</div>} />
-                  <Route path="cycles" element={<div className="text-center py-8">Appraisal Cycles page coming soon...</div>} />
+                  <Route path="templates" element={<QuestionTemplates />} />
+                  <Route path="cycles" element={<AppraisalCycles />} />
                   <Route path="reports" element={<div className="text-center py-8">Company Reports page coming soon...</div>} />
                   <Route path="executive" element={<div className="text-center py-8">Executive Overview page coming soon...</div>} />
                   <Route path="config" element={<div className="text-center py-8">System Configuration page coming soon...</div>} />
