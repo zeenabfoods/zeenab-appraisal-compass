@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,7 +9,10 @@ export interface Profile {
   email: string;
   first_name: string;
   last_name: string;
-  department?: string;
+  department_id?: string;
+  department?: {
+    name: string;
+  };
   position?: string;
   line_manager_id?: string;
   role: 'staff' | 'manager' | 'hr' | 'admin';
@@ -45,7 +49,10 @@ export function useAuth() {
             try {
               const { data: profileData, error } = await supabase
                 .from('profiles')
-                .select('*')
+                .select(`
+                  *,
+                  department:departments(name)
+                `)
                 .eq('id', session.user.id)
                 .single();
               
@@ -82,6 +89,8 @@ export function useAuth() {
     first_name: string;
     last_name: string;
     role?: 'staff' | 'manager' | 'hr' | 'admin';
+    department_id?: string;
+    line_manager_id?: string;
   }) => {
     try {
       // Validate email domain before attempting sign up
@@ -89,7 +98,7 @@ export function useAuth() {
         const error = new Error('Email provider not accepted');
         toast({
           title: "Sign Up Error",
-          description: "Email provider not accepted. Please use an email from one of the allowed domains.",
+          description: "Email provider not accepted. Please use an email from one of the allowed domains: @cnthlimited.com, @nigerianexportershub.com, @zeenabgroup.com, @zeenabfoods.com",
           variant: "destructive"
         });
         return { error };

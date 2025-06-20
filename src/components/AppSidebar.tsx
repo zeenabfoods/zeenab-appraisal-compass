@@ -136,7 +136,7 @@ export function AppSidebar() {
                 {[
                   { title: "Employee Management", url: "/dashboard/employees", icon: Users, roles: ["hr", "admin"] },
                   { title: "Department Management", url: "/dashboard/departments", icon: Building2, roles: ["hr", "admin"] },
-                  { title: "Template Builder", url: "/dashboard/templates", icon: FileText, roles: ["hr", "admin"] },
+                  { title: "Appraisal Questions", url: "/dashboard/templates", icon: FileText, roles: ["hr", "admin"] },
                   { title: "Appraisal Cycles", url: "/dashboard/cycles", icon: Target, roles: ["hr", "admin"] },
                   { title: "Company Reports", url: "/dashboard/reports", icon: BarChart3, roles: ["hr", "admin"] }
                 ].filter(item => item.roles.includes(profile?.role || 'staff')).map((item) => (

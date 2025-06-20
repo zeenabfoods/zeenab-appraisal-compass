@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -8,17 +8,69 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { supabase } from '@/integrations/supabase/client';
+
+interface Department {
+  id: string;
+  name: string;
+}
+
+interface Profile {
+  id: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+}
 
 export default function Auth() {
   const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [managers, setManagers] = useState<Profile[]>([]);
+  const [selectedRole, setSelectedRole] = useState<string>('staff');
 
   // Redirect if already authenticated
   if (user) {
     navigate('/dashboard');
     return null;
   }
+
+  useEffect(() => {
+    fetchDepartments();
+    fetchManagers();
+  }, []);
+
+  const fetchDepartments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('departments')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name');
+      
+      if (error) throw error;
+      setDepartments(data || []);
+    } catch (error) {
+      console.error('Error fetching departments:', error);
+    }
+  };
+
+  const fetchManagers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, role')
+        .in('role', ['manager', 'hr', 'admin'])
+        .eq('is_active', true)
+        .order('first_name');
+      
+      if (error) throw error;
+      setManagers(data || []);
+    } catch (error) {
+      console.error('Error fetching managers:', error);
+    }
+  };
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -47,11 +99,15 @@ export default function Auth() {
     const firstName = formData.get('firstName') as string;
     const lastName = formData.get('lastName') as string;
     const role = formData.get('role') as 'staff' | 'manager' | 'hr' | 'admin';
+    const departmentId = formData.get('department') as string;
+    const lineManagerId = formData.get('lineManager') as string;
 
     await signUp(email, password, {
       first_name: firstName,
       last_name: lastName,
-      role: role || 'staff'
+      role: role || 'staff',
+      department_id: departmentId,
+      line_manager_id: role === 'admin' ? undefined : lineManagerId
     });
     
     setLoading(false);
@@ -167,7 +223,7 @@ export default function Auth() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="role">Role</Label>
-                  <Select name="role" defaultValue="staff">
+                  <Select name="role" defaultValue="staff" onValueChange={setSelectedRole}>
                     <SelectTrigger className="backdrop-blur-sm bg-white/70 border-white/40">
                       <SelectValue placeholder="Select your role" />
                     </SelectTrigger>
@@ -179,6 +235,38 @@ export default function Auth() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="department">Department</Label>
+                  <Select name="department" required>
+                    <SelectTrigger className="backdrop-blur-sm bg-white/70 border-white/40">
+                      <SelectValue placeholder="Select your department" />
+                    </SelectTrigger>
+                    <SelectContent className="backdrop-blur-md bg-white/90">
+                      {departments.map((dept) => (
+                        <SelectItem key={dept.id} value={dept.id}>
+                          {dept.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {selectedRole !== 'admin' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="lineManager">Line Manager</Label>
+                    <Select name="lineManager" required>
+                      <SelectTrigger className="backdrop-blur-sm bg-white/70 border-white/40">
+                        <SelectValue placeholder="Select your line manager" />
+                      </SelectTrigger>
+                      <SelectContent className="backdrop-blur-md bg-white/90">
+                        {managers.map((manager) => (
+                          <SelectItem key={manager.id} value={manager.id}>
+                            {manager.first_name} {manager.last_name} ({manager.role.toUpperCase()})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <Button type="submit" className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 shadow-lg" disabled={loading}>
                   {loading ? 'Creating account...' : 'Sign Up'}
                 </Button>
