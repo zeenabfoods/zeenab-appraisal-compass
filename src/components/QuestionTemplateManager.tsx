@@ -1,17 +1,15 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
+import { DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, GripVertical } from 'lucide-react';
+import { Plus } from 'lucide-react';
+import { QuestionDialog } from './QuestionDialog';
+import { SectionDialog } from './SectionDialog';
+import { SectionCard } from './SectionCard';
 
 interface Question {
   id: string;
@@ -298,176 +296,15 @@ export function QuestionTemplateManager() {
         </div>
         
         <div className="flex space-x-2">
-          <Dialog open={showSectionDialog} onOpenChange={setShowSectionDialog}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Section
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{editingSection ? 'Edit' : 'Create'} Section</DialogTitle>
-                <DialogDescription>
-                  {editingSection ? 'Update' : 'Create a new'} question section for organizing appraisal questions.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="section-name">Section Name</Label>
-                  <Input
-                    id="section-name"
-                    value={newSection.name}
-                    onChange={(e) => setNewSection({ ...newSection, name: e.target.value })}
-                    placeholder="Job Performance"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="section-description">Description</Label>
-                  <Textarea
-                    id="section-description"
-                    value={newSection.description}
-                    onChange={(e) => setNewSection({ ...newSection, description: e.target.value })}
-                    placeholder="Assessment of core job responsibilities..."
-                  />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="max-score">Max Score</Label>
-                    <Input
-                      id="max-score"
-                      type="number"
-                      min="1"
-                      max="10"
-                      value={newSection.max_score}
-                      onChange={(e) => setNewSection({ ...newSection, max_score: parseInt(e.target.value) })}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="weight">Weight</Label>
-                    <Input
-                      id="weight"
-                      type="number"
-                      step="0.1"
-                      min="0.1"
-                      max="5"
-                      value={newSection.weight}
-                      onChange={(e) => setNewSection({ ...newSection, weight: parseFloat(e.target.value) })}
-                    />
-                  </div>
-                </div>
-                
-                <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => {
-                    setShowSectionDialog(false);
-                    setEditingSection(null);
-                  }}>
-                    Cancel
-                  </Button>
-                  <Button onClick={saveSection}>
-                    {editingSection ? 'Update' : 'Create'} Section
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <Button variant="outline" onClick={() => setShowSectionDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Section
+          </Button>
 
-          <Dialog open={showQuestionDialog} onOpenChange={setShowQuestionDialog}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Question
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>{editingQuestion ? 'Edit' : 'Create'} Question</DialogTitle>
-                <DialogDescription>
-                  {editingQuestion ? 'Update' : 'Add a new'} question to your appraisal template.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="question-text">Question</Label>
-                  <Textarea
-                    id="question-text"
-                    value={newQuestion.question_text}
-                    onChange={(e) => setNewQuestion({ ...newQuestion, question_text: e.target.value })}
-                    placeholder="How effectively does the employee manage their workload?"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="section">Section</Label>
-                  <Select value={newQuestion.section_id} onValueChange={(value) => setNewQuestion({ ...newQuestion, section_id: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a section" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sections.map(section => (
-                        <SelectItem key={section.id} value={section.id}>
-                          {section.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="question-type">Question Type</Label>
-                    <Select value={newQuestion.question_type} onValueChange={(value) => setNewQuestion({ ...newQuestion, question_type: value })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="rating">Rating Scale</SelectItem>
-                        <SelectItem value="text">Text Response</SelectItem>
-                        <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="weight">Weight</Label>
-                    <Input
-                      id="weight"
-                      type="number"
-                      step="0.1"
-                      min="0.1"
-                      max="5"
-                      value={newQuestion.weight}
-                      onChange={(e) => setNewQuestion({ ...newQuestion, weight: parseFloat(e.target.value) })}
-                    />
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="required"
-                    checked={newQuestion.is_required}
-                    onCheckedChange={(checked) => setNewQuestion({ ...newQuestion, is_required: checked })}
-                  />
-                  <Label htmlFor="required">Required question</Label>
-                </div>
-                
-                <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => {
-                    setShowQuestionDialog(false);
-                    setEditingQuestion(null);
-                  }}>
-                    Cancel
-                  </Button>
-                  <Button onClick={saveQuestion}>
-                    {editingQuestion ? 'Update' : 'Create'} Question
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <Button onClick={() => setShowQuestionDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Question
+          </Button>
         </div>
       </div>
 
@@ -476,77 +313,15 @@ export function QuestionTemplateManager() {
         const sectionQuestions = questions.filter(q => q.section_id === section.id);
         
         return (
-          <Card key={section.id}>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="flex items-center">
-                    <GripVertical className="h-4 w-4 mr-2 text-gray-400" />
-                    {section.name}
-                  </CardTitle>
-                  <CardDescription>{section.description}</CardDescription>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Badge variant="outline">Weight: {section.weight}</Badge>
-                  <Badge variant="outline">Max: {section.max_score}</Badge>
-                  <Button size="sm" variant="ghost" onClick={() => editSection(section)}>
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {sectionQuestions.map((question, index) => (
-                  <div key={question.id} className="flex items-start justify-between p-3 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-medium text-gray-500">Q{index + 1}</span>
-                        <span className="text-sm text-gray-900">{question.question_text}</span>
-                      </div>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <Badge variant="outline" className="text-xs">
-                          {question.question_type}
-                        </Badge>
-                        <Badge variant="outline" className="text-xs">
-                          Weight: {question.weight}
-                        </Badge>
-                        {question.is_required && (
-                          <Badge variant="outline" className="text-xs">Required</Badge>
-                        )}
-                        {!question.is_active && (
-                          <Badge variant="destructive" className="text-xs">Inactive</Badge>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        checked={question.is_active}
-                        onCheckedChange={(checked) => toggleQuestionStatus(question.id, checked)}
-                      />
-                      <Button size="sm" variant="ghost" onClick={() => editQuestion(question)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
-                        onClick={() => deleteQuestion(question.id)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                
-                {sectionQuestions.length === 0 && (
-                  <p className="text-sm text-gray-500 text-center py-4">
-                    No questions in this section yet.
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <SectionCard
+            key={section.id}
+            section={section}
+            questions={sectionQuestions}
+            onEditSection={editSection}
+            onEditQuestion={editQuestion}
+            onDeleteQuestion={deleteQuestion}
+            onToggleQuestionStatus={toggleQuestionStatus}
+          />
         );
       })}
 
@@ -564,6 +339,32 @@ export function QuestionTemplateManager() {
           </CardContent>
         </Card>
       )}
+
+      {/* Dialogs */}
+      <SectionDialog
+        isOpen={showSectionDialog}
+        onClose={() => {
+          setShowSectionDialog(false);
+          setEditingSection(null);
+        }}
+        editingSection={editingSection}
+        newSection={newSection}
+        setNewSection={setNewSection}
+        onSave={saveSection}
+      />
+
+      <QuestionDialog
+        isOpen={showQuestionDialog}
+        onClose={() => {
+          setShowQuestionDialog(false);
+          setEditingQuestion(null);
+        }}
+        editingQuestion={editingQuestion}
+        sections={sections}
+        newQuestion={newQuestion}
+        setNewQuestion={setNewQuestion}
+        onSave={saveQuestion}
+      />
     </div>
   );
 }
