@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 interface Department {
   id: string;
   name: string;
+  line_manager_id?: string;
 }
 
 interface Profile {
@@ -29,6 +30,8 @@ export default function Auth() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [managers, setManagers] = useState<Profile[]>([]);
   const [selectedRole, setSelectedRole] = useState<string>('staff');
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
+  const [assignedManager, setAssignedManager] = useState<string>('');
 
   // Redirect if already authenticated
   if (user) {
@@ -43,13 +46,19 @@ export default function Auth() {
 
   const fetchDepartments = async () => {
     try {
+      console.log('Fetching departments...');
       const { data, error } = await supabase
         .from('departments')
-        .select('id, name')
+        .select('id, name, line_manager_id')
         .eq('is_active', true)
         .order('name');
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching departments:', error);
+        return;
+      }
+      
+      console.log('Departments fetched:', data);
       setDepartments(data || []);
     } catch (error) {
       console.error('Error fetching departments:', error);
@@ -58,6 +67,7 @@ export default function Auth() {
 
   const fetchManagers = async () => {
     try {
+      console.log('Fetching managers...');
       const { data, error } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, role')
@@ -65,10 +75,30 @@ export default function Auth() {
         .eq('is_active', true)
         .order('first_name');
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching managers:', error);
+        return;
+      }
+      
+      console.log('Managers fetched:', data);
       setManagers(data || []);
     } catch (error) {
       console.error('Error fetching managers:', error);
+    }
+  };
+
+  const handleDepartmentChange = (departmentId: string) => {
+    console.log('Department selected:', departmentId);
+    setSelectedDepartment(departmentId);
+    
+    // Find the selected department and its line manager
+    const selectedDept = departments.find(dept => dept.id === departmentId);
+    if (selectedDept && selectedDept.line_manager_id) {
+      console.log('Auto-assigning line manager:', selectedDept.line_manager_id);
+      setAssignedManager(selectedDept.line_manager_id);
+    } else {
+      console.log('No line manager found for department');
+      setAssignedManager('');
     }
   };
 
@@ -99,8 +129,17 @@ export default function Auth() {
     const firstName = formData.get('firstName') as string;
     const lastName = formData.get('lastName') as string;
     const role = formData.get('role') as 'staff' | 'manager' | 'hr' | 'admin';
-    const departmentId = formData.get('department') as string;
-    const lineManagerId = formData.get('lineManager') as string;
+    const departmentId = selectedDepartment;
+    const lineManagerId = assignedManager || undefined;
+
+    console.log('Signing up with data:', {
+      email,
+      firstName,
+      lastName,
+      role,
+      departmentId,
+      lineManagerId
+    });
 
     await signUp(email, password, {
       first_name: firstName,
@@ -111,6 +150,11 @@ export default function Auth() {
     });
     
     setLoading(false);
+  };
+
+  const getManagerName = (managerId: string) => {
+    const manager = managers.find(m => m.id === managerId);
+    return manager ? `${manager.first_name} ${manager.last_name} (${manager.role.toUpperCase()})` : 'Unknown Manager';
   };
 
   return (
@@ -237,7 +281,12 @@ export default function Auth() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="department">Department</Label>
-                  <Select name="department" required>
+                  <Select 
+                    name="department" 
+                    value={selectedDepartment}
+                    onValueChange={handleDepartmentChange}
+                    required
+                  >
                     <SelectTrigger className="backdrop-blur-sm bg-white/70 border-white/40">
                       <SelectValue placeholder="Select your department" />
                     </SelectTrigger>
@@ -253,18 +302,13 @@ export default function Auth() {
                 {selectedRole !== 'admin' && (
                   <div className="space-y-2">
                     <Label htmlFor="lineManager">Line Manager</Label>
-                    <Select name="lineManager" required>
-                      <SelectTrigger className="backdrop-blur-sm bg-white/70 border-white/40">
-                        <SelectValue placeholder="Select your line manager" />
-                      </SelectTrigger>
-                      <SelectContent className="backdrop-blur-md bg-white/90">
-                        {managers.map((manager) => (
-                          <SelectItem key={manager.id} value={manager.id}>
-                            {manager.first_name} {manager.last_name} ({manager.role.toUpperCase()})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Input
+                      id="lineManager"
+                      value={assignedManager ? getManagerName(assignedManager) : 'No manager assigned'}
+                      className="backdrop-blur-sm bg-gray-100/70 border-white/40"
+                      readOnly
+                      placeholder="Will be assigned based on department"
+                    />
                   </div>
                 )}
                 <Button type="submit" className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 shadow-lg" disabled={loading}>
