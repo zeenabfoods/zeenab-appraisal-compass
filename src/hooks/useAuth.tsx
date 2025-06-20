@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,6 +16,14 @@ export interface Profile {
   last_login?: string;
   is_active?: boolean;
 }
+
+// Allowed email domains
+const ALLOWED_DOMAINS = [
+  '@cnthlimited.com',
+  '@nigerianexportershub.com',
+  '@zeenabgroup.com',
+  '@zeenabfoods.com'
+];
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -66,12 +73,28 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const validateEmailDomain = (email: string): boolean => {
+    const emailLower = email.toLowerCase();
+    return ALLOWED_DOMAINS.some(domain => emailLower.endsWith(domain.toLowerCase()));
+  };
+
   const signUp = async (email: string, password: string, userData: {
     first_name: string;
     last_name: string;
     role?: 'staff' | 'manager' | 'hr' | 'admin';
   }) => {
     try {
+      // Validate email domain before attempting sign up
+      if (!validateEmailDomain(email)) {
+        const error = new Error('Email provider not accepted');
+        toast({
+          title: "Sign Up Error",
+          description: "Email provider not accepted. Please use an email from one of the allowed domains.",
+          variant: "destructive"
+        });
+        return { error };
+      }
+
       const { error } = await supabase.auth.signUp({
         email,
         password,
