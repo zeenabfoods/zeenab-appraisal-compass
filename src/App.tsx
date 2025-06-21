@@ -32,7 +32,13 @@ function App() {
           <BrowserRouter>
             <Routes>
               <Route path="/auth" element={<Auth />} />
-              <Route path="/" element={<Index />} />
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Index />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
               <Route path="/employee-management" element={
                 <ProtectedRoute>
                   <DashboardLayout>
