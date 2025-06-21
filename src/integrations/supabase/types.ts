@@ -136,7 +136,7 @@ export type Database = {
             foreignKeyName: "appraisal_questions_section_id_fkey"
             columns: ["section_id"]
             isOneToOne: false
-            referencedRelation: "appraisal_sections"
+            referencedRelation: "appraisal_question_sections"
             referencedColumns: ["id"]
           },
         ]
