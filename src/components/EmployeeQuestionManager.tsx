@@ -6,11 +6,12 @@ import { useToast } from '@/hooks/use-toast';
 import { QuestionDialog } from './QuestionDialog';
 import { SectionDialog } from './SectionDialog';
 import { SectionCard } from './SectionCard';
-import { StaffSelector } from './StaffSelector';
+import { StaffSelectorWithManager } from './StaffSelectorWithManager';
 import { EmployeeQuestionActions } from './EmployeeQuestionActions';
 import { EmptyStateCard } from './EmptyStateCard';
-import { BulkQuestionAssignment } from './BulkQuestionAssignment';
+import { FixedBulkQuestionAssignment } from './FixedBulkQuestionAssignment';
 import { NotificationCenter } from './NotificationCenter';
+import { PerformanceScoreCalculator } from './PerformanceScoreCalculator';
 import { useEmployeeQuestions } from '@/hooks/useEmployeeQuestions';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -47,6 +48,7 @@ export function EmployeeQuestionManager() {
   const [editingSection, setEditingSection] = useState<Section | null>(null);
   const [showBulkAssignment, setShowBulkAssignment] = useState(false);
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
+  const [showScoreCalculator, setShowScoreCalculator] = useState(false);
 
   const {
     sections,
@@ -124,7 +126,6 @@ export function EmployeeQuestionManager() {
         description: "Section and all its questions deleted successfully"
       });
       
-      // Refresh both sections and questions
       fetchSections();
       if (selectedStaff) {
         fetchQuestions(selectedStaff);
@@ -152,6 +153,16 @@ export function EmployeeQuestionManager() {
 
   const selectedEmployee = staff.find(s => s.id === selectedStaff);
 
+  // Mock score data - in real implementation, this would come from appraisal responses
+  const mockScoreData = sections.map(section => ({
+    sectionName: section.name,
+    weight: section.weight,
+    maxScore: section.max_score,
+    empScore: Math.floor(Math.random() * (section.max_score * 5)) + 1,
+    mgrScore: Math.floor(Math.random() * (section.max_score * 5)) + 1,
+    committeeScore: Math.floor(Math.random() * (section.max_score * 5)) + 1,
+  }));
+
   if (!profile || (profile.role !== 'hr' && profile.role !== 'admin')) {
     return (
       <div className="p-6">
@@ -176,11 +187,12 @@ export function EmployeeQuestionManager() {
       <Tabs defaultValue="assignment" className="w-full">
         <TabsList>
           <TabsTrigger value="assignment">Question Assignment</TabsTrigger>
+          <TabsTrigger value="scores">Performance Scores</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
         </TabsList>
         
         <TabsContent value="assignment" className="space-y-6">
-          <StaffSelector
+          <StaffSelectorWithManager
             staff={staff}
             selectedStaff={selectedStaff}
             onStaffChange={setSelectedStaff}
@@ -206,7 +218,7 @@ export function EmployeeQuestionManager() {
               </div>
 
               {showBulkAssignment && selectedEmployee && (
-                <BulkQuestionAssignment
+                <FixedBulkQuestionAssignment
                   employeeId={selectedStaff}
                   employeeName={`${selectedEmployee.first_name} ${selectedEmployee.last_name}`}
                   sections={sections}
@@ -248,6 +260,21 @@ export function EmployeeQuestionManager() {
                 )}
               </div>
             </>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="scores" className="space-y-6">
+          <StaffSelectorWithManager
+            staff={staff}
+            selectedStaff={selectedStaff}
+            onStaffChange={setSelectedStaff}
+          />
+          
+          {selectedStaff && selectedEmployee && mockScoreData.length > 0 && (
+            <PerformanceScoreCalculator
+              scores={mockScoreData}
+              employeeName={`${selectedEmployee.first_name} ${selectedEmployee.last_name}`}
+            />
           )}
         </TabsContent>
         
