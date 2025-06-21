@@ -10,6 +10,7 @@ import { StaffSelector } from './StaffSelector';
 import { EmployeeQuestionActions } from './EmployeeQuestionActions';
 import { EmptyStateCard } from './EmptyStateCard';
 import { useEmployeeQuestions } from '@/hooks/useEmployeeQuestions';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Section {
   id: string;
@@ -92,6 +93,34 @@ export function EmployeeQuestionManager() {
     }
   };
 
+  const handleDeleteSection = async (sectionId: string) => {
+    try {
+      const { error } = await supabase.rpc('delete_section_with_questions', {
+        section_id_param: sectionId
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Section and all its questions deleted successfully"
+      });
+      
+      // Refresh both sections and questions
+      fetchSections();
+      if (selectedStaff) {
+        fetchQuestions(selectedStaff);
+      }
+    } catch (error) {
+      console.error('Error deleting section:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete section",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleToggleQuestionStatus = async (questionId: string, isActive: boolean) => {
     const success = await toggleQuestionStatus(questionId, isActive);
     if (success) {
@@ -149,6 +178,7 @@ export function EmployeeQuestionManager() {
                   setEditingSection(section);
                   setSectionDialogOpen(true);
                 }}
+                onDeleteSection={handleDeleteSection}
                 onEditQuestion={(question) => {
                   setEditingQuestion(question);
                   setQuestionDialogOpen(true);
