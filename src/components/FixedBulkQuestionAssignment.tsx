@@ -51,8 +51,42 @@ export function FixedBulkQuestionAssignment({
   const { profile } = useAuth();
   const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
   const [isAssigning, setIsAssigning] = useState(false);
+  const [activeCycle, setActiveCycle] = useState<string | null>(null);
 
   const assignedQuestionIds = assignedQuestions.map(q => q.id);
+
+  useEffect(() => {
+    fetchActiveCycle();
+  }, []);
+
+  const fetchActiveCycle = async () => {
+    try {
+      const { data: cycles, error } = await supabase
+        .from('appraisal_cycles')
+        .select('id')
+        .eq('status', 'active')
+        .single();
+
+      if (error) {
+        console.error('Error fetching active cycle:', error);
+        toast({
+          title: "No Active Cycle",
+          description: "Please activate an appraisal cycle first before assigning questions.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setActiveCycle(cycles.id);
+    } catch (error) {
+      console.error('Error in fetchActiveCycle:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch active appraisal cycle",
+        variant: "destructive"
+      });
+    }
+  };
 
   const handleQuestionToggle = (questionId: string, checked: boolean) => {
     if (checked) {
@@ -90,21 +124,36 @@ export function FixedBulkQuestionAssignment({
       return;
     }
 
+    if (!activeCycle) {
+      toast({
+        title: "No Active Cycle",
+        description: "Please activate an appraisal cycle first before assigning questions.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsAssigning(true);
     
     try {
       const assignments = selectedQuestions.map(questionId => ({
         employee_id: employeeId,
         question_id: questionId,
-        cycle_id: '00000000-0000-0000-0000-000000000000',
+        cycle_id: activeCycle,
         assigned_by: profile?.id
       }));
+
+      console.log('Attempting to assign questions with cycle_id:', activeCycle);
+      console.log('Assignments:', assignments);
 
       const { error: assignError } = await supabase
         .from('employee_appraisal_questions')
         .insert(assignments);
 
-      if (assignError) throw assignError;
+      if (assignError) {
+        console.error('Assignment error:', assignError);
+        throw assignError;
+      }
 
       // Send notification to line manager
       if (profile && (profile.role === 'hr' || profile.role === 'admin')) {
@@ -134,13 +183,27 @@ export function FixedBulkQuestionAssignment({
       console.error('Error assigning questions:', error);
       toast({
         title: "Assignment Failed",
-        description: error.message,
+        description: error.message || "Failed to assign questions. Please try again.",
         variant: "destructive"
       });
     } finally {
       setIsAssigning(false);
     }
   };
+
+  if (!activeCycle) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Assign Questions to {employeeName}</CardTitle>
+        </CardHeader>
+        <CardContent className="text-center py-8">
+          <p className="text-gray-600 mb-4">No active appraisal cycle found.</p>
+          <p className="text-sm text-gray-500">Please activate an appraisal cycle in the Appraisal Cycles section before assigning questions.</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
