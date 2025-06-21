@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,8 +8,11 @@ import { SectionCard } from './SectionCard';
 import { StaffSelector } from './StaffSelector';
 import { EmployeeQuestionActions } from './EmployeeQuestionActions';
 import { EmptyStateCard } from './EmptyStateCard';
+import { BulkQuestionAssignment } from './BulkQuestionAssignment';
+import { NotificationCenter } from './NotificationCenter';
 import { useEmployeeQuestions } from '@/hooks/useEmployeeQuestions';
 import { supabase } from '@/integrations/supabase/client';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface Section {
   id: string;
@@ -42,6 +44,8 @@ export function EmployeeQuestionManager() {
   const [sectionDialogOpen, setSectionDialogOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [editingSection, setEditingSection] = useState<Section | null>(null);
+  const [showBulkAssignment, setShowBulkAssignment] = useState(false);
+  const [allQuestions, setAllQuestions] = useState<Question[]>([]);
 
   const {
     sections,
@@ -57,6 +61,7 @@ export function EmployeeQuestionManager() {
 
   useEffect(() => {
     fetchStaff();
+    fetchAllQuestions();
   }, []);
 
   useEffect(() => {
@@ -66,8 +71,24 @@ export function EmployeeQuestionManager() {
     }
   }, [selectedStaff]);
 
+  const fetchAllQuestions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('appraisal_questions')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order');
+
+      if (error) throw error;
+      setAllQuestions(data || []);
+    } catch (error) {
+      console.error('Error fetching all questions:', error);
+    }
+  };
+
   const handleQuestionSave = () => {
     fetchQuestions(selectedStaff);
+    fetchAllQuestions();
     setQuestionDialogOpen(false);
     setEditingQuestion(null);
     toast({
@@ -132,6 +153,8 @@ export function EmployeeQuestionManager() {
     return questions.filter(q => q.section_id === sectionId);
   };
 
+  const selectedEmployee = staff.find(s => s.id === selectedStaff);
+
   if (!profile || (profile.role !== 'hr' && profile.role !== 'admin')) {
     return (
       <div className="p-6">
@@ -148,56 +171,93 @@ export function EmployeeQuestionManager() {
     <div className="space-y-6">
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Employee Questions</h1>
-          <p className="text-gray-600 mt-2">Manage questions for individual staff members</p>
+          <h1 className="text-3xl font-bold text-gray-900">Employee Questions Management</h1>
+          <p className="text-gray-600 mt-2">Assign questions to employees and manage notifications</p>
         </div>
       </div>
 
-      <StaffSelector
-        staff={staff}
-        selectedStaff={selectedStaff}
-        onStaffChange={setSelectedStaff}
-      />
-
-      {selectedStaff && (
-        <>
-          <EmployeeQuestionActions
-            questionsCount={questions.length}
-            sectionsCount={sections.length}
-            onAddSection={() => setSectionDialogOpen(true)}
-            onAddQuestion={() => setQuestionDialogOpen(true)}
+      <Tabs defaultValue="assignment" className="w-full">
+        <TabsList>
+          <TabsTrigger value="assignment">Question Assignment</TabsTrigger>
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="assignment" className="space-y-6">
+          <StaffSelector
+            staff={staff}
+            selectedStaff={selectedStaff}
+            onStaffChange={setSelectedStaff}
           />
 
-          <div className="space-y-6">
-            {sections.map((section) => (
-              <SectionCard
-                key={section.id}
-                section={section}
-                questions={getSectionQuestions(section.id)}
-                onEditSection={(section) => {
-                  setEditingSection(section);
-                  setSectionDialogOpen(true);
-                }}
-                onDeleteSection={handleDeleteSection}
-                onEditQuestion={(question) => {
-                  setEditingQuestion(question);
-                  setQuestionDialogOpen(true);
-                }}
-                onDeleteQuestion={handleDeleteQuestion}
-                onToggleQuestionStatus={handleToggleQuestionStatus}
-              />
-            ))}
+          {selectedStaff && (
+            <>
+              <div className="flex items-center justify-between">
+                <EmployeeQuestionActions
+                  questionsCount={questions.length}
+                  sectionsCount={sections.length}
+                  onAddSection={() => setSectionDialogOpen(true)}
+                  onAddQuestion={() => setQuestionDialogOpen(true)}
+                />
+                <div className="space-x-2">
+                  <button
+                    onClick={() => setShowBulkAssignment(!showBulkAssignment)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    {showBulkAssignment ? 'Hide Bulk Assignment' : 'Bulk Assign Questions'}
+                  </button>
+                </div>
+              </div>
 
-            {sections.length === 0 && !loading && (
-              <EmptyStateCard
-                title="No sections created yet"
-                buttonText="Create First Section"
-                onButtonClick={() => setSectionDialogOpen(true)}
-              />
-            )}
-          </div>
-        </>
-      )}
+              {showBulkAssignment && selectedEmployee && (
+                <BulkQuestionAssignment
+                  employeeId={selectedStaff}
+                  employeeName={`${selectedEmployee.first_name} ${selectedEmployee.last_name}`}
+                  sections={sections}
+                  allQuestions={allQuestions}
+                  assignedQuestions={questions}
+                  onAssignmentComplete={() => {
+                    fetchQuestions(selectedStaff);
+                    setShowBulkAssignment(false);
+                  }}
+                />
+              )}
+
+              <div className="space-y-6">
+                {sections.map((section) => (
+                  <SectionCard
+                    key={section.id}
+                    section={section}
+                    questions={getSectionQuestions(section.id)}
+                    onEditSection={(section) => {
+                      setEditingSection(section);
+                      setSectionDialogOpen(true);
+                    }}
+                    onDeleteSection={handleDeleteSection}
+                    onEditQuestion={(question) => {
+                      setEditingQuestion(question);
+                      setQuestionDialogOpen(true);
+                    }}
+                    onDeleteQuestion={handleDeleteQuestion}
+                    onToggleQuestionStatus={handleToggleQuestionStatus}
+                  />
+                ))}
+
+                {sections.length === 0 && !loading && (
+                  <EmptyStateCard
+                    title="No sections created yet"
+                    buttonText="Create First Section"
+                    onButtonClick={() => setSectionDialogOpen(true)}
+                  />
+                )}
+              </div>
+            </>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="notifications">
+          <NotificationCenter />
+        </TabsContent>
+      </Tabs>
 
       <QuestionDialog
         open={questionDialogOpen}
