@@ -1,9 +1,10 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Calculator, Target, TrendingUp } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Calculator, Target, TrendingUp, MessageSquare, BookOpen, Target as Goals } from 'lucide-react';
 
 interface ScoreData {
   sectionName: string;
@@ -24,26 +25,50 @@ export function PerformanceScoreCalculator({
   employeeName 
 }: PerformanceScoreCalculatorProps) {
   
+  const [employeeComment, setEmployeeComment] = useState('');
+  const [trainingNeeds, setTrainingNeeds] = useState('');
+  const [goalsForNextReview, setGoalsForNextReview] = useState('');
+
+  const getSectionMaxScore = (sectionName: string) => {
+    const lowerName = sectionName.toLowerCase();
+    if (lowerName.includes('financial')) return 50;
+    if (lowerName.includes('operational') || lowerName.includes('efficiency')) return 35;
+    if (lowerName.includes('behavioral') || lowerName.includes('behaviour')) return 15;
+    return 100; // Default for other sections
+  };
+
   const calculateSectionScore = (score: ScoreData) => {
     // Use manager score if available, otherwise employee score
     const baseScore = score.mgrScore || score.empScore || 0;
     const maxPossible = score.maxScore * 5; // Assuming 5-point scale
     const percentage = (baseScore / maxPossible) * 100;
-    return Math.min(percentage, 100);
+    
+    // Apply section-specific caps
+    const maxAllowed = getSectionMaxScore(score.sectionName);
+    const cappedScore = Math.min(percentage, maxAllowed);
+    
+    return cappedScore;
   };
 
   const calculateOverallScore = () => {
-    let totalWeightedScore = 0;
-    let totalWeight = 0;
+    let totalScore = 0;
+    let noteworthyBonus = 0;
 
     scores.forEach(score => {
       const sectionScore = calculateSectionScore(score);
-      const weightedScore = (sectionScore * score.weight) / 100;
-      totalWeightedScore += weightedScore;
-      totalWeight += score.weight;
+      const lowerName = score.sectionName.toLowerCase();
+      
+      if (lowerName.includes('noteworthy') || lowerName.includes('note worthy')) {
+        // Noteworthy section adds bonus points
+        noteworthyBonus = sectionScore * 0.1; // 10% of noteworthy score as bonus
+      } else {
+        totalScore += sectionScore;
+      }
     });
 
-    return totalWeight > 0 ? (totalWeightedScore / totalWeight) * 100 : 0;
+    // Add noteworthy bonus but cap total at 100
+    const finalScore = Math.min(totalScore + noteworthyBonus, 100);
+    return finalScore;
   };
 
   const getPerformanceBand = (score: number) => {
@@ -118,6 +143,9 @@ export function PerformanceScoreCalculator({
             {scores.map((score, index) => {
               const sectionScore = calculateSectionScore(score);
               const sectionBand = getPerformanceBand(sectionScore);
+              const maxAllowed = getSectionMaxScore(score.sectionName);
+              const isNoteworthy = score.sectionName.toLowerCase().includes('noteworthy') || 
+                                   score.sectionName.toLowerCase().includes('note worthy');
               
               return (
                 <div key={index} className="border rounded-lg p-4">
@@ -131,6 +159,14 @@ export function PerformanceScoreCalculator({
                         <Badge variant="outline" className="text-xs">
                           Max: {score.maxScore}
                         </Badge>
+                        <Badge variant="outline" className="text-xs">
+                          Cap: {maxAllowed}%
+                        </Badge>
+                        {isNoteworthy && (
+                          <Badge variant="secondary" className="text-xs">
+                            Bonus Section
+                          </Badge>
+                        )}
                       </div>
                     </div>
                     <div className="text-right">
@@ -146,7 +182,7 @@ export function PerformanceScoreCalculator({
                     </div>
                   </div>
                   
-                  <Progress value={sectionScore} className="h-2" />
+                  <Progress value={Math.min(sectionScore, 100)} className="h-2" />
                   
                   <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
                     <div>
@@ -166,6 +202,63 @@ export function PerformanceScoreCalculator({
               );
             })}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Employee Comment Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <MessageSquare className="h-5 w-5 mr-2" />
+            Employee Comment
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            placeholder="Employee can add their comments here..."
+            value={employeeComment}
+            onChange={(e) => setEmployeeComment(e.target.value)}
+            className="min-h-[100px]"
+          />
+        </CardContent>
+      </Card>
+
+      {/* Training Needs Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <BookOpen className="h-5 w-5 mr-2" />
+            Training Needs
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            placeholder="Identify training needs and development areas..."
+            value={trainingNeeds}
+            onChange={(e) => setTrainingNeeds(e.target.value)}
+            className="min-h-[100px]"
+          />
+        </CardContent>
+      </Card>
+
+      {/* Goals for Next Review - Line Manager Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Goals className="h-5 w-5 mr-2" />
+            Goals for Next Review (Line Manager)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            placeholder="Line manager to set goals and objectives for the next review period..."
+            value={goalsForNextReview}
+            onChange={(e) => setGoalsForNextReview(e.target.value)}
+            className="min-h-[100px]"
+          />
+          <p className="text-sm text-gray-500 mt-2">
+            This section is to be completed by the line manager
+          </p>
         </CardContent>
       </Card>
     </div>
