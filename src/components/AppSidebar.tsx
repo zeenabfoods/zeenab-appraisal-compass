@@ -14,6 +14,7 @@ import {
   BarChart3,
   Bell,
   UserCheck,
+  Scale,
 } from "lucide-react"
 
 import {
@@ -96,6 +97,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         title: "Appraisal Cycles",
         url: "/appraisal-cycles",
         icon: Calendar,
+      },
+      {
+        title: "Committee",
+        url: "/committee",
+        icon: Scale,
       },
       {
         title: "Company Reports",

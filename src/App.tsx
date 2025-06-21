@@ -17,6 +17,7 @@ import AppraisalCycles from "./pages/AppraisalCycles";
 import MyAppraisals from "./pages/MyAppraisals";
 import ManagerAppraisals from "./pages/ManagerAppraisals";
 import CompanyReports from "./pages/CompanyReports";
+import Committee from "./pages/Committee";
 import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
 
@@ -92,6 +93,13 @@ function App() {
                 <ProtectedRoute>
                   <DashboardLayout>
                     <CompanyReports />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/committee" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Committee />
                   </DashboardLayout>
                 </ProtectedRoute>
               } />
