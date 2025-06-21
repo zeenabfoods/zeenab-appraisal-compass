@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -36,9 +35,9 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string, retryCount = 0) => {
     try {
-      console.log('Fetching profile for user:', userId);
+      console.log('Fetching profile for user:', userId, 'retry:', retryCount);
       
       const { data: profileData, error } = await supabase
         .from('profiles')
@@ -70,6 +69,15 @@ export function useAuth() {
           }
         }
         
+        // For network errors, retry up to 2 times
+        if (error.message?.includes('Failed to fetch') && retryCount < 2) {
+          console.log('Network error, retrying in 1 second...');
+          setTimeout(() => {
+            fetchProfile(userId, retryCount + 1);
+          }, 1000);
+          return;
+        }
+        
         // For any other error, set null profile but don't block the app
         console.error('Profile fetch failed, setting null profile');
         setProfile(null);
@@ -80,6 +88,16 @@ export function useAuth() {
       setProfile(profileData);
     } catch (error) {
       console.error('Unexpected error fetching profile:', error);
+      
+      // For network errors, retry up to 2 times
+      if (error instanceof Error && error.message?.includes('Failed to fetch') && retryCount < 2) {
+        console.log('Network error, retrying in 1 second...');
+        setTimeout(() => {
+          fetchProfile(userId, retryCount + 1);
+        }, 1000);
+        return;
+      }
+      
       setProfile(null);
     }
   };
@@ -100,14 +118,18 @@ export function useAuth() {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Don't await this to prevent blocking
-          fetchProfile(session.user.id).finally(() => {
+          // Fetch profile with delay to avoid blocking auth flow
+          setTimeout(() => {
             if (mounted) {
-              setLoading(false);
+              fetchProfile(session.user.id);
             }
-          });
+          }, 100);
         } else {
           setProfile(null);
+        }
+        
+        // Always set loading to false after handling auth state
+        if (mounted) {
           setLoading(false);
         }
       }
@@ -134,12 +156,12 @@ export function useAuth() {
           setUser(session?.user ?? null);
           
           if (session?.user) {
-            // Don't await this to prevent blocking
-            fetchProfile(session.user.id).finally(() => {
+            // Fetch profile with delay
+            setTimeout(() => {
               if (mounted) {
-                setLoading(false);
+                fetchProfile(session.user.id);
               }
-            });
+            }, 100);
           } else {
             setProfile(null);
             setLoading(false);

@@ -1,5 +1,6 @@
 
-import { useAuth } from '@/hooks/useAuth';
+import { Dashboard } from '@/components/Dashboard';
+import { useAuthContext } from '@/components/AuthProvider';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowRight, BarChart3, Users, Shield, Clock } from 'lucide-react';
 
 export default function Index() {
-  const { user, loading } = useAuth();
+  const { user, loading } = useAuthContext();
 
   if (loading) {
     return (
@@ -20,10 +21,12 @@ export default function Index() {
     );
   }
 
+  // If user is authenticated, show the dashboard
   if (user) {
-    return <Navigate to="/dashboard" replace />;
+    return <Dashboard />;
   }
 
+  // Show landing page for unauthenticated users
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-red-50 relative overflow-hidden">
       {/* Floating glass orbs for background effect */}
