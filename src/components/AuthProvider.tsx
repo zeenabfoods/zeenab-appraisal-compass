@@ -9,6 +9,7 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
+  authReady: boolean;
   signUp: (email: string, password: string, userData: {
     first_name: string;
     last_name: string;

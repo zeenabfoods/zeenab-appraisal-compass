@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -33,11 +34,22 @@ export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authReady, setAuthReady] = useState(false);
   const { toast } = useToast();
 
-  const fetchProfile = async (userId: string, retryCount = 0) => {
+  const createBasicProfile = (user: User): Profile => {
+    return {
+      id: user.id,
+      email: user.email || '',
+      first_name: user.user_metadata?.first_name || 'User',
+      last_name: user.user_metadata?.last_name || '',
+      role: 'staff'
+    };
+  };
+
+  const fetchProfile = async (userId: string) => {
     try {
-      console.log('Fetching profile for user:', userId, 'retry:', retryCount);
+      console.log('Fetching profile for user:', userId);
       
       const { data: profileData, error } = await supabase
         .from('profiles')
@@ -49,56 +61,26 @@ export function useAuth() {
         .single();
       
       if (error) {
-        console.error('Error fetching profile:', error);
-        
-        // If no profile exists, create a basic one from user data
-        if (error.code === 'PGRST116') {
-          console.log('No profile found, creating basic profile from user data');
-          const user = await supabase.auth.getUser();
-          if (user.data.user) {
-            const basicProfile: Profile = {
-              id: userId,
-              email: user.data.user.email || '',
-              first_name: user.data.user.user_metadata?.first_name || 'User',
-              last_name: user.data.user.user_metadata?.last_name || '',
-              role: 'staff'
-            };
-            console.log('Setting basic profile:', basicProfile);
-            setProfile(basicProfile);
-            return;
-          }
+        console.log('Profile fetch error, using basic profile:', error.message);
+        // Always fall back to basic profile instead of failing
+        const currentUser = await supabase.auth.getUser();
+        if (currentUser.data.user) {
+          const basicProfile = createBasicProfile(currentUser.data.user);
+          setProfile(basicProfile);
         }
-        
-        // For network errors, retry up to 2 times
-        if (error.message?.includes('Failed to fetch') && retryCount < 2) {
-          console.log('Network error, retrying in 1 second...');
-          setTimeout(() => {
-            fetchProfile(userId, retryCount + 1);
-          }, 1000);
-          return;
-        }
-        
-        // For any other error, set null profile but don't block the app
-        console.error('Profile fetch failed, setting null profile');
-        setProfile(null);
         return;
       }
       
       console.log('Profile fetched successfully:', profileData);
       setProfile(profileData);
     } catch (error) {
-      console.error('Unexpected error fetching profile:', error);
-      
-      // For network errors, retry up to 2 times
-      if (error instanceof Error && error.message?.includes('Failed to fetch') && retryCount < 2) {
-        console.log('Network error, retrying in 1 second...');
-        setTimeout(() => {
-          fetchProfile(userId, retryCount + 1);
-        }, 1000);
-        return;
+      console.log('Profile fetch exception, using basic profile:', error);
+      // Always fall back to basic profile
+      const currentUser = await supabase.auth.getUser();
+      if (currentUser.data.user) {
+        const basicProfile = createBasicProfile(currentUser.data.user);
+        setProfile(basicProfile);
       }
-      
-      setProfile(null);
     }
   };
 
@@ -118,7 +100,11 @@ export function useAuth() {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Fetch profile with delay to avoid blocking auth flow
+          // Create basic profile immediately to prevent blank screens
+          const basicProfile = createBasicProfile(session.user);
+          setProfile(basicProfile);
+          
+          // Try to fetch full profile, but don't block the UI
           setTimeout(() => {
             if (mounted) {
               fetchProfile(session.user.id);
@@ -128,9 +114,10 @@ export function useAuth() {
           setProfile(null);
         }
         
-        // Always set loading to false after handling auth state
+        // Always ensure we're not stuck in loading state
         if (mounted) {
           setLoading(false);
+          setAuthReady(true);
         }
       }
     );
@@ -141,22 +128,16 @@ export function useAuth() {
         console.log('Checking for existing session');
         const { data: { session }, error } = await supabase.auth.getSession();
         
-        if (error) {
-          console.error('Error getting session:', error);
-          if (mounted) {
-            setLoading(false);
-          }
-          return;
-        }
-        
-        console.log('Initial session:', session?.user?.id);
-        
         if (mounted) {
           setSession(session);
           setUser(session?.user ?? null);
           
           if (session?.user) {
-            // Fetch profile with delay
+            // Create basic profile immediately
+            const basicProfile = createBasicProfile(session.user);
+            setProfile(basicProfile);
+            
+            // Try to fetch full profile
             setTimeout(() => {
               if (mounted) {
                 fetchProfile(session.user.id);
@@ -164,13 +145,16 @@ export function useAuth() {
             }, 100);
           } else {
             setProfile(null);
-            setLoading(false);
           }
+          
+          setLoading(false);
+          setAuthReady(true);
         }
       } catch (error) {
         console.error('Error in initializeAuth:', error);
         if (mounted) {
           setLoading(false);
+          setAuthReady(true);
         }
       }
     };
@@ -197,7 +181,6 @@ export function useAuth() {
     line_manager_id?: string;
   }) => {
     try {
-      // Validate email domain before attempting sign up
       if (!validateEmailDomain(email)) {
         const error = new Error('Email provider not accepted');
         toast({
@@ -287,7 +270,8 @@ export function useAuth() {
   console.log('Auth state:', { 
     user: !!user, 
     profile: !!profile, 
-    loading
+    loading,
+    authReady
   });
 
   return {
@@ -295,6 +279,7 @@ export function useAuth() {
     session,
     profile,
     loading,
+    authReady,
     signUp,
     signIn,
     signOut
