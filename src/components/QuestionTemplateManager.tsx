@@ -43,29 +43,14 @@ export function QuestionTemplateManager() {
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [editingSection, setEditingSection] = useState<Section | null>(null);
 
-  const [newQuestion, setNewQuestion] = useState({
-    question_text: '',
-    section_id: '',
-    question_type: 'rating',
-    weight: 1,
-    is_required: true,
-    sort_order: 0,
-  });
-
-  const [newSection, setNewSection] = useState({
-    name: '',
-    description: '',
-    max_score: 5,
-    weight: 1,
-    sort_order: 0,
-  });
-
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
     try {
+      setLoading(true);
+      
       // Load sections
       const { data: sectionsData, error: sectionsError } = await supabase
         .from('appraisal_question_sections')
@@ -95,94 +80,81 @@ export function QuestionTemplateManager() {
     }
   };
 
-  const saveQuestion = async () => {
-    try {
-      if (editingQuestion) {
-        const { error } = await supabase
-          .from('appraisal_questions')
-          .update(newQuestion)
-          .eq('id', editingQuestion.id);
-
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase
-          .from('appraisal_questions')
-          .insert(newQuestion)
-          .select()
-          .single();
-
-        if (error) throw error;
-        setQuestions([...questions, data]);
-      }
-
-      setShowQuestionDialog(false);
-      setEditingQuestion(null);
-      setNewQuestion({
-        question_text: '',
-        section_id: '',
-        question_type: 'rating',
-        weight: 1,
-        is_required: true,
-        sort_order: 0,
-      });
-
-      toast({
-        title: "Success",
-        description: `Question ${editingQuestion ? 'updated' : 'created'} successfully`,
-      });
-
-      loadData();
-    } catch (error) {
-      console.error('Error saving question:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save question",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const saveSection = async () => {
+  const handleSaveSection = async (sectionData: Omit<Section, 'id'>) => {
     try {
       if (editingSection) {
         const { error } = await supabase
           .from('appraisal_question_sections')
-          .update(newSection)
+          .update(sectionData)
           .eq('id', editingSection.id);
 
         if (error) throw error;
+        
+        toast({
+          title: "Success",
+          description: "Section updated successfully",
+        });
       } else {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('appraisal_question_sections')
-          .insert(newSection)
-          .select()
-          .single();
+          .insert(sectionData);
 
         if (error) throw error;
-        setSections([...sections, data]);
+        
+        toast({
+          title: "Success",
+          description: "Section created successfully",
+        });
       }
 
       setShowSectionDialog(false);
       setEditingSection(null);
-      setNewSection({
-        name: '',
-        description: '',
-        max_score: 5,
-        weight: 1,
-        sort_order: 0,
-      });
-
-      toast({
-        title: "Success",
-        description: `Section ${editingSection ? 'updated' : 'created'} successfully`,
-      });
-
-      loadData();
+      loadData(); // Reload data to get fresh state
     } catch (error) {
       console.error('Error saving section:', error);
       toast({
         title: "Error",
         description: "Failed to save section",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSaveQuestion = async (questionData: Omit<Question, 'id'>) => {
+    try {
+      if (editingQuestion) {
+        const { error } = await supabase
+          .from('appraisal_questions')
+          .update(questionData)
+          .eq('id', editingQuestion.id);
+
+        if (error) throw error;
+        
+        toast({
+          title: "Success",
+          description: "Question updated successfully",
+        });
+      } else {
+        const { error } = await supabase
+          .from('appraisal_questions')
+          .insert(questionData);
+
+        if (error) throw error;
+        
+        toast({
+          title: "Success",
+          description: "Question created successfully",
+        });
+      }
+
+      setShowQuestionDialog(false);
+      setEditingQuestion(null);
+      loadData(); // Reload data to get fresh state
+    } catch (error) {
+      console.error('Error saving question:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save question",
         variant: "destructive",
       });
     }
@@ -196,13 +168,12 @@ export function QuestionTemplateManager() {
 
       if (error) throw error;
 
-      setSections(sections.filter(s => s.id !== sectionId));
-      setQuestions(questions.filter(q => q.section_id !== sectionId));
-      
       toast({
         title: "Success",
         description: "Section and all related questions deleted successfully",
       });
+      
+      loadData(); // Reload data to get fresh state
     } catch (error) {
       console.error('Error deleting section:', error);
       toast({
@@ -222,11 +193,12 @@ export function QuestionTemplateManager() {
 
       if (error) throw error;
 
-      setQuestions(questions.filter(q => q.id !== questionId));
       toast({
         title: "Success",
         description: "Question deleted successfully",
       });
+      
+      loadData(); // Reload data to get fresh state
     } catch (error) {
       console.error('Error deleting question:', error);
       toast({
@@ -246,14 +218,12 @@ export function QuestionTemplateManager() {
 
       if (error) throw error;
 
-      setQuestions(questions.map(q => 
-        q.id === questionId ? { ...q, is_active: isActive } : q
-      ));
-
       toast({
         title: "Success",
         description: `Question ${isActive ? 'activated' : 'deactivated'}`,
       });
+      
+      loadData(); // Reload data to get fresh state
     } catch (error) {
       console.error('Error updating question status:', error);
       toast({
@@ -266,26 +236,21 @@ export function QuestionTemplateManager() {
 
   const editQuestion = (question: Question) => {
     setEditingQuestion(question);
-    setNewQuestion({
-      question_text: question.question_text,
-      section_id: question.section_id,
-      question_type: question.question_type,
-      weight: question.weight,
-      is_required: question.is_required,
-      sort_order: question.sort_order,
-    });
     setShowQuestionDialog(true);
   };
 
   const editSection = (section: Section) => {
     setEditingSection(section);
-    setNewSection({
-      name: section.name,
-      description: section.description || '',
-      max_score: section.max_score,
-      weight: section.weight,
-      sort_order: section.sort_order,
-    });
+    setShowSectionDialog(true);
+  };
+
+  const openNewQuestionDialog = () => {
+    setEditingQuestion(null);
+    setShowQuestionDialog(true);
+  };
+
+  const openNewSectionDialog = () => {
+    setEditingSection(null);
     setShowSectionDialog(true);
   };
 
@@ -320,12 +285,12 @@ export function QuestionTemplateManager() {
         </div>
         
         <div className="flex space-x-2">
-          <Button variant="outline" onClick={() => setShowSectionDialog(true)}>
+          <Button variant="outline" onClick={openNewSectionDialog}>
             <Plus className="h-4 w-4 mr-2" />
             Add Section
           </Button>
 
-          <Button onClick={() => setShowQuestionDialog(true)}>
+          <Button onClick={openNewQuestionDialog}>
             <Plus className="h-4 w-4 mr-2" />
             Add Question
           </Button>
@@ -357,7 +322,7 @@ export function QuestionTemplateManager() {
             <p className="text-gray-500 text-center mb-6">
               Start by creating sections to organize your appraisal questions.
             </p>
-            <Button onClick={() => setShowSectionDialog(true)}>
+            <Button onClick={openNewSectionDialog}>
               <Plus className="h-4 w-4 mr-2" />
               Create First Section
             </Button>
@@ -373,10 +338,7 @@ export function QuestionTemplateManager() {
           if (!open) setEditingSection(null);
         }}
         section={editingSection}
-        onSave={() => {
-          saveSection();
-          setShowSectionDialog(false);
-        }}
+        onSave={handleSaveSection}
       />
 
       <QuestionDialog
@@ -388,10 +350,7 @@ export function QuestionTemplateManager() {
         question={editingQuestion}
         sections={sections}
         selectedStaff=""
-        onSave={() => {
-          saveQuestion();
-          setShowQuestionDialog(false);
-        }}
+        onSave={handleSaveQuestion}
       />
     </div>
   );

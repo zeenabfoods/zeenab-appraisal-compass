@@ -7,7 +7,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -39,7 +38,7 @@ interface QuestionDialogProps {
   question: Question | null;
   sections: Section[];
   selectedStaff: string;
-  onSave: () => void;
+  onSave: (questionData: Omit<Question, 'id'>) => void;
 }
 
 export function QuestionDialog({
@@ -93,66 +92,12 @@ export function QuestionDialog({
       return;
     }
 
-    try {
-      if (question) {
-        // Update existing question
-        const { error } = await supabase
-          .from('appraisal_questions')
-          .update(formData)
-          .eq('id', question.id);
-        
-        if (error) throw error;
-      } else {
-        // Create new question and assign to employee if selectedStaff is provided
-        const { data: newQuestion, error: questionError } = await supabase
-          .from('appraisal_questions')
-          .insert(formData)
-          .select()
-          .single();
-        
-        if (questionError) throw questionError;
+    const questionData = {
+      ...formData,
+      is_active: true
+    };
 
-        // If selectedStaff is provided, assign the question to the employee
-        if (selectedStaff && newQuestion) {
-          const { error: assignError } = await supabase
-            .from('employee_appraisal_questions')
-            .insert({
-              employee_id: selectedStaff,
-              question_id: newQuestion.id,
-              cycle_id: '00000000-0000-0000-0000-000000000000', // Default cycle, you might want to make this configurable
-            });
-          
-          if (assignError) throw assignError;
-
-          // Send notification to line manager if profile exists and has required role
-          if (profile && (profile.role === 'hr' || profile.role === 'admin')) {
-            try {
-              const { error: notificationError } = await supabase.rpc('notify_line_manager', {
-                employee_id_param: selectedStaff,
-                question_ids_param: [newQuestion.id],
-                assigned_by_param: profile.id
-              });
-              
-              if (notificationError) {
-                console.error('Error sending notification:', notificationError);
-                // Don't throw error here as the main operation succeeded
-              }
-            } catch (notifError) {
-              console.error('Error with notification function:', notifError);
-            }
-          }
-        }
-      }
-      
-      onSave();
-    } catch (error: any) {
-      console.error('Error saving question:', error);
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
+    onSave(questionData);
   };
 
   return (

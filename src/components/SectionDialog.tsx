@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface Section {
@@ -22,7 +21,7 @@ interface SectionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   section: Section | null;
-  onSave: () => void;
+  onSave: (sectionData: Omit<Section, 'id'>) => void;
 }
 
 export function SectionDialog({
@@ -70,31 +69,12 @@ export function SectionDialog({
       return;
     }
 
-    try {
-      if (section) {
-        const { error } = await supabase
-          .from('appraisal_question_sections')
-          .update(formData)
-          .eq('id', section.id);
-        
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('appraisal_question_sections')
-          .insert(formData);
-        
-        if (error) throw error;
-      }
-      
-      onSave();
-    } catch (error: any) {
-      console.error('Error saving section:', error);
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
+    const sectionData = {
+      ...formData,
+      is_active: true
+    };
+
+    onSave(sectionData);
   };
 
   const handleClose = () => {
