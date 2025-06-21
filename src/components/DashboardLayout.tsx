@@ -1,5 +1,5 @@
 
-import { useAuth } from '@/hooks/useAuth';
+import { useAuthContext } from '@/components/AuthProvider';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
@@ -14,7 +14,7 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const { profile, signOut } = useAuth();
+  const { profile, signOut } = useAuthContext();
   const navigate = useNavigate();
 
   if (!profile) {
@@ -38,7 +38,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   const handleNotificationClick = () => {
-    navigate('/dashboard/notifications');
+    navigate('/notifications');
   };
 
   return (

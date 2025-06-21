@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuthContext } from '@/components/AuthProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,7 +23,7 @@ interface Profile {
 }
 
 export default function Auth() {
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, user } = useAuthContext();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -35,7 +34,7 @@ export default function Auth() {
 
   // Redirect if already authenticated
   if (user) {
-    navigate('/dashboard');
+    navigate('/');
     return null;
   }
 
@@ -113,7 +112,7 @@ export default function Auth() {
     const { error } = await signIn(email, password);
     
     if (!error) {
-      navigate('/dashboard');
+      navigate('/');
     }
     
     setLoading(false);

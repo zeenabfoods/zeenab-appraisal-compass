@@ -35,12 +35,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useAuth } from "@/hooks/useAuth"
+import { useAuthContext } from "@/components/AuthProvider"
 import { Link, useNavigate } from "react-router-dom"
 import { NotificationBell } from "@/components/NotificationBell"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { profile, signOut } = useAuth()
+  const { profile, signOut } = useAuthContext()
   const navigate = useNavigate()
 
   const handleSignOut = async () => {
