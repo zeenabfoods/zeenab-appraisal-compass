@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -63,27 +64,20 @@ export default function EmployeeManagement() {
 
   const loadData = async () => {
     try {
-      // Load employees with department and manager info - use single() for line manager
+      console.log('Loading employee data...');
+      
+      // Load employees first
       const { data: employeesData, error: employeesError } = await supabase
         .from('profiles')
-        .select(`
-          *,
-          department:departments!profiles_department_id_fkey(name),
-          line_manager:profiles!profiles_line_manager_id_fkey(first_name, last_name)
-        `)
+        .select('*')
         .order('first_name');
 
-      if (employeesError) throw employeesError;
+      if (employeesError) {
+        console.error('Error loading employees:', employeesError);
+        throw employeesError;
+      }
       
-      // Transform the data to handle the line_manager array issue
-      const transformedEmployees = (employeesData || []).map(employee => ({
-        ...employee,
-        line_manager: Array.isArray(employee.line_manager) 
-          ? employee.line_manager[0] || null 
-          : employee.line_manager
-      }));
-      
-      setEmployees(transformedEmployees);
+      console.log('Raw employees data:', employeesData);
 
       // Load departments
       const { data: departmentsData, error: departmentsError } = await supabase
@@ -92,13 +86,52 @@ export default function EmployeeManagement() {
         .eq('is_active', true)
         .order('name');
 
-      if (departmentsError) throw departmentsError;
+      if (departmentsError) {
+        console.error('Error loading departments:', departmentsError);
+        throw departmentsError;
+      }
+
+      console.log('Departments data:', departmentsData);
+
+      // Transform employee data and add department/manager info
+      const transformedEmployees = await Promise.all(
+        (employeesData || []).map(async (employee) => {
+          let departmentInfo = null;
+          let managerInfo = null;
+
+          // Get department info if department_id exists
+          if (employee.department_id && departmentsData) {
+            departmentInfo = departmentsData.find(dept => dept.id === employee.department_id);
+          }
+
+          // Get manager info if line_manager_id exists
+          if (employee.line_manager_id && employeesData) {
+            const manager = employeesData.find(emp => emp.id === employee.line_manager_id);
+            if (manager) {
+              managerInfo = {
+                first_name: manager.first_name,
+                last_name: manager.last_name
+              };
+            }
+          }
+
+          return {
+            ...employee,
+            department: departmentInfo ? { name: departmentInfo.name } : undefined,
+            line_manager: managerInfo
+          };
+        })
+      );
+
+      console.log('Transformed employees:', transformedEmployees);
+      setEmployees(transformedEmployees);
       setDepartments(departmentsData || []);
+      
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Error in loadData:', error);
       toast({
         title: "Error",
-        description: "Failed to load employee data",
+        description: "Failed to load employee data. Please check the console for details.",
         variant: "destructive"
       });
     } finally {
@@ -126,8 +159,6 @@ export default function EmployeeManagement() {
         if (error) throw error;
         toast({ title: "Success", description: "Employee updated successfully" });
       } else {
-        // For new employees, you'd typically need to handle auth user creation
-        // This is a simplified version - in production you'd need proper user creation flow
         toast({ 
           title: "Info", 
           description: "Employee creation requires proper authentication setup",
