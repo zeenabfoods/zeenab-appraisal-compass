@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -18,10 +17,21 @@ export function useNotificationSystem() {
   });
 
   const playNotificationSound = useCallback(() => {
-    // This will be updated when you upload the sound file
-    const audio = new Audio('/notification-sound.mp3'); // Placeholder path
-    audio.volume = 0.5;
-    audio.play().catch(console.error);
+    try {
+      const audio = new Audio('/lovable-uploads/notification-sound.mp3');
+      audio.volume = 0.5;
+      audio.play().catch(error => {
+        console.log('Could not play notification sound:', error);
+        // Fallback to system beep if audio file fails
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance('');
+          utterance.volume = 0.1;
+          speechSynthesis.speak(utterance);
+        }
+      });
+    } catch (error) {
+      console.log('Notification sound not available:', error);
+    }
   }, []);
 
   const clearNewNotificationState = useCallback(() => {
