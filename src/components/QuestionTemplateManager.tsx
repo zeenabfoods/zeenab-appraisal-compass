@@ -80,84 +80,18 @@ export function QuestionTemplateManager() {
     }
   };
 
-  const handleSaveSection = async (sectionData: Omit<Section, 'id'>) => {
-    try {
-      if (editingSection) {
-        const { error } = await supabase
-          .from('appraisal_question_sections')
-          .update(sectionData)
-          .eq('id', editingSection.id);
-
-        if (error) throw error;
-        
-        toast({
-          title: "Success",
-          description: "Section updated successfully",
-        });
-      } else {
-        const { error } = await supabase
-          .from('appraisal_question_sections')
-          .insert(sectionData);
-
-        if (error) throw error;
-        
-        toast({
-          title: "Success",
-          description: "Section created successfully",
-        });
-      }
-
-      setShowSectionDialog(false);
-      setEditingSection(null);
-      loadData(); // Reload data to get fresh state
-    } catch (error) {
-      console.error('Error saving section:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save section",
-        variant: "destructive",
-      });
-    }
+  const handleSectionSaved = () => {
+    console.log('Section save callback triggered');
+    setShowSectionDialog(false);
+    setEditingSection(null);
+    loadData(); // Reload data to get fresh state
   };
 
-  const handleSaveQuestion = async (questionData: Omit<Question, 'id'>) => {
-    try {
-      if (editingQuestion) {
-        const { error } = await supabase
-          .from('appraisal_questions')
-          .update(questionData)
-          .eq('id', editingQuestion.id);
-
-        if (error) throw error;
-        
-        toast({
-          title: "Success",
-          description: "Question updated successfully",
-        });
-      } else {
-        const { error } = await supabase
-          .from('appraisal_questions')
-          .insert(questionData);
-
-        if (error) throw error;
-        
-        toast({
-          title: "Success",
-          description: "Question created successfully",
-        });
-      }
-
-      setShowQuestionDialog(false);
-      setEditingQuestion(null);
-      loadData(); // Reload data to get fresh state
-    } catch (error) {
-      console.error('Error saving question:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save question",
-        variant: "destructive",
-      });
-    }
+  const handleQuestionSaved = () => {
+    console.log('Question save callback triggered');
+    setShowQuestionDialog(false);
+    setEditingQuestion(null);
+    loadData(); // Reload data to get fresh state
   };
 
   const deleteSection = async (sectionId: string) => {
@@ -338,7 +272,7 @@ export function QuestionTemplateManager() {
           if (!open) setEditingSection(null);
         }}
         section={editingSection}
-        onSave={handleSaveSection}
+        onSave={handleSectionSaved}
       />
 
       <QuestionDialog
@@ -350,7 +284,7 @@ export function QuestionTemplateManager() {
         question={editingQuestion}
         sections={sections}
         selectedStaff=""
-        onSave={handleSaveQuestion}
+        onSave={handleQuestionSaved}
       />
     </div>
   );
