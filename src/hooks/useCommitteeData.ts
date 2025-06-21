@@ -50,7 +50,9 @@ export function useCommitteeData() {
   const fetchEmployees = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      // First get all employees
+      const { data: employeesData, error: employeesError } = await supabase
         .from('profiles')
         .select(`
           id,
@@ -58,19 +60,57 @@ export function useCommitteeData() {
           last_name,
           email,
           position,
-          department:departments!profiles_department_id_fkey(name),
-          line_manager:profiles!profiles_line_manager_id_fkey(first_name, last_name, email)
+          line_manager_id,
+          department_id
         `)
         .eq('is_active', true)
         .order('first_name');
 
-      if (error) throw error;
-      
-      // Transform the data to handle the line_manager array issue
-      const transformedData = (data || []).map(employee => ({
-        ...employee,
-        line_manager: Array.isArray(employee.line_manager) ? employee.line_manager[0] : employee.line_manager
-      }));
+      if (employeesError) throw employeesError;
+
+      // Get departments separately
+      const { data: departmentsData, error: departmentsError } = await supabase
+        .from('departments')
+        .select('id, name');
+
+      if (departmentsError) {
+        console.error('Error fetching departments:', departmentsError);
+      }
+
+      // Get line managers separately
+      const lineManagerIds = employeesData
+        ?.filter(emp => emp.line_manager_id)
+        .map(emp => emp.line_manager_id) || [];
+
+      let lineManagersData = [];
+      if (lineManagerIds.length > 0) {
+        const { data: managers, error: managersError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, email')
+          .in('id', lineManagerIds);
+
+        if (managersError) {
+          console.error('Error fetching line managers:', managersError);
+        } else {
+          lineManagersData = managers || [];
+        }
+      }
+
+      // Transform and combine the data
+      const transformedData = (employeesData || []).map(employee => {
+        const department = departmentsData?.find(dept => dept.id === employee.department_id);
+        const lineManager = lineManagersData.find(mgr => mgr.id === employee.line_manager_id);
+        
+        return {
+          ...employee,
+          department: department ? { name: department.name } : undefined,
+          line_manager: lineManager ? {
+            first_name: lineManager.first_name,
+            last_name: lineManager.last_name,
+            email: lineManager.email
+          } : undefined
+        };
+      });
       
       setEmployees(transformedData);
     } catch (error) {
@@ -98,18 +138,46 @@ export function useCommitteeData() {
           last_name,
           email,
           position,
-          department:departments!profiles_department_id_fkey(name),
-          line_manager:profiles!profiles_line_manager_id_fkey(first_name, last_name, email)
+          department_id,
+          line_manager_id
         `)
         .eq('id', employeeId)
         .single();
 
       if (employeeError) throw employeeError;
 
-      // Transform the employee data to handle line_manager array issue
+      // Get department info
+      let department = undefined;
+      if (employeeData.department_id) {
+        const { data: deptData, error: deptError } = await supabase
+          .from('departments')
+          .select('name')
+          .eq('id', employeeData.department_id)
+          .single();
+
+        if (!deptError && deptData) {
+          department = { name: deptData.name };
+        }
+      }
+
+      // Get line manager info
+      let line_manager = undefined;
+      if (employeeData.line_manager_id) {
+        const { data: managerData, error: managerError } = await supabase
+          .from('profiles')
+          .select('first_name, last_name, email')
+          .eq('id', employeeData.line_manager_id)
+          .single();
+
+        if (!managerError && managerData) {
+          line_manager = managerData;
+        }
+      }
+
       const employee = {
         ...employeeData,
-        line_manager: Array.isArray(employeeData.line_manager) ? employeeData.line_manager[0] : employeeData.line_manager
+        department,
+        line_manager
       };
 
       // Get appraisal history
@@ -122,23 +190,40 @@ export function useCommitteeData() {
           status,
           created_at,
           completed_at,
-          appraisal_cycles(name)
+          cycle_id
         `)
         .eq('employee_id', employeeId)
         .order('created_at', { ascending: false });
 
       if (appraisalsError) throw appraisalsError;
 
+      // Get cycle names for appraisals
+      const cycleIds = appraisals?.map(app => app.cycle_id).filter(Boolean) || [];
+      let cyclesData = [];
+      if (cycleIds.length > 0) {
+        const { data: cycles, error: cyclesError } = await supabase
+          .from('appraisal_cycles')
+          .select('id, name')
+          .in('id', cycleIds);
+
+        if (!cyclesError) {
+          cyclesData = cycles || [];
+        }
+      }
+
       // Transform appraisal data
-      const transformedAppraisals = (appraisals || []).map(appraisal => ({
-        id: appraisal.id,
-        overall_score: appraisal.overall_score,
-        performance_band: appraisal.performance_band,
-        status: appraisal.status,
-        cycle_name: appraisal.appraisal_cycles?.name || 'Unknown Cycle',
-        created_at: appraisal.created_at,
-        completed_at: appraisal.completed_at
-      }));
+      const transformedAppraisals = (appraisals || []).map(appraisal => {
+        const cycle = cyclesData.find(c => c.id === appraisal.cycle_id);
+        return {
+          id: appraisal.id,
+          overall_score: appraisal.overall_score,
+          performance_band: appraisal.performance_band,
+          status: appraisal.status,
+          cycle_name: cycle?.name || 'Unknown Cycle',
+          created_at: appraisal.created_at,
+          completed_at: appraisal.completed_at
+        };
+      });
 
       // Calculate analytics
       const completedAppraisals = transformedAppraisals.filter(a => a.status === 'completed');
