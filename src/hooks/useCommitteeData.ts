@@ -65,7 +65,14 @@ export function useCommitteeData() {
         .order('first_name');
 
       if (error) throw error;
-      setEmployees(data || []);
+      
+      // Transform the data to handle the line_manager array issue
+      const transformedData = (data || []).map(employee => ({
+        ...employee,
+        line_manager: Array.isArray(employee.line_manager) ? employee.line_manager[0] : employee.line_manager
+      }));
+      
+      setEmployees(transformedData);
     } catch (error) {
       console.error('Error fetching employees:', error);
       toast({
@@ -83,7 +90,7 @@ export function useCommitteeData() {
       setLoadingAnalytics(true);
       
       // Get employee details
-      const { data: employee, error: employeeError } = await supabase
+      const { data: employeeData, error: employeeError } = await supabase
         .from('profiles')
         .select(`
           id,
@@ -98,6 +105,12 @@ export function useCommitteeData() {
         .single();
 
       if (employeeError) throw employeeError;
+
+      // Transform the employee data to handle line_manager array issue
+      const employee = {
+        ...employeeData,
+        line_manager: Array.isArray(employeeData.line_manager) ? employeeData.line_manager[0] : employeeData.line_manager
+      };
 
       // Get appraisal history
       const { data: appraisals, error: appraisalsError } = await supabase

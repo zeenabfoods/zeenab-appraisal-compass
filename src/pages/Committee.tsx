@@ -287,7 +287,7 @@ export default function Committee() {
                           </div>
                         )}
                         {appraisal.performance_band && (
-                          <Badge className={getPerformanceBandColor(appraisal.performance_band)}>
+                          <Badge className={getPerformanceBadgeColor(appraisal.performance_band)}>
                             {appraisal.performance_band}
                           </Badge>
                         )}
