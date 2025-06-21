@@ -16,6 +16,7 @@ import QuestionTemplates from "./pages/QuestionTemplates";
 import DepartmentManagement from "./pages/DepartmentManagement";
 import EmployeeManagement from "./pages/EmployeeManagement";
 import CompanyReports from "./pages/CompanyReports";
+import EmployeeQuestions from "./pages/EmployeeQuestions";
 
 const queryClient = new QueryClient();
 
@@ -72,6 +73,7 @@ const App = () => (
                   } />
                   <Route path="employees" element={<EmployeeManagement />} />
                   <Route path="departments" element={<DepartmentManagement />} />
+                  <Route path="employee-questions" element={<EmployeeQuestions />} />
                   <Route path="templates" element={<QuestionTemplates />} />
                   <Route path="cycles" element={<AppraisalCycles />} />
                   <Route path="reports" element={<CompanyReports />} />
