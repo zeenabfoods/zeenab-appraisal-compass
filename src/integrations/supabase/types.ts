@@ -757,6 +757,18 @@ export type Database = {
         Args: { score: number }
         Returns: string
       }
+      delete_section_with_questions: {
+        Args: { section_id_param: string }
+        Returns: undefined
+      }
+      notify_line_manager: {
+        Args: {
+          employee_id_param: string
+          question_ids_param: string[]
+          assigned_by_param: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       appraisal_status:

@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, GripVertical } from 'lucide-react';
+import { Edit, GripVertical, Trash2 } from 'lucide-react';
 import { QuestionItem } from './QuestionItem';
 
 interface Section {
@@ -32,6 +32,7 @@ interface SectionCardProps {
   section: Section;
   questions: Question[];
   onEditSection: (section: Section) => void;
+  onDeleteSection: (sectionId: string) => void;
   onEditQuestion: (question: Question) => void;
   onDeleteQuestion: (questionId: string) => void;
   onToggleQuestionStatus: (questionId: string, isActive: boolean) => void;
@@ -41,10 +42,21 @@ export function SectionCard({
   section,
   questions,
   onEditSection,
+  onDeleteSection,
   onEditQuestion,
   onDeleteQuestion,
   onToggleQuestionStatus
 }: SectionCardProps) {
+  const handleDeleteSection = () => {
+    if (questions.length > 0) {
+      const confirmDelete = window.confirm(
+        `This section contains ${questions.length} question(s). Deleting the section will also delete all its questions. Are you sure you want to continue?`
+      );
+      if (!confirmDelete) return;
+    }
+    onDeleteSection(section.id);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -61,6 +73,14 @@ export function SectionCard({
             <Badge variant="outline">Max: {section.max_score}</Badge>
             <Button size="sm" variant="ghost" onClick={() => onEditSection(section)}>
               <Edit className="h-4 w-4" />
+            </Button>
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              onClick={handleDeleteSection}
+              className="text-red-600 hover:text-red-800"
+            >
+              <Trash2 className="h-4 w-4" />
             </Button>
           </div>
         </div>

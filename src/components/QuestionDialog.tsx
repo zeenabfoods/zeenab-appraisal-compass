@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Question {
   id: string;
@@ -50,6 +51,7 @@ export function QuestionDialog({
   onSave
 }: QuestionDialogProps) {
   const { toast } = useToast();
+  const { profile } = useAuth();
   const [formData, setFormData] = useState({
     question_text: '',
     section_id: '',
@@ -121,6 +123,24 @@ export function QuestionDialog({
             });
           
           if (assignError) throw assignError;
+
+          // Send notification to line manager if profile exists and has required role
+          if (profile && (profile.role === 'hr' || profile.role === 'admin')) {
+            try {
+              const { error: notificationError } = await supabase.rpc('notify_line_manager', {
+                employee_id_param: selectedStaff,
+                question_ids_param: [newQuestion.id],
+                assigned_by_param: profile.id
+              });
+              
+              if (notificationError) {
+                console.error('Error sending notification:', notificationError);
+                // Don't throw error here as the main operation succeeded
+              }
+            } catch (notifError) {
+              console.error('Error with notification function:', notifError);
+            }
+          }
         }
       }
       

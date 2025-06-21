@@ -4,7 +4,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Plus } from 'lucide-react';
 import { QuestionDialog } from './QuestionDialog';
@@ -189,6 +188,31 @@ export function QuestionTemplateManager() {
     }
   };
 
+  const deleteSection = async (sectionId: string) => {
+    try {
+      const { error } = await supabase.rpc('delete_section_with_questions', {
+        section_id_param: sectionId
+      });
+
+      if (error) throw error;
+
+      setSections(sections.filter(s => s.id !== sectionId));
+      setQuestions(questions.filter(q => q.section_id !== sectionId));
+      
+      toast({
+        title: "Success",
+        description: "Section and all related questions deleted successfully",
+      });
+    } catch (error) {
+      console.error('Error deleting section:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete section",
+        variant: "destructive",
+      });
+    }
+  };
+
   const deleteQuestion = async (questionId: string) => {
     try {
       const { error } = await supabase
@@ -318,6 +342,7 @@ export function QuestionTemplateManager() {
             section={section}
             questions={sectionQuestions}
             onEditSection={editSection}
+            onDeleteSection={deleteSection}
             onEditQuestion={editQuestion}
             onDeleteQuestion={deleteQuestion}
             onToggleQuestionStatus={toggleQuestionStatus}
