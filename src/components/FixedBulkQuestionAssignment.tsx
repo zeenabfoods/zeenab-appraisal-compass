@@ -49,70 +49,39 @@ export function FixedBulkQuestionAssignment({
 }: FixedBulkQuestionAssignmentProps) {
   const { toast } = useToast();
   const { profile } = useAuth();
-  const [selectedQuestions, setSelectedQuestions] = useState<Set<string>>(new Set());
-  const [selectedSections, setSelectedSections] = useState<Set<string>>(new Set());
+  const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
   const [isAssigning, setIsAssigning] = useState(false);
 
-  const assignedQuestionIds = new Set(assignedQuestions.map(q => q.id));
+  const assignedQuestionIds = assignedQuestions.map(q => q.id);
 
-  const handleQuestionToggle = (questionId: string) => {
-    setSelectedQuestions(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(questionId)) {
-        newSet.delete(questionId);
-      } else {
-        newSet.add(questionId);
-      }
-      return newSet;
-    });
+  const handleQuestionToggle = (questionId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedQuestions(prev => [...prev, questionId]);
+    } else {
+      setSelectedQuestions(prev => prev.filter(id => id !== questionId));
+    }
   };
 
   const handleSectionToggle = (sectionId: string) => {
     const sectionQuestions = allQuestions.filter(q => 
       q.section_id === sectionId && 
-      !assignedQuestionIds.has(q.id)
+      !assignedQuestionIds.includes(q.id)
     );
     
-    setSelectedSections(prev => {
-      const newSectionSet = new Set(prev);
-      const newQuestionSet = new Set(selectedQuestions);
-      
-      if (newSectionSet.has(sectionId)) {
-        // Deselect section and all its questions
-        newSectionSet.delete(sectionId);
-        sectionQuestions.forEach(q => newQuestionSet.delete(q.id));
-      } else {
-        // Select section and all its questions
-        newSectionSet.add(sectionId);
-        sectionQuestions.forEach(q => newQuestionSet.add(q.id));
-      }
-      
-      setSelectedQuestions(newQuestionSet);
-      return newSectionSet;
-    });
+    const sectionQuestionIds = sectionQuestions.map(q => q.id);
+    const allSectionQuestionsSelected = sectionQuestionIds.every(id => selectedQuestions.includes(id));
+    
+    if (allSectionQuestionsSelected) {
+      // Deselect all questions in this section
+      setSelectedQuestions(prev => prev.filter(id => !sectionQuestionIds.includes(id)));
+    } else {
+      // Select all questions in this section
+      setSelectedQuestions(prev => [...new Set([...prev, ...sectionQuestionIds])]);
+    }
   };
 
-  // Update section selection state when individual questions change
-  useEffect(() => {
-    const newSelectedSections = new Set<string>();
-    
-    sections.forEach(section => {
-      const sectionQuestions = allQuestions.filter(q => 
-        q.section_id === section.id && 
-        !assignedQuestionIds.has(q.id)
-      );
-      
-      if (sectionQuestions.length > 0 && 
-          sectionQuestions.every(q => selectedQuestions.has(q.id))) {
-        newSelectedSections.add(section.id);
-      }
-    });
-    
-    setSelectedSections(newSelectedSections);
-  }, [selectedQuestions, sections, allQuestions, assignedQuestionIds]);
-
   const handleBulkAssignment = async () => {
-    if (selectedQuestions.size === 0) {
+    if (selectedQuestions.length === 0) {
       toast({
         title: "No Questions Selected",
         description: "Please select at least one question to assign.",
@@ -124,7 +93,7 @@ export function FixedBulkQuestionAssignment({
     setIsAssigning(true);
     
     try {
-      const assignments = Array.from(selectedQuestions).map(questionId => ({
+      const assignments = selectedQuestions.map(questionId => ({
         employee_id: employeeId,
         question_id: questionId,
         cycle_id: '00000000-0000-0000-0000-000000000000',
@@ -142,7 +111,7 @@ export function FixedBulkQuestionAssignment({
         try {
           const { error: notificationError } = await supabase.rpc('notify_line_manager', {
             employee_id_param: employeeId,
-            question_ids_param: Array.from(selectedQuestions),
+            question_ids_param: selectedQuestions,
             assigned_by_param: profile.id
           });
           
@@ -156,11 +125,10 @@ export function FixedBulkQuestionAssignment({
 
       toast({
         title: "Questions Assigned Successfully",
-        description: `${selectedQuestions.size} questions have been assigned to ${employeeName}. Line manager has been notified.`
+        description: `${selectedQuestions.length} questions have been assigned to ${employeeName}. Line manager has been notified.`
       });
 
-      setSelectedQuestions(new Set());
-      setSelectedSections(new Set());
+      setSelectedQuestions([]);
       onAssignmentComplete();
     } catch (error: any) {
       console.error('Error assigning questions:', error);
@@ -182,9 +150,10 @@ export function FixedBulkQuestionAssignment({
       <CardContent className="space-y-6">
         {sections.map(section => {
           const sectionQuestions = allQuestions.filter(q => q.section_id === section.id);
-          const availableQuestions = sectionQuestions.filter(q => !assignedQuestionIds.has(q.id));
-          const sectionSelectedCount = availableQuestions.filter(q => selectedQuestions.has(q.id)).length;
-          const isSectionSelected = selectedSections.has(section.id);
+          const availableQuestions = sectionQuestions.filter(q => !assignedQuestionIds.includes(q.id));
+          const sectionSelectedCount = availableQuestions.filter(q => selectedQuestions.includes(q.id)).length;
+          const isSectionFullySelected = availableQuestions.length > 0 && 
+            availableQuestions.every(q => selectedQuestions.includes(q.id));
           
           if (availableQuestions.length === 0) return null;
 
@@ -206,7 +175,7 @@ export function FixedBulkQuestionAssignment({
                     onClick={() => handleSectionToggle(section.id)}
                     className="flex items-center space-x-2"
                   >
-                    {isSectionSelected ? (
+                    {isSectionFullySelected ? (
                       <CheckSquare className="h-4 w-4 text-blue-600" />
                     ) : (
                       <Square className="h-4 w-4" />
@@ -220,14 +189,14 @@ export function FixedBulkQuestionAssignment({
               
               <div className="space-y-3">
                 {availableQuestions.map(question => {
-                  const isSelected = selectedQuestions.has(question.id);
+                  const isSelected = selectedQuestions.includes(question.id);
                   
                   return (
                     <div key={question.id} className="flex items-start space-x-3 p-3 border rounded bg-gray-50">
                       <Checkbox
                         id={`question-${question.id}`}
                         checked={isSelected}
-                        onCheckedChange={() => handleQuestionToggle(question.id)}
+                        onCheckedChange={(checked) => handleQuestionToggle(question.id, !!checked)}
                       />
                       <div className="flex-1">
                         <label htmlFor={`question-${question.id}`} className="text-sm font-medium cursor-pointer">
@@ -255,13 +224,14 @@ export function FixedBulkQuestionAssignment({
 
         <div className="flex items-center justify-between pt-4 border-t">
           <div className="text-sm text-gray-600">
-            {selectedQuestions.size} questions selected for assignment
+            {selectedQuestions.length} questions selected for assignment
           </div>
           <Button 
             onClick={handleBulkAssignment}
-            disabled={selectedQuestions.size === 0 || isAssigning}
+            disabled={selectedQuestions.length === 0 || isAssigning}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
           >
-            {isAssigning ? 'Assigning...' : `Assign ${selectedQuestions.size} Questions`}
+            {isAssigning ? 'Assigning...' : `Assign ${selectedQuestions.length} Questions`}
           </Button>
         </div>
       </CardContent>
