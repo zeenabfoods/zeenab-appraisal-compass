@@ -36,27 +36,23 @@ export function useQuestionAssignmentData() {
     try {
       setLoading(true);
 
-      // Fetch assignment statistics with corrected query structure
+      // Fetch assignment statistics with simpler query structure
       const { data: employeeAssignments, error: assignmentError } = await supabase
         .from('employee_appraisal_questions')
         .select(`
           employee_id,
           assigned_at,
-          profiles!inner (
-            id,
+          profiles (
             first_name,
             last_name,
             email,
-            departments!profiles_department_id_fkey (
+            departments (
               name
             ),
             line_manager:profiles!profiles_line_manager_id_fkey (
               first_name,
               last_name
             )
-          ),
-          appraisals (
-            status
           )
         `)
         .eq('is_active', true);
@@ -64,6 +60,16 @@ export function useQuestionAssignmentData() {
       if (assignmentError) {
         console.error('Assignment error:', assignmentError);
         throw assignmentError;
+      }
+
+      // Get appraisal status separately to avoid complex joins
+      const { data: appraisals, error: appraisalError } = await supabase
+        .from('appraisals')
+        .select('employee_id, status');
+
+      if (appraisalError) {
+        console.error('Appraisal error:', appraisalError);
+        // Don't throw here, just log and continue without status data
       }
 
       // Process the data to get stats and assignments
@@ -77,6 +83,9 @@ export function useQuestionAssignmentData() {
         if (!profile) return;
 
         if (!employeeMap.has(employeeId)) {
+          // Find appraisal status for this employee
+          const employeeAppraisal = appraisals?.find(a => a.employee_id === employeeId);
+          
           employeeMap.set(employeeId, {
             employee_id: employeeId,
             employee_name: `${profile.first_name} ${profile.last_name}`,
@@ -86,7 +95,7 @@ export function useQuestionAssignmentData() {
               ? `${profile.line_manager.first_name} ${profile.line_manager.last_name}` 
               : 'Not assigned',
             questions_assigned: 0,
-            appraisal_status: assignment.appraisals?.[0]?.status || 'not_started',
+            appraisal_status: employeeAppraisal?.status || 'not_started',
             assigned_date: assignment.assigned_at
           });
         }
@@ -98,36 +107,41 @@ export function useQuestionAssignmentData() {
       const assignmentsList = Array.from(employeeMap.values());
       setAssignments(assignmentsList);
 
-      // Calculate stats
-      const { data: allEmployees, error: employeesError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('is_active', true)
-        .neq('role', 'admin')
-        .neq('role', 'hr');
+      // Calculate stats with better error handling
+      try {
+        const { data: allEmployees, error: employeesError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('is_active', true)
+          .neq('role', 'admin')
+          .neq('role', 'hr');
 
-      if (employeesError) throw employeesError;
+        const { data: totalQuestions, error: questionsError } = await supabase
+          .from('employee_appraisal_questions')
+          .select('id')
+          .eq('is_active', true);
 
-      const { data: totalQuestions, error: questionsError } = await supabase
-        .from('employee_appraisal_questions')
-        .select('id')
-        .eq('is_active', true);
+        const { data: completedAppraisals, error: completedError } = await supabase
+          .from('appraisals')
+          .select('id')
+          .eq('status', 'completed');
 
-      if (questionsError) throw questionsError;
-
-      const { data: completedAppraisals, error: completedError } = await supabase
-        .from('appraisals')
-        .select('id')
-        .eq('status', 'completed');
-
-      if (completedError) throw completedError;
-
-      setStats({
-        totalEmployees: allEmployees?.length || 0,
-        employeesWithQuestions: employeeMap.size,
-        totalQuestionsAssigned: totalQuestions?.length || 0,
-        completedAppraisals: completedAppraisals?.length || 0
-      });
+        setStats({
+          totalEmployees: allEmployees?.length || 0,
+          employeesWithQuestions: employeeMap.size,
+          totalQuestionsAssigned: totalQuestions?.length || 0,
+          completedAppraisals: completedAppraisals?.length || 0
+        });
+      } catch (statsError) {
+        console.error('Error fetching stats:', statsError);
+        // Set basic stats even if detailed stats fail
+        setStats({
+          totalEmployees: 0,
+          employeesWithQuestions: employeeMap.size,
+          totalQuestionsAssigned: assignmentsList.reduce((sum, emp) => sum + emp.questions_assigned, 0),
+          completedAppraisals: 0
+        });
+      }
 
     } catch (error) {
       console.error('Error fetching assignment data:', error);
