@@ -10,16 +10,6 @@ import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-interface Section {
-  id: string;
-  name: string;
-  description: string;
-  sort_order: number;
-  max_score: number;
-  weight: number;
-  is_active: boolean;
-}
-
 interface Question {
   id: string;
   question_text: string;
@@ -29,7 +19,17 @@ interface Question {
   is_required: boolean;
   is_active: boolean;
   sort_order: number;
-  employee_id?: string;
+  cycle_id?: string;
+}
+
+interface Section {
+  id: string;
+  name: string;
+  description: string;
+  sort_order: number;
+  max_score: number;
+  weight: number;
+  is_active: boolean;
 }
 
 interface QuestionDialogProps {
@@ -82,7 +82,7 @@ export function QuestionDialog({
   }, [question, open]);
 
   const handleSave = async () => {
-    if (!selectedStaff || !formData.question_text || !formData.section_id) {
+    if (!formData.question_text || !formData.section_id) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -93,24 +93,35 @@ export function QuestionDialog({
 
     try {
       if (question) {
+        // Update existing question
         const { error } = await supabase
-          .from('employee_questions')
-          .update({
-            ...formData,
-            employee_id: selectedStaff
-          })
+          .from('appraisal_questions')
+          .update(formData)
           .eq('id', question.id);
         
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from('employee_questions')
-          .insert({
-            ...formData,
-            employee_id: selectedStaff
-          });
+        // Create new question and assign to employee if selectedStaff is provided
+        const { data: newQuestion, error: questionError } = await supabase
+          .from('appraisal_questions')
+          .insert(formData)
+          .select()
+          .single();
         
-        if (error) throw error;
+        if (questionError) throw questionError;
+
+        // If selectedStaff is provided, assign the question to the employee
+        if (selectedStaff && newQuestion) {
+          const { error: assignError } = await supabase
+            .from('employee_appraisal_questions')
+            .insert({
+              employee_id: selectedStaff,
+              question_id: newQuestion.id,
+              cycle_id: '00000000-0000-0000-0000-000000000000', // Default cycle, you might want to make this configurable
+            });
+          
+          if (assignError) throw assignError;
+        }
       }
       
       onSave();
@@ -124,47 +135,44 @@ export function QuestionDialog({
     }
   };
 
-  const handleClose = () => {
-    onOpenChange(false);
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>{question ? 'Edit' : 'Create'} Question</DialogTitle>
           <DialogDescription>
-            {question ? 'Update' : 'Add a new'} question for the selected employee.
+            {question ? 'Update' : 'Create a new'} appraisal question for evaluation.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <Label htmlFor="question-text">Question</Label>
+            <Label htmlFor="question-text">Question Text</Label>
             <Textarea
               id="question-text"
               value={formData.question_text}
               onChange={(e) => setFormData({ ...formData, question_text: e.target.value })}
-              placeholder="How effectively does the employee manage their workload?"
+              placeholder="How would you rate the employee's performance in..."
+              rows={3}
             />
           </div>
           
-          <div>
-            <Label htmlFor="section">Section</Label>
-            <Select value={formData.section_id} onValueChange={(value) => setFormData({ ...formData, section_id: value })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a section" />
-              </SelectTrigger>
-              <SelectContent>
-                {sections.map(section => (
-                  <SelectItem key={section.id} value={section.id}>
-                    {section.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
           <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="section">Section</Label>
+              <Select value={formData.section_id} onValueChange={(value) => setFormData({ ...formData, section_id: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select section" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sections.map(section => (
+                    <SelectItem key={section.id} value={section.id}>
+                      {section.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
             <div>
               <Label htmlFor="question-type">Question Type</Label>
               <Select value={formData.question_type} onValueChange={(value) => setFormData({ ...formData, question_type: value })}>
@@ -172,13 +180,16 @@ export function QuestionDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="rating">Rating Scale</SelectItem>
+                  <SelectItem value="rating">Rating (1-5)</SelectItem>
                   <SelectItem value="text">Text Response</SelectItem>
                   <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
+                  <SelectItem value="yes_no">Yes/No</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="weight">Weight</Label>
               <Input
@@ -191,19 +202,30 @@ export function QuestionDialog({
                 onChange={(e) => setFormData({ ...formData, weight: parseFloat(e.target.value) })}
               />
             </div>
+            
+            <div>
+              <Label htmlFor="sort-order">Sort Order</Label>
+              <Input
+                id="sort-order"
+                type="number"
+                min="0"
+                value={formData.sort_order}
+                onChange={(e) => setFormData({ ...formData, sort_order: parseInt(e.target.value) })}
+              />
+            </div>
           </div>
           
           <div className="flex items-center space-x-2">
             <Switch
-              id="required"
+              id="is-required"
               checked={formData.is_required}
               onCheckedChange={(checked) => setFormData({ ...formData, is_required: checked })}
             />
-            <Label htmlFor="required">Required question</Label>
+            <Label htmlFor="is-required">Required Question</Label>
           </div>
           
           <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={handleClose}>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button onClick={handleSave}>

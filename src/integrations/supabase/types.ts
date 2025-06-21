@@ -415,6 +415,65 @@ export type Database = {
           },
         ]
       }
+      employee_appraisal_questions: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          cycle_id: string
+          employee_id: string
+          id: string
+          is_active: boolean | null
+          question_id: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          cycle_id: string
+          employee_id: string
+          id?: string
+          is_active?: boolean | null
+          question_id: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          cycle_id?: string
+          employee_id?: string
+          id?: string
+          is_active?: boolean | null
+          question_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_appraisal_questions_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_appraisal_questions_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "appraisal_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_appraisal_questions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_appraisal_questions_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "appraisal_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_questions: {
         Row: {
           created_at: string
