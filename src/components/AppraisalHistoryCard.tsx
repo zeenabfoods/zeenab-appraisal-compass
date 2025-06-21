@@ -54,24 +54,30 @@ export function AppraisalHistoryCard() {
 
     try {
       setLoading(true);
-      let query = supabase
-        .from('appraisals')
-        .select(`
-          *,
-          appraisal_cycles (
-            name,
-            quarter,
-            year,
-            start_date,
-            end_date,
-            status
-          )
-        `);
-
+      
       // Different queries based on user role
       if (profile.role === 'staff') {
         // Employees see their own appraisals
-        query = query.eq('employee_id', profile.id);
+        const { data, error } = await supabase
+          .from('appraisals')
+          .select(`
+            *,
+            appraisal_cycles (
+              name,
+              quarter,
+              year,
+              start_date,
+              end_date,
+              status
+            )
+          `)
+          .eq('employee_id', profile.id)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (error) throw error;
+        setAppraisals(data || []);
+
       } else if (profile.role === 'manager') {
         // Managers see their team's appraisals
         const { data: teamMembers } = await supabase
@@ -80,64 +86,80 @@ export function AppraisalHistoryCard() {
           .eq('line_manager_id', profile.id);
         
         const teamIds = teamMembers?.map(member => member.id) || [];
+        
         if (teamIds.length > 0) {
-          query = query.in('employee_id', teamIds);
+          const { data, error } = await supabase
+            .from('appraisals')
+            .select(`
+              *,
+              appraisal_cycles (
+                name,
+                quarter,
+                year,
+                start_date,
+                end_date,
+                status
+              ),
+              profiles!appraisals_employee_id_fkey (
+                first_name,
+                last_name
+              )
+            `)
+            .in('employee_id', teamIds)
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+          if (error) throw error;
+
+          // Transform data to include employee names
+          const transformedData = (data || []).map((appraisal: any) => ({
+            ...appraisal,
+            employee_name: appraisal.profiles 
+              ? `${appraisal.profiles.first_name} ${appraisal.profiles.last_name}`
+              : undefined
+          }));
+
+          setAppraisals(transformedData);
         } else {
           // Manager has no team members
           setAppraisals([]);
-          return;
         }
 
-        // Add employee names for managers
-        query = query.select(`
-          *,
-          appraisal_cycles (
-            name,
-            quarter,
-            year,
-            start_date,
-            end_date,
-            status
-          ),
-          profiles!appraisals_employee_id_fkey (
-            first_name,
-            last_name
-          )
-        `);
       } else if (profile.role === 'hr' || profile.role === 'admin') {
         // HR and Admin see all appraisals
-        query = query.select(`
-          *,
-          appraisal_cycles (
-            name,
-            quarter,
-            year,
-            start_date,
-            end_date,
-            status
-          ),
-          profiles!appraisals_employee_id_fkey (
-            first_name,
-            last_name
-          )
-        `);
+        const { data, error } = await supabase
+          .from('appraisals')
+          .select(`
+            *,
+            appraisal_cycles (
+              name,
+              quarter,
+              year,
+              start_date,
+              end_date,
+              status
+            ),
+            profiles!appraisals_employee_id_fkey (
+              first_name,
+              last_name
+            )
+          `)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (error) throw error;
+
+        // Transform data to include employee names
+        const transformedData = (data || []).map((appraisal: any) => ({
+          ...appraisal,
+          employee_name: appraisal.profiles 
+            ? `${appraisal.profiles.first_name} ${appraisal.profiles.last_name}`
+            : undefined
+        }));
+
+        setAppraisals(transformedData);
       }
 
-      const { data, error } = await query
-        .order('created_at', { ascending: false })
-        .limit(10); // Show last 10 appraisals
-
-      if (error) throw error;
-
-      // Transform data to include employee names
-      const transformedData = (data || []).map((appraisal: any) => ({
-        ...appraisal,
-        employee_name: appraisal.profiles 
-          ? `${appraisal.profiles.first_name} ${appraisal.profiles.last_name}`
-          : undefined
-      }));
-
-      setAppraisals(transformedData);
     } catch (error) {
       console.error('Error loading appraisal history:', error);
     } finally {
