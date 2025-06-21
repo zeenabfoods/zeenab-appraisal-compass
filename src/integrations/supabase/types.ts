@@ -273,6 +273,8 @@ export type Database = {
       appraisals: {
         Row: {
           committee_comments: string | null
+          committee_reviewed_at: string | null
+          committee_reviewed_by: string | null
           completed_at: string | null
           created_at: string | null
           cycle_id: string | null
@@ -285,6 +287,7 @@ export type Database = {
           id: string
           manager_id: string | null
           manager_reviewed_at: string | null
+          manager_reviewed_by: string | null
           mgr_comments: string | null
           noteworthy: string | null
           overall_score: number | null
@@ -298,6 +301,8 @@ export type Database = {
         }
         Insert: {
           committee_comments?: string | null
+          committee_reviewed_at?: string | null
+          committee_reviewed_by?: string | null
           completed_at?: string | null
           created_at?: string | null
           cycle_id?: string | null
@@ -310,6 +315,7 @@ export type Database = {
           id?: string
           manager_id?: string | null
           manager_reviewed_at?: string | null
+          manager_reviewed_by?: string | null
           mgr_comments?: string | null
           noteworthy?: string | null
           overall_score?: number | null
@@ -323,6 +329,8 @@ export type Database = {
         }
         Update: {
           committee_comments?: string | null
+          committee_reviewed_at?: string | null
+          committee_reviewed_by?: string | null
           completed_at?: string | null
           created_at?: string | null
           cycle_id?: string | null
@@ -335,6 +343,7 @@ export type Database = {
           id?: string
           manager_id?: string | null
           manager_reviewed_at?: string | null
+          manager_reviewed_by?: string | null
           mgr_comments?: string | null
           noteworthy?: string | null
           overall_score?: number | null
@@ -347,6 +356,13 @@ export type Database = {
           year?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "appraisals_committee_reviewed_by_fkey"
+            columns: ["committee_reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "appraisals_cycle_id_fkey"
             columns: ["cycle_id"]
@@ -371,6 +387,13 @@ export type Database = {
           {
             foreignKeyName: "appraisals_manager_id_fkey"
             columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appraisals_manager_reviewed_by_fkey"
+            columns: ["manager_reviewed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -774,6 +797,33 @@ export type Database = {
         Args: { section_id_param: string }
         Returns: undefined
       }
+      get_manager_appraisals: {
+        Args: { manager_id_param: string }
+        Returns: {
+          appraisal_id: string
+          employee_id: string
+          employee_name: string
+          cycle_name: string
+          status: Database["public"]["Enums"]["appraisal_status"]
+          submitted_at: string
+          cycle_id: string
+        }[]
+      }
+      get_team_members: {
+        Args: { manager_id_param: string }
+        Returns: {
+          id: string
+          first_name: string
+          last_name: string
+          email: string
+          position: string
+          department_name: string
+        }[]
+      }
+      notify_hr_manager_review: {
+        Args: { appraisal_id_param: string; manager_id_param: string }
+        Returns: undefined
+      }
       notify_line_manager: {
         Args: {
           employee_id_param: string
@@ -790,6 +840,7 @@ export type Database = {
         | "manager_review"
         | "hr_review"
         | "completed"
+        | "committee_review"
       user_role: "staff" | "manager" | "hr" | "admin"
     }
     CompositeTypes: {
@@ -912,6 +963,7 @@ export const Constants = {
         "manager_review",
         "hr_review",
         "completed",
+        "committee_review",
       ],
       user_role: ["staff", "manager", "hr", "admin"],
     },

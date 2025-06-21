@@ -199,9 +199,12 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
             employee_id: employeeId,
             cycle_id: cycleId,
             manager_id: mode === 'manager' ? profile.id : null,
-            status: submit ? 'submitted' : 'draft',
+            status: submit ? (mode === 'employee' ? 'submitted' : 'manager_review') : 'draft',
             ...(submit && mode === 'employee' && { employee_submitted_at: new Date().toISOString() }),
-            ...(submit && mode === 'manager' && { manager_reviewed_at: new Date().toISOString() }),
+            ...(submit && mode === 'manager' && { 
+              manager_reviewed_at: new Date().toISOString(),
+              manager_reviewed_by: profile.id 
+            }),
           })
           .select()
           .single();
@@ -216,8 +219,9 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
           updateData.status = 'submitted';
           updateData.employee_submitted_at = new Date().toISOString();
         } else if (mode === 'manager') {
-          updateData.status = 'manager_review';
+          updateData.status = 'committee_review';
           updateData.manager_reviewed_at = new Date().toISOString();
+          updateData.manager_reviewed_by = profile.id;
         }
 
         const { error: updateError } = await supabase
@@ -226,6 +230,19 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
           .eq('id', appraisalId);
 
         if (updateError) throw updateError;
+
+        // Notify HR if manager completed the review
+        if (mode === 'manager' && submit) {
+          const { error: notifyError } = await supabase.rpc('notify_hr_manager_review', {
+            appraisal_id_param: appraisalId,
+            manager_id_param: profile.id
+          });
+
+          if (notifyError) {
+            console.error('Error sending HR notification:', notifyError);
+            // Don't throw error - notification failure shouldn't block the main flow
+          }
+        }
       }
 
       // Save responses
@@ -252,7 +269,7 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
 
       toast({
         title: "Success",
-        description: submit ? "Appraisal submitted successfully" : "Progress saved",
+        description: submit ? (mode === 'employee' ? "Appraisal submitted successfully" : "Review completed successfully") : "Progress saved",
       });
 
       if (submit && onComplete) {
@@ -332,9 +349,14 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
         <CardHeader>
           <div className="flex justify-between items-start">
             <div>
-              <CardTitle>Performance Appraisal</CardTitle>
+              <CardTitle>
+                {mode === 'manager' ? 'Manager Review' : 'Performance Appraisal'}
+              </CardTitle>
               <CardDescription>
-                Complete your performance evaluation for this cycle
+                {mode === 'manager' 
+                  ? 'Review and evaluate your team member\'s performance' 
+                  : 'Complete your performance evaluation for this cycle'
+                }
               </CardDescription>
             </div>
             <div className="text-right">
@@ -424,6 +446,16 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
                     </div>
                   )}
 
+                  {mode === 'employee' && response.mgr_rating && (
+                    <div className="bg-blue-50 p-3 rounded-lg">
+                      <p className="text-sm font-medium text-blue-700">Manager Assessment:</p>
+                      <p className="text-sm">Rating: {response.mgr_rating}/5</p>
+                      {response.mgr_comment && (
+                        <p className="text-sm mt-1">"{response.mgr_comment}"</p>
+                      )}
+                    </div>
+                  )}
+
                   {index < sectionQuestions.length - 1 && <Separator />}
                 </div>
               );
@@ -449,7 +481,7 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
             disabled={saving || !canSubmit()}
           >
             <Send className="h-4 w-4 mr-2" />
-            Submit Appraisal
+            {mode === 'employee' ? 'Submit Appraisal' : 'Complete Review'}
           </Button>
         </div>
       )}
