@@ -180,13 +180,14 @@ export function EmployeeQuestionManager() {
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Employee Questions Management</h1>
-          <p className="text-gray-600 mt-2">Assign questions to employees and manage notifications</p>
+          <p className="text-gray-600 mt-2">Assign questions to employees and track assignment progress</p>
         </div>
       </div>
 
       <Tabs defaultValue="assignment" className="w-full">
         <TabsList>
           <TabsTrigger value="assignment">Question Assignment</TabsTrigger>
+          <TabsTrigger value="tracking">Assignment Tracking</TabsTrigger>
           <TabsTrigger value="scores">Performance Scores</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
         </TabsList>

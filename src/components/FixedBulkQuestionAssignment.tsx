@@ -51,7 +51,7 @@ export function FixedBulkQuestionAssignment({
   const { profile } = useAuth();
   const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
   const [isAssigning, setIsAssigning] = useState(false);
-  const [activeCycle, setActiveCycle] = useState<string | null>(null);
+  const [activeCycle, setActiveCycle] = useState<any>(null);
 
   const assignedQuestionIds = assignedQuestions.map(q => q.id);
 
@@ -63,7 +63,7 @@ export function FixedBulkQuestionAssignment({
     try {
       const { data: cycles, error } = await supabase
         .from('appraisal_cycles')
-        .select('id')
+        .select('*')
         .eq('status', 'active')
         .single();
 
@@ -77,7 +77,7 @@ export function FixedBulkQuestionAssignment({
         return;
       }
 
-      setActiveCycle(cycles.id);
+      setActiveCycle(cycles);
     } catch (error) {
       console.error('Error in fetchActiveCycle:', error);
       toast({
@@ -106,10 +106,8 @@ export function FixedBulkQuestionAssignment({
     const allSectionQuestionsSelected = sectionQuestionIds.every(id => selectedQuestions.includes(id));
     
     if (allSectionQuestionsSelected) {
-      // Deselect all questions in this section
       setSelectedQuestions(prev => prev.filter(id => !sectionQuestionIds.includes(id)));
     } else {
-      // Select all questions in this section
       setSelectedQuestions(prev => [...new Set([...prev, ...sectionQuestionIds])]);
     }
   };
@@ -136,26 +134,58 @@ export function FixedBulkQuestionAssignment({
     setIsAssigning(true);
     
     try {
+      // Step 1: Create or get existing appraisal for this employee and cycle
+      let appraisalId;
+      
+      const { data: existingAppraisal, error: appraisalCheckError } = await supabase
+        .from('appraisals')
+        .select('id')
+        .eq('employee_id', employeeId)
+        .eq('cycle_id', activeCycle.id)
+        .single();
+
+      if (appraisalCheckError && appraisalCheckError.code !== 'PGRST116') {
+        throw appraisalCheckError;
+      }
+
+      if (existingAppraisal) {
+        appraisalId = existingAppraisal.id;
+        console.log('Using existing appraisal:', appraisalId);
+      } else {
+        // Create new appraisal
+        const { data: newAppraisal, error: createAppraisalError } = await supabase
+          .from('appraisals')
+          .insert({
+            employee_id: employeeId,
+            cycle_id: activeCycle.id,
+            status: 'draft',
+            year: activeCycle.year,
+            quarter: activeCycle.quarter
+          })
+          .select('id')
+          .single();
+
+        if (createAppraisalError) throw createAppraisalError;
+        
+        appraisalId = newAppraisal.id;
+        console.log('Created new appraisal:', appraisalId);
+      }
+
+      // Step 2: Assign questions to employee
       const assignments = selectedQuestions.map(questionId => ({
         employee_id: employeeId,
         question_id: questionId,
-        cycle_id: activeCycle,
+        cycle_id: activeCycle.id,
         assigned_by: profile?.id
       }));
-
-      console.log('Attempting to assign questions with cycle_id:', activeCycle);
-      console.log('Assignments:', assignments);
 
       const { error: assignError } = await supabase
         .from('employee_appraisal_questions')
         .insert(assignments);
 
-      if (assignError) {
-        console.error('Assignment error:', assignError);
-        throw assignError;
-      }
+      if (assignError) throw assignError;
 
-      // Send notification to line manager
+      // Step 3: Send notification to line manager
       if (profile && (profile.role === 'hr' || profile.role === 'admin')) {
         try {
           const { error: notificationError } = await supabase.rpc('notify_line_manager', {
@@ -166,15 +196,39 @@ export function FixedBulkQuestionAssignment({
           
           if (notificationError) {
             console.error('Error sending notification:', notificationError);
+          } else {
+            console.log('Notification sent successfully to line manager');
           }
         } catch (notifError) {
           console.error('Error with notification function:', notifError);
         }
       }
 
+      // Step 4: Create notification for the employee
+      try {
+        const { error: empNotificationError } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: employeeId,
+            type: 'questions_assigned',
+            title: 'New Appraisal Questions Assigned',
+            message: `${selectedQuestions.length} appraisal questions have been assigned to you for the ${activeCycle.name} cycle. Please log in to complete your appraisal.`,
+            related_employee_id: employeeId,
+            related_question_ids: selectedQuestions
+          });
+
+        if (empNotificationError) {
+          console.error('Error creating employee notification:', empNotificationError);
+        } else {
+          console.log('Employee notification created successfully');
+        }
+      } catch (empNotifError) {
+        console.error('Error creating employee notification:', empNotifError);
+      }
+
       toast({
         title: "Questions Assigned Successfully",
-        description: `${selectedQuestions.length} questions have been assigned to ${employeeName}. Line manager has been notified.`
+        description: `${selectedQuestions.length} questions have been assigned to ${employeeName}. An appraisal record has been created and notifications sent.`
       });
 
       setSelectedQuestions([]);
@@ -209,6 +263,7 @@ export function FixedBulkQuestionAssignment({
     <Card>
       <CardHeader>
         <CardTitle>Assign Questions to {employeeName}</CardTitle>
+        <p className="text-sm text-gray-600">Active Cycle: {activeCycle.name} (Q{activeCycle.quarter} {activeCycle.year})</p>
       </CardHeader>
       <CardContent className="space-y-6">
         {sections.map(section => {
