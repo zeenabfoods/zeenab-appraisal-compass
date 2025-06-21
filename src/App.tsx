@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -17,6 +16,7 @@ import DepartmentManagement from "./pages/DepartmentManagement";
 import EmployeeManagement from "./pages/EmployeeManagement";
 import CompanyReports from "./pages/CompanyReports";
 import EmployeeQuestions from "./pages/EmployeeQuestions";
+import Notifications from "./pages/Notifications";
 
 const queryClient = new QueryClient();
 
@@ -35,12 +35,7 @@ const App = () => (
                 <Routes>
                   <Route index element={<Dashboard />} />
                   <Route path="appraisals" element={<MyAppraisals />} />
-                  <Route path="notifications" element={
-                    <div className="backdrop-blur-md bg-white/60 border-white/40 rounded-xl p-8 text-center shadow-lg">
-                      <h2 className="text-2xl font-bold text-gray-900 mb-4">Notifications</h2>
-                      <p className="text-gray-600">Notification system coming soon...</p>
-                    </div>
-                  } />
+                  <Route path="notifications" element={<Notifications />} />
                   <Route path="history" element={
                     <div className="backdrop-blur-md bg-white/60 border-white/40 rounded-xl p-8 text-center shadow-lg">
                       <h2 className="text-2xl font-bold text-gray-900 mb-4">Performance History</h2>

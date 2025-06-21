@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
-import { LogOut, User, Search, Mail, Plus, Bell } from 'lucide-react';
+import { NotificationBell } from '@/components/NotificationBell';
+import { LogOut, User, Search, Mail, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { useNavigate } from 'react-router-dom';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -13,6 +15,7 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { profile, signOut } = useAuth();
+  const navigate = useNavigate();
 
   if (!profile) {
     return (
@@ -32,6 +35,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       case 'manager': return 'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 border-blue-300';
       default: return 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 border-gray-300';
     }
+  };
+
+  const handleNotificationClick = () => {
+    navigate('/dashboard/notifications');
   };
 
   return (
@@ -68,10 +75,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 />
               </div>
               
-              {/* Action buttons */}
-              <Button variant="ghost" size="sm" className="hover:bg-white/50">
-                <Bell className="h-4 w-4" />
-              </Button>
+              {/* Notification Bell with enhanced effects */}
+              <NotificationBell onClick={handleNotificationClick} />
               
               {/* User profile */}
               <div className="flex items-center space-x-3 border-l pl-4 border-white/30">
