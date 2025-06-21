@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 export interface AssignmentStats {
   totalEmployees: number;
@@ -14,13 +15,14 @@ export interface EmployeeAssignment {
   employee_name: string;
   email: string;
   department: string;
+  line_manager: string;
   questions_assigned: number;
   appraisal_status: string;
   assigned_date: string;
-  line_manager: string;
 }
 
 export function useQuestionAssignmentData() {
+  const { toast } = useToast();
   const [stats, setStats] = useState<AssignmentStats>({
     totalEmployees: 0,
     employeesWithQuestions: 0,
@@ -30,102 +32,115 @@ export function useQuestionAssignmentData() {
   const [assignments, setAssignments] = useState<EmployeeAssignment[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchAssignmentData();
-  }, []);
-
   const fetchAssignmentData = async () => {
     try {
       setLoading(true);
 
-      // Get assignment statistics
-      const { data: employeeCount } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('is_active', true);
-
-      const { data: assignmentData } = await supabase
+      // Fetch assignment statistics
+      const { data: employeeAssignments, error: assignmentError } = await supabase
         .from('employee_appraisal_questions')
         .select(`
           employee_id,
-          question_id,
           assigned_at,
           profiles!employee_appraisal_questions_employee_id_fkey (
+            id,
             first_name,
             last_name,
             email,
-            department,
-            line_manager_id,
-            line_manager:profiles!profiles_line_manager_id_fkey (
+            department:departments!profiles_department_id_fkey(name),
+            line_manager:profiles!profiles_line_manager_id_fkey(
               first_name,
               last_name
             )
+          ),
+          appraisals!appraisals_employee_id_fkey (
+            status
           )
         `)
         .eq('is_active', true);
 
-      const { data: appraisalData } = await supabase
-        .from('appraisals')
-        .select('employee_id, status')
-        .neq('status', 'draft');
+      if (assignmentError) throw assignmentError;
 
-      // Calculate stats
-      const totalEmployees = employeeCount?.length || 0;
-      const employeesWithQuestions = new Set(assignmentData?.map(a => a.employee_id)).size;
-      const totalQuestionsAssigned = assignmentData?.length || 0;
-      const completedAppraisals = appraisalData?.filter(a => a.status === 'completed').length || 0;
+      // Process the data to get stats and assignments
+      const processedAssignments: EmployeeAssignment[] = [];
+      const employeeMap = new Map();
 
-      setStats({
-        totalEmployees,
-        employeesWithQuestions,
-        totalQuestionsAssigned,
-        completedAppraisals
-      });
-
-      // Group assignments by employee
-      const employeeAssignments = new Map();
+      assignmentError || assignmentError;
       
-      assignmentData?.forEach(assignment => {
-        const empId = assignment.employee_id;
+      (employeeAssignments || []).forEach((assignment: any) => {
+        const employeeId = assignment.employee_id;
         const profile = assignment.profiles;
         
-        if (!employeeAssignments.has(empId)) {
-          // Handle line_manager which could be an object or null
-          const lineManagerData = Array.isArray(profile.line_manager) 
-            ? profile.line_manager[0] 
-            : profile.line_manager;
-          
-          employeeAssignments.set(empId, {
-            employee_id: empId,
+        if (!profile) return;
+
+        if (!employeeMap.has(employeeId)) {
+          employeeMap.set(employeeId, {
+            employee_id: employeeId,
             employee_name: `${profile.first_name} ${profile.last_name}`,
             email: profile.email,
-            department: profile.department || 'N/A',
+            department: profile.department?.name || 'Not assigned',
+            line_manager: profile.line_manager 
+              ? `${profile.line_manager.first_name} ${profile.line_manager.last_name}` 
+              : 'Not assigned',
             questions_assigned: 0,
-            appraisal_status: 'draft',
-            assigned_date: assignment.assigned_at,
-            line_manager: lineManagerData 
-              ? `${lineManagerData.first_name} ${lineManagerData.last_name}`
-              : 'N/A'
+            appraisal_status: assignment.appraisals?.[0]?.status || 'not_started',
+            assigned_date: assignment.assigned_at
           });
         }
-        
-        employeeAssignments.get(empId).questions_assigned++;
+
+        const employee = employeeMap.get(employeeId);
+        employee.questions_assigned += 1;
       });
 
-      // Add appraisal status
-      appraisalData?.forEach(appraisal => {
-        if (employeeAssignments.has(appraisal.employee_id)) {
-          employeeAssignments.get(appraisal.employee_id).appraisal_status = appraisal.status;
-        }
+      const assignmentsList = Array.from(employeeMap.values());
+      setAssignments(assignmentsList);
+
+      // Calculate stats
+      const { data: allEmployees, error: employeesError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('is_active', true)
+        .neq('role', 'admin')
+        .neq('role', 'hr');
+
+      if (employeesError) throw employeesError;
+
+      const { data: totalQuestions, error: questionsError } = await supabase
+        .from('employee_appraisal_questions')
+        .select('id')
+        .eq('is_active', true);
+
+      if (questionsError) throw questionsError;
+
+      const { data: completedAppraisals, error: completedError } = await supabase
+        .from('appraisals')
+        .select('id')
+        .eq('status', 'completed');
+
+      if (completedError) throw completedError;
+
+      setStats({
+        totalEmployees: allEmployees?.length || 0,
+        employeesWithQuestions: employeeMap.size,
+        totalQuestionsAssigned: totalQuestions?.length || 0,
+        completedAppraisals: completedAppraisals?.length || 0
       });
 
-      setAssignments(Array.from(employeeAssignments.values()));
     } catch (error) {
       console.error('Error fetching assignment data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load assignment tracking data",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchAssignmentData();
+  }, []);
 
   return {
     stats,

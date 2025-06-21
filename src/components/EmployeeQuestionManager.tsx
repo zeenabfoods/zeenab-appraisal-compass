@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,6 +11,7 @@ import { EmptyStateCard } from './EmptyStateCard';
 import { FixedBulkQuestionAssignment } from './FixedBulkQuestionAssignment';
 import { NotificationCenter } from './NotificationCenter';
 import { PerformanceScoreCalculator } from './PerformanceScoreCalculator';
+import { QuestionAssignmentTracker } from './QuestionAssignmentTracker';
 import { useEmployeeQuestions } from '@/hooks/useEmployeeQuestions';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -264,6 +264,10 @@ export function EmployeeQuestionManager() {
           )}
         </TabsContent>
         
+        <TabsContent value="tracking" className="space-y-6">
+          <QuestionAssignmentTracker />
+        </TabsContent>
+        
         <TabsContent value="scores" className="space-y-6">
           <StaffSelectorWithManager
             staff={staff}
@@ -271,10 +275,10 @@ export function EmployeeQuestionManager() {
             onStaffChange={setSelectedStaff}
           />
           
-          {selectedStaff && selectedEmployee && mockScoreData.length > 0 && (
+          {selectedStaff && selectedEmployee && (
             <PerformanceScoreCalculator
-              scores={mockScoreData}
               employeeName={`${selectedEmployee.first_name} ${selectedEmployee.last_name}`}
+              employeeId={selectedStaff}
             />
           )}
         </TabsContent>
