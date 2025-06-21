@@ -3,8 +3,21 @@ import React, { useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Scale, Clock, Users, CheckCircle, User, TrendingUp, Target, Award, AlertTriangle } from 'lucide-react';
+import { Scale, Clock, Users, CheckCircle, User, TrendingUp, Target, Award, AlertTriangle, BarChart3 } from 'lucide-react';
 import { useCommitteeData } from '@/hooks/useCommitteeData';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
+
+const chartConfig = {
+  score: {
+    label: "Score",
+    color: "#f97316",
+  },
+  duration: {
+    label: "Days",
+    color: "#3b82f6",
+  },
+};
 
 export default function Committee() {
   const {
@@ -194,6 +207,114 @@ export default function Committee() {
             </Card>
           </div>
 
+          {/* Charts Section */}
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Performance Score Trend */}
+            <Card className="border-orange-200">
+              <CardHeader>
+                <CardTitle className="flex items-center text-orange-700">
+                  <BarChart3 className="h-5 w-5 mr-2" />
+                  Performance Score Trend
+                </CardTitle>
+                <CardDescription>
+                  Score progression across appraisal cycles
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {analytics.chartData.scoreHistory.length > 0 ? (
+                  <ChartContainer config={chartConfig} className="h-[200px]">
+                    <LineChart data={analytics.chartData.scoreHistory}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="cycle" />
+                      <YAxis domain={[0, 100]} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Line 
+                        type="monotone" 
+                        dataKey="score" 
+                        stroke="var(--color-score)" 
+                        strokeWidth={2}
+                        dot={{ fill: "var(--color-score)", strokeWidth: 2, r: 4 }}
+                      />
+                    </LineChart>
+                  </ChartContainer>
+                ) : (
+                  <div className="h-[200px] flex items-center justify-center text-gray-500">
+                    No score data available
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Performance Bands Distribution */}
+            <Card className="border-orange-200">
+              <CardHeader>
+                <CardTitle className="flex items-center text-orange-700">
+                  <Scale className="h-5 w-5 mr-2" />
+                  Performance Bands
+                </CardTitle>
+                <CardDescription>
+                  Distribution of performance ratings
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {analytics.chartData.performanceBands.length > 0 ? (
+                  <ChartContainer config={chartConfig} className="h-[200px]">
+                    <PieChart>
+                      <Pie
+                        data={analytics.chartData.performanceBands}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="count"
+                      >
+                        {analytics.chartData.performanceBands.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                    </PieChart>
+                  </ChartContainer>
+                ) : (
+                  <div className="h-[200px] flex items-center justify-center text-gray-500">
+                    No performance band data available
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Completion Timeline */}
+            <Card className="border-orange-200 md:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center text-orange-700">
+                  <Clock className="h-5 w-5 mr-2" />
+                  Appraisal Completion Timeline
+                </CardTitle>
+                <CardDescription>
+                  Days taken to complete each appraisal cycle
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {analytics.chartData.completionTimeline.length > 0 ? (
+                  <ChartContainer config={chartConfig} className="h-[200px]">
+                    <BarChart data={analytics.chartData.completionTimeline.filter(item => item.duration !== null)}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="cycle" />
+                      <YAxis />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="duration" fill="var(--color-duration)" />
+                    </BarChart>
+                  </ChartContainer>
+                ) : (
+                  <div className="h-[200px] flex items-center justify-center text-gray-500">
+                    No completion timeline data available
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
           {/* Performance Analysis */}
           <div className="grid gap-6 md:grid-cols-2">
             {/* Strengths */}
@@ -259,7 +380,7 @@ export default function Committee() {
                 Appraisal History
               </CardTitle>
               <CardDescription>
-                Complete performance evaluation timeline
+                Complete performance evaluation timeline with reviewing managers
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -279,6 +400,12 @@ export default function Committee() {
                             </span>
                           )}
                         </div>
+                        {appraisal.manager_reviewed_by && (
+                          <div className="text-sm text-orange-600 mt-1">
+                            Reviewed by: {appraisal.manager_reviewed_by.first_name} {appraisal.manager_reviewed_by.last_name} 
+                            <span className="ml-2 text-orange-500">({appraisal.manager_reviewed_by.department})</span>
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center space-x-3">
                         {appraisal.overall_score && (

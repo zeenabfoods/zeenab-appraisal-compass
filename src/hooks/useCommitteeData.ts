@@ -27,6 +27,30 @@ interface AppraisalData {
   cycle_name: string;
   created_at: string;
   completed_at: string | null;
+  manager_reviewed_by?: {
+    first_name: string;
+    last_name: string;
+    department: string;
+  };
+}
+
+interface ChartData {
+  scoreHistory: Array<{
+    cycle: string;
+    score: number;
+    date: string;
+  }>;
+  performanceBands: Array<{
+    band: string;
+    count: number;
+    color: string;
+  }>;
+  completionTimeline: Array<{
+    cycle: string;
+    created: string;
+    completed: string | null;
+    duration: number | null;
+  }>;
 }
 
 interface EmployeeAnalytics {
@@ -37,6 +61,7 @@ interface EmployeeAnalytics {
   strengths: string[];
   totalAppraisals: number;
   completedAppraisals: number;
+  chartData: ChartData;
 }
 
 export function useCommitteeData() {
@@ -180,7 +205,7 @@ export function useCommitteeData() {
         line_manager
       };
 
-      // Get appraisal history
+      // Get appraisal history with manager who reviewed
       const { data: appraisals, error: appraisalsError } = await supabase
         .from('appraisals')
         .select(`
@@ -190,7 +215,8 @@ export function useCommitteeData() {
           status,
           created_at,
           completed_at,
-          cycle_id
+          cycle_id,
+          manager_reviewed_by
         `)
         .eq('employee_id', employeeId)
         .order('created_at', { ascending: false });
@@ -211,9 +237,45 @@ export function useCommitteeData() {
         }
       }
 
+      // Get manager details who reviewed appraisals
+      const managerIds = appraisals?.map(app => app.manager_reviewed_by).filter(Boolean) || [];
+      let managersData = [];
+      if (managerIds.length > 0) {
+        const { data: managers, error: managersError } = await supabase
+          .from('profiles')
+          .select(`
+            id,
+            first_name,
+            last_name,
+            department_id
+          `)
+          .in('id', managerIds);
+
+        if (!managersError) {
+          managersData = managers || [];
+        }
+      }
+
+      // Get departments for managers
+      const managerDeptIds = managersData.map(mgr => mgr.department_id).filter(Boolean);
+      let managerDepartments = [];
+      if (managerDeptIds.length > 0) {
+        const { data: depts, error: deptsError } = await supabase
+          .from('departments')
+          .select('id, name')
+          .in('id', managerDeptIds);
+
+        if (!deptsError) {
+          managerDepartments = depts || [];
+        }
+      }
+
       // Transform appraisal data
       const transformedAppraisals = (appraisals || []).map(appraisal => {
         const cycle = cyclesData.find(c => c.id === appraisal.cycle_id);
+        const manager = managersData.find(m => m.id === appraisal.manager_reviewed_by);
+        const managerDept = manager ? managerDepartments.find(d => d.id === manager.department_id) : null;
+        
         return {
           id: appraisal.id,
           overall_score: appraisal.overall_score,
@@ -221,7 +283,12 @@ export function useCommitteeData() {
           status: appraisal.status,
           cycle_name: cycle?.name || 'Unknown Cycle',
           created_at: appraisal.created_at,
-          completed_at: appraisal.completed_at
+          completed_at: appraisal.completed_at,
+          manager_reviewed_by: manager ? {
+            first_name: manager.first_name,
+            last_name: manager.last_name,
+            department: managerDept?.name || 'Unknown Department'
+          } : undefined
         };
       });
 
@@ -254,6 +321,41 @@ export function useCommitteeData() {
         }
       }
 
+      // Prepare chart data
+      const scoreHistory = scoresWithValues.map(a => ({
+        cycle: a.cycle_name,
+        score: a.overall_score || 0,
+        date: new Date(a.created_at).toLocaleDateString()
+      })).reverse();
+
+      const bandCounts = transformedAppraisals.reduce((acc, a) => {
+        if (a.performance_band) {
+          acc[a.performance_band] = (acc[a.performance_band] || 0) + 1;
+        }
+        return acc;
+      }, {} as Record<string, number>);
+
+      const performanceBands = Object.entries(bandCounts).map(([band, count]) => ({
+        band,
+        count,
+        color: getBandColor(band)
+      }));
+
+      const completionTimeline = transformedAppraisals.map(a => ({
+        cycle: a.cycle_name,
+        created: new Date(a.created_at).toLocaleDateString(),
+        completed: a.completed_at ? new Date(a.completed_at).toLocaleDateString() : null,
+        duration: a.completed_at ? 
+          Math.ceil((new Date(a.completed_at).getTime() - new Date(a.created_at).getTime()) / (1000 * 60 * 60 * 24)) 
+          : null
+      }));
+
+      const chartData: ChartData = {
+        scoreHistory,
+        performanceBands,
+        completionTimeline
+      };
+
       const analytics: EmployeeAnalytics = {
         employee,
         appraisals: transformedAppraisals,
@@ -261,7 +363,8 @@ export function useCommitteeData() {
         improvementAreas,
         strengths,
         totalAppraisals: transformedAppraisals.length,
-        completedAppraisals: completedAppraisals.length
+        completedAppraisals: completedAppraisals.length,
+        chartData
       };
 
       setAnalytics(analytics);
@@ -295,4 +398,16 @@ export function useCommitteeData() {
     fetchEmployees,
     handleEmployeeSelect
   };
+}
+
+function getBandColor(band: string): string {
+  switch (band.toLowerCase()) {
+    case 'exceptional': return '#22c55e';
+    case 'excellent': return '#3b82f6';
+    case 'very good': return '#f59e0b';
+    case 'good': return '#eab308';
+    case 'fair': return '#ef4444';
+    case 'poor': return '#dc2626';
+    default: return '#6b7280';
+  }
 }
