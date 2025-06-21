@@ -283,8 +283,9 @@ export function QuestionTemplateManager() {
         }}
         question={editingQuestion}
         sections={sections}
-        selectedStaff=""
+        selectedStaff="" // Empty in template mode
         onSave={handleQuestionSaved}
+        isTemplateMode={true} // This is the key change - enables template mode
       />
     </div>
   );

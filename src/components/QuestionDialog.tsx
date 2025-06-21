@@ -40,6 +40,7 @@ interface QuestionDialogProps {
   sections: Section[];
   selectedStaff: string;
   onSave: () => void;
+  isTemplateMode?: boolean; // New prop to distinguish between template and employee modes
 }
 
 export function QuestionDialog({
@@ -48,7 +49,8 @@ export function QuestionDialog({
   question,
   sections,
   selectedStaff,
-  onSave
+  onSave,
+  isTemplateMode = false
 }: QuestionDialogProps) {
   const { toast } = useToast();
   const { profile } = useAuth();
@@ -94,7 +96,8 @@ export function QuestionDialog({
       return;
     }
 
-    if (!selectedStaff) {
+    // Only require employee selection if not in template mode
+    if (!isTemplateMode && !selectedStaff) {
       toast({
         title: "Error",
         description: "Please select an employee first",
@@ -144,22 +147,29 @@ export function QuestionDialog({
 
         if (createError) throw createError;
 
-        // Assign question to selected employee
-        const { error: assignError } = await supabase
-          .from('employee_appraisal_questions')
-          .insert({
-            employee_id: selectedStaff,
-            question_id: newQuestion.id,
-            cycle_id: '00000000-0000-0000-0000-000000000000', // Default cycle
-            assigned_by: profile?.id
+        // Only assign to employee if not in template mode and employee is selected
+        if (!isTemplateMode && selectedStaff) {
+          const { error: assignError } = await supabase
+            .from('employee_appraisal_questions')
+            .insert({
+              employee_id: selectedStaff,
+              question_id: newQuestion.id,
+              cycle_id: '00000000-0000-0000-0000-000000000000', // Default cycle
+              assigned_by: profile?.id
+            });
+
+          if (assignError) throw assignError;
+
+          toast({
+            title: "Success",
+            description: "Question created and assigned successfully"
           });
-
-        if (assignError) throw assignError;
-
-        toast({
-          title: "Success",
-          description: "Question created and assigned successfully"
-        });
+        } else {
+          toast({
+            title: "Success",
+            description: isTemplateMode ? "Question template created successfully" : "Question created successfully"
+          });
+        }
       }
 
       onSave();
@@ -180,9 +190,11 @@ export function QuestionDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{question ? 'Edit' : 'Create'} Question</DialogTitle>
+          <DialogTitle>
+            {question ? 'Edit' : 'Create'} {isTemplateMode ? 'Question Template' : 'Question'}
+          </DialogTitle>
           <DialogDescription>
-            {question ? 'Update' : 'Create a new'} appraisal question for evaluation.
+            {question ? 'Update' : 'Create a new'} appraisal question{isTemplateMode ? ' template' : ''} for evaluation.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
