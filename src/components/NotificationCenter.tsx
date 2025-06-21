@@ -1,138 +1,30 @@
-import React, { useState, useEffect } from 'react';
+
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Bell, Check, Eye, User, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useNotificationSystem } from '@/hooks/useNotificationSystem';
 import { formatDistanceToNow } from 'date-fns';
-
-interface Notification {
-  id: string;
-  type: string;
-  title: string;
-  message: string;
-  related_employee_id?: string;
-  related_question_ids?: string[];
-  is_read: boolean;
-  created_at: string;
-  employee?: {
-    first_name: string;
-    last_name: string;
-    position?: string;
-    department?: {
-      name: string;
-    };
-  };
-}
 
 export function NotificationCenter() {
   const { toast } = useToast();
-  const { profile } = useAuth();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { 
+    notifications, 
+    unreadCount, 
+    markAsRead, 
+    markAllAsRead 
+  } = useNotificationSystem();
 
-  const fetchNotifications = async () => {
-    if (!profile?.id) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select(`
-          *,
-          employee:profiles!notifications_related_employee_id_fkey(
-            first_name,
-            last_name,
-            position,
-            department:departments!profiles_department_id_fkey(name)
-          )
-        `)
-        .eq('user_id', profile.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setNotifications(data || []);
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load notifications",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchNotifications();
-    
-    // Set up real-time subscription for new notifications
-    const channel = supabase
-      .channel('notifications')
-      .on('postgres_changes', 
-        { 
-          event: 'INSERT', 
-          schema: 'public', 
-          table: 'notifications',
-          filter: `user_id=eq.${profile?.id}`
-        }, 
-        () => {
-          fetchNotifications();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [profile?.id]);
-
-  const markAsRead = async (notificationId: string) => {
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('id', notificationId);
-
-      if (error) throw error;
-
-      setNotifications(prev => 
-        prev.map(notif => 
-          notif.id === notificationId 
-            ? { ...notif, is_read: true }
-            : notif
-        )
-      );
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-    }
-  };
-
-  const markAllAsRead = async () => {
-    try {
-      const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
-      
-      if (unreadIds.length === 0) return;
-
-      const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .in('id', unreadIds);
-
-      if (error) throw error;
-
-      setNotifications(prev => 
-        prev.map(notif => ({ ...notif, is_read: true }))
-      );
-
+  const handleMarkAllAsRead = async () => {
+    const result = await markAllAsRead();
+    if (result.success) {
       toast({
         title: "Success",
         description: "All notifications marked as read"
       });
-    } catch (error) {
-      console.error('Error marking all as read:', error);
+    } else {
       toast({
         title: "Error",
         description: "Failed to mark notifications as read",
@@ -140,18 +32,6 @@ export function NotificationCenter() {
       });
     }
   };
-
-  const unreadCount = notifications.filter(n => !n.is_read).length;
-
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <Card>
@@ -167,7 +47,7 @@ export function NotificationCenter() {
             )}
           </CardTitle>
           {unreadCount > 0 && (
-            <Button variant="outline" size="sm" onClick={markAllAsRead}>
+            <Button variant="outline" size="sm" onClick={handleMarkAllAsRead}>
               <Check className="h-4 w-4 mr-2" />
               Mark All Read
             </Button>

@@ -1,19 +1,25 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuthContext } from '@/components/AuthProvider';
 
 interface NotificationState {
   hasUnread: boolean;
   unreadCount: number;
   hasNewNotification: boolean;
+  notifications: any[];
 }
 
+let globalChannel: any = null;
+let subscriberCount = 0;
+
 export function useNotificationSystem() {
-  const { profile } = useAuth();
+  const { profile } = useAuthContext();
   const [notificationState, setNotificationState] = useState<NotificationState>({
     hasUnread: false,
     unreadCount: 0,
-    hasNewNotification: false
+    hasNewNotification: false,
+    notifications: []
   });
 
   const playNotificationSound = useCallback(() => {
@@ -38,82 +44,180 @@ export function useNotificationSystem() {
     setNotificationState(prev => ({ ...prev, hasNewNotification: false }));
   }, []);
 
-  const fetchNotificationCount = async () => {
-    if (!profile?.id) return;
+  const fetchNotifications = useCallback(async () => {
+    if (!profile?.id) {
+      setNotificationState({
+        hasUnread: false,
+        unreadCount: 0,
+        hasNewNotification: false,
+        notifications: []
+      });
+      return;
+    }
 
     try {
       const { data, error } = await supabase
         .from('notifications')
-        .select('id, is_read')
-        .eq('user_id', profile.id);
+        .select(`
+          *,
+          employee:profiles!notifications_related_employee_id_fkey(
+            first_name,
+            last_name,
+            position,
+            department:departments!profiles_department_id_fkey(name)
+          )
+        `)
+        .eq('user_id', profile.id)
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      const unreadCount = data?.filter(n => !n.is_read).length || 0;
+      const notifications = data || [];
+      const unreadCount = notifications.filter(n => !n.is_read).length;
       
       setNotificationState(prev => ({
         ...prev,
         hasUnread: unreadCount > 0,
-        unreadCount
+        unreadCount,
+        notifications
       }));
     } catch (error) {
-      console.error('Error fetching notification count:', error);
+      console.error('Error fetching notifications:', error);
     }
-  };
+  }, [profile?.id]);
+
+  const markAsRead = useCallback(async (notificationId: string) => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', notificationId);
+
+      if (error) throw error;
+
+      setNotificationState(prev => ({
+        ...prev,
+        notifications: prev.notifications.map(notif => 
+          notif.id === notificationId 
+            ? { ...notif, is_read: true }
+            : notif
+        ),
+        unreadCount: Math.max(0, prev.unreadCount - 1),
+        hasUnread: prev.unreadCount > 1
+      }));
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  }, []);
+
+  const markAllAsRead = useCallback(async () => {
+    try {
+      const unreadIds = notificationState.notifications.filter(n => !n.is_read).map(n => n.id);
+      
+      if (unreadIds.length === 0) return { success: true };
+
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .in('id', unreadIds);
+
+      if (error) throw error;
+
+      setNotificationState(prev => ({
+        ...prev,
+        notifications: prev.notifications.map(notif => ({ ...notif, is_read: true })),
+        unreadCount: 0,
+        hasUnread: false
+      }));
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error marking all as read:', error);
+      return { success: false, error };
+    }
+  }, [notificationState.notifications]);
 
   useEffect(() => {
-    fetchNotificationCount();
+    if (!profile?.id) return;
+
+    // Initial fetch
+    fetchNotifications();
     
-    // Set up real-time subscription for new notifications
-    const channel = supabase
-      .channel('notification-system')
-      .on('postgres_changes', 
-        { 
-          event: 'INSERT', 
-          schema: 'public', 
-          table: 'notifications',
-          filter: `user_id=eq.${profile?.id}`
-        }, 
-        (payload) => {
-          console.log('New notification received:', payload);
-          
-          // Update state with new notification
-          setNotificationState(prev => ({
-            hasUnread: true,
-            unreadCount: prev.unreadCount + 1,
-            hasNewNotification: true
-          }));
+    // Increment subscriber count
+    subscriberCount++;
+    console.log('Notification subscriber count:', subscriberCount);
+    
+    // Create or reuse global channel
+    if (!globalChannel) {
+      console.log('Creating new notification channel');
+      globalChannel = supabase.channel(`notifications-${profile.id}`);
+      
+      globalChannel
+        .on('postgres_changes', 
+          { 
+            event: 'INSERT', 
+            schema: 'public', 
+            table: 'notifications',
+            filter: `user_id=eq.${profile.id}`
+          }, 
+          (payload) => {
+            console.log('New notification received:', payload);
+            
+            // Refresh notifications
+            fetchNotifications();
 
-          // Play notification sound
-          playNotificationSound();
+            // Update state with new notification
+            setNotificationState(prev => ({
+              ...prev,
+              hasUnread: true,
+              unreadCount: prev.unreadCount + 1,
+              hasNewNotification: true
+            }));
 
-          // Clear the "new" state after 5 seconds
-          setTimeout(() => {
-            setNotificationState(prev => ({ ...prev, hasNewNotification: false }));
-          }, 5000);
-        }
-      )
-      .on('postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${profile?.id}`
-        },
-        () => {
-          fetchNotificationCount();
-        }
-      )
-      .subscribe();
+            // Play notification sound
+            playNotificationSound();
+
+            // Clear the "new" state after 5 seconds
+            setTimeout(() => {
+              setNotificationState(prev => ({ ...prev, hasNewNotification: false }));
+            }, 5000);
+          }
+        )
+        .on('postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${profile.id}`
+          },
+          () => {
+            fetchNotifications();
+          }
+        )
+        .subscribe((status) => {
+          console.log('Notification channel status:', status);
+        });
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      subscriberCount--;
+      console.log('Notification subscriber count after cleanup:', subscriberCount);
+      
+      // Only remove channel when no more subscribers
+      if (subscriberCount <= 0 && globalChannel) {
+        console.log('Removing notification channel');
+        supabase.removeChannel(globalChannel);
+        globalChannel = null;
+        subscriberCount = 0;
+      }
     };
-  }, [profile?.id, playNotificationSound]);
+  }, [profile?.id, fetchNotifications, playNotificationSound]);
 
   return {
     ...notificationState,
     clearNewNotificationState,
-    refreshNotifications: fetchNotificationCount
+    refreshNotifications: fetchNotifications,
+    markAsRead,
+    markAllAsRead
   };
 }
