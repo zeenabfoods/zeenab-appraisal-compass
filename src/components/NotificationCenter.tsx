@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -42,7 +41,7 @@ export function NotificationCenter() {
         .from('notifications')
         .select(`
           *,
-          employee:profiles!related_employee_id(
+          employee:profiles!notifications_related_employee_id_fkey(
             first_name,
             last_name,
             position,

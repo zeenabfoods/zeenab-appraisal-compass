@@ -590,6 +590,8 @@ export type Database = {
           is_read: boolean | null
           message: string
           related_appraisal_id: string | null
+          related_employee_id: string | null
+          related_question_ids: string[] | null
           title: string
           type: string
           user_id: string | null
@@ -600,6 +602,8 @@ export type Database = {
           is_read?: boolean | null
           message: string
           related_appraisal_id?: string | null
+          related_employee_id?: string | null
+          related_question_ids?: string[] | null
           title: string
           type: string
           user_id?: string | null
@@ -610,6 +614,8 @@ export type Database = {
           is_read?: boolean | null
           message?: string
           related_appraisal_id?: string | null
+          related_employee_id?: string | null
+          related_question_ids?: string[] | null
           title?: string
           type?: string
           user_id?: string | null
@@ -620,6 +626,13 @@ export type Database = {
             columns: ["related_appraisal_id"]
             isOneToOne: false
             referencedRelation: "appraisals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_related_employee_id_fkey"
+            columns: ["related_employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
