@@ -62,7 +62,6 @@ export function useAuth() {
       
       if (error) {
         console.log('Profile fetch error, using basic profile:', error.message);
-        // Always fall back to basic profile instead of failing
         const currentUser = await supabase.auth.getUser();
         if (currentUser.data.user) {
           const basicProfile = createBasicProfile(currentUser.data.user);
@@ -75,7 +74,6 @@ export function useAuth() {
       setProfile(profileData);
     } catch (error) {
       console.log('Profile fetch exception, using basic profile:', error);
-      // Always fall back to basic profile
       const currentUser = await supabase.auth.getUser();
       if (currentUser.data.user) {
         const basicProfile = createBasicProfile(currentUser.data.user);
@@ -89,7 +87,6 @@ export function useAuth() {
     
     let mounted = true;
     
-    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.id);
@@ -100,11 +97,9 @@ export function useAuth() {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Create basic profile immediately to prevent blank screens
           const basicProfile = createBasicProfile(session.user);
           setProfile(basicProfile);
           
-          // Try to fetch full profile, but don't block the UI
           setTimeout(() => {
             if (mounted) {
               fetchProfile(session.user.id);
@@ -114,7 +109,6 @@ export function useAuth() {
           setProfile(null);
         }
         
-        // Always ensure we're not stuck in loading state
         if (mounted) {
           setLoading(false);
           setAuthReady(true);
@@ -122,7 +116,6 @@ export function useAuth() {
       }
     );
 
-    // Check for existing session
     const initializeAuth = async () => {
       try {
         console.log('Checking for existing session');
@@ -133,11 +126,9 @@ export function useAuth() {
           setUser(session?.user ?? null);
           
           if (session?.user) {
-            // Create basic profile immediately
             const basicProfile = createBasicProfile(session.user);
             setProfile(basicProfile);
             
-            // Try to fetch full profile
             setTimeout(() => {
               if (mounted) {
                 fetchProfile(session.user.id);
@@ -254,16 +245,30 @@ export function useAuth() {
 
   const signOut = async () => {
     try {
+      console.log('Attempting to sign out...');
       const { error } = await supabase.auth.signOut();
+      
       if (error) {
+        console.error('Sign out error:', error);
         toast({
           title: "Sign Out Error",
           description: error.message,
           variant: "destructive"
         });
+      } else {
+        console.log('Sign out successful');
+        toast({
+          title: "Success",
+          description: "You have been signed out successfully."
+        });
       }
     } catch (error: any) {
-      console.error('Error signing out:', error);
+      console.error('Sign out exception:', error);
+      toast({
+        title: "Sign Out Error",
+        description: "An unexpected error occurred while signing out.",
+        variant: "destructive"
+      });
     }
   };
 
