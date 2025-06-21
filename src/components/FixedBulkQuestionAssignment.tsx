@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { CheckSquare, Square } from 'lucide-react';
+import { CheckSquare, Square, Info } from 'lucide-react';
 
 interface Question {
   id: string;
@@ -171,7 +171,7 @@ export function FixedBulkQuestionAssignment({
         console.log('Created new appraisal:', appraisalId);
       }
 
-      // Step 2: Assign questions to employee
+      // Step 2: Assign questions to employee (questions remain in the bank for reuse)
       const assignments = selectedQuestions.map(questionId => ({
         employee_id: employeeId,
         question_id: questionId,
@@ -228,7 +228,7 @@ export function FixedBulkQuestionAssignment({
 
       toast({
         title: "Questions Assigned Successfully",
-        description: `${selectedQuestions.length} questions have been assigned to ${employeeName}. An appraisal record has been created and notifications sent.`
+        description: `${selectedQuestions.length} questions have been assigned to ${employeeName}. Questions remain available in the question bank for future use.`
       });
 
       setSelectedQuestions([]);
@@ -264,6 +264,12 @@ export function FixedBulkQuestionAssignment({
       <CardHeader>
         <CardTitle>Assign Questions to {employeeName}</CardTitle>
         <p className="text-sm text-gray-600">Active Cycle: {activeCycle.name} (Q{activeCycle.quarter} {activeCycle.year})</p>
+        <div className="flex items-center space-x-2 mt-2 p-3 bg-blue-50 rounded-lg">
+          <Info className="h-4 w-4 text-blue-600" />
+          <p className="text-sm text-blue-800">
+            Questions will remain in the question bank after assignment and can be reused for future cycles.
+          </p>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         {sections.map(section => {

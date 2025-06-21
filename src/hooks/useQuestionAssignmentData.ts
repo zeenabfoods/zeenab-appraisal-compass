@@ -36,36 +36,39 @@ export function useQuestionAssignmentData() {
     try {
       setLoading(true);
 
-      // Fetch assignment statistics
+      // Fetch assignment statistics with corrected query structure
       const { data: employeeAssignments, error: assignmentError } = await supabase
         .from('employee_appraisal_questions')
         .select(`
           employee_id,
           assigned_at,
-          profiles!employee_appraisal_questions_employee_id_fkey (
+          profiles!inner (
             id,
             first_name,
             last_name,
             email,
-            department:departments!profiles_department_id_fkey(name),
-            line_manager:profiles!profiles_line_manager_id_fkey(
+            departments!profiles_department_id_fkey (
+              name
+            ),
+            line_manager:profiles!profiles_line_manager_id_fkey (
               first_name,
               last_name
             )
           ),
-          appraisals!appraisals_employee_id_fkey (
+          appraisals (
             status
           )
         `)
         .eq('is_active', true);
 
-      if (assignmentError) throw assignmentError;
+      if (assignmentError) {
+        console.error('Assignment error:', assignmentError);
+        throw assignmentError;
+      }
 
       // Process the data to get stats and assignments
       const processedAssignments: EmployeeAssignment[] = [];
       const employeeMap = new Map();
-
-      assignmentError || assignmentError;
       
       (employeeAssignments || []).forEach((assignment: any) => {
         const employeeId = assignment.employee_id;
@@ -78,7 +81,7 @@ export function useQuestionAssignmentData() {
             employee_id: employeeId,
             employee_name: `${profile.first_name} ${profile.last_name}`,
             email: profile.email,
-            department: profile.department?.name || 'Not assigned',
+            department: profile.departments?.name || 'Not assigned',
             line_manager: profile.line_manager 
               ? `${profile.line_manager.first_name} ${profile.line_manager.last_name}` 
               : 'Not assigned',

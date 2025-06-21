@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { AppraisalAccessDialog } from '@/components/AppraisalAccessDialog';
+import { EmployeeAssignedQuestions } from '@/components/EmployeeAssignedQuestions';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { 
   Users, 
@@ -211,6 +212,11 @@ export function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Show assigned questions for employees */}
+      {profile && (profile.role === 'staff' || profile.role === 'manager') && (
+        <EmployeeAssignedQuestions employeeId={profile.id} />
+      )}
 
       {/* Stats Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
