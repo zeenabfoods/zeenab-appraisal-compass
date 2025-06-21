@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Section {
   id: string;
@@ -21,7 +22,7 @@ interface SectionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   section: Section | null;
-  onSave: (sectionData: Omit<Section, 'id'>) => void;
+  onSave: () => void;
 }
 
 export function SectionDialog({
@@ -38,6 +39,7 @@ export function SectionDialog({
     weight: 1.0,
     sort_order: 0,
   });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (section) {
@@ -69,12 +71,53 @@ export function SectionDialog({
       return;
     }
 
-    const sectionData = {
-      ...formData,
-      is_active: true
-    };
+    setSaving(true);
 
-    onSave(sectionData);
+    try {
+      const sectionData = {
+        ...formData,
+        is_active: true
+      };
+
+      if (section) {
+        // Update existing section
+        const { error } = await supabase
+          .from('appraisal_question_sections')
+          .update(sectionData)
+          .eq('id', section.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Success",
+          description: "Section updated successfully"
+        });
+      } else {
+        // Create new section
+        const { error } = await supabase
+          .from('appraisal_question_sections')
+          .insert(sectionData);
+
+        if (error) throw error;
+
+        toast({
+          title: "Success",
+          description: "Section created successfully"
+        });
+      }
+
+      onSave();
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error('Error saving section:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save section",
+        variant: "destructive"
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleClose = () => {
@@ -139,11 +182,11 @@ export function SectionDialog({
           </div>
           
           <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={handleClose}>
+            <Button variant="outline" onClick={handleClose} disabled={saving}>
               Cancel
             </Button>
-            <Button onClick={handleSave}>
-              {section ? 'Update' : 'Create'} Section
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving...' : (section ? 'Update' : 'Create')} Section
             </Button>
           </div>
         </div>

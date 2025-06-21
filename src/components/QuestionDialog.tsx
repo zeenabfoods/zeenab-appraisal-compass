@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Question {
   id: string;
@@ -38,7 +39,7 @@ interface QuestionDialogProps {
   question: Question | null;
   sections: Section[];
   selectedStaff: string;
-  onSave: (questionData: Omit<Question, 'id'>) => void;
+  onSave: () => void;
 }
 
 export function QuestionDialog({
@@ -59,6 +60,7 @@ export function QuestionDialog({
     is_required: true,
     sort_order: 0,
   });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (question) {
@@ -92,12 +94,86 @@ export function QuestionDialog({
       return;
     }
 
-    const questionData = {
-      ...formData,
-      is_active: true
-    };
+    if (!selectedStaff) {
+      toast({
+        title: "Error",
+        description: "Please select an employee first",
+        variant: "destructive"
+      });
+      return;
+    }
 
-    onSave(questionData);
+    setSaving(true);
+
+    try {
+      if (question) {
+        // Update existing question
+        const { error: updateError } = await supabase
+          .from('appraisal_questions')
+          .update({
+            question_text: formData.question_text,
+            section_id: formData.section_id,
+            question_type: formData.question_type,
+            weight: formData.weight,
+            is_required: formData.is_required,
+            sort_order: formData.sort_order,
+          })
+          .eq('id', question.id);
+
+        if (updateError) throw updateError;
+
+        toast({
+          title: "Success",
+          description: "Question updated successfully"
+        });
+      } else {
+        // Create new question
+        const { data: newQuestion, error: createError } = await supabase
+          .from('appraisal_questions')
+          .insert({
+            question_text: formData.question_text,
+            section_id: formData.section_id,
+            question_type: formData.question_type,
+            weight: formData.weight,
+            is_required: formData.is_required,
+            is_active: true,
+            sort_order: formData.sort_order,
+          })
+          .select()
+          .single();
+
+        if (createError) throw createError;
+
+        // Assign question to selected employee
+        const { error: assignError } = await supabase
+          .from('employee_appraisal_questions')
+          .insert({
+            employee_id: selectedStaff,
+            question_id: newQuestion.id,
+            cycle_id: '00000000-0000-0000-0000-000000000000', // Default cycle
+            assigned_by: profile?.id
+          });
+
+        if (assignError) throw assignError;
+
+        toast({
+          title: "Success",
+          description: "Question created and assigned successfully"
+        });
+      }
+
+      onSave();
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error('Error saving question:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save question",
+        variant: "destructive"
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -190,11 +266,11 @@ export function QuestionDialog({
           </div>
           
           <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button onClick={handleSave}>
-              {question ? 'Update' : 'Create'} Question
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving...' : (question ? 'Update' : 'Create')} Question
             </Button>
           </div>
         </div>

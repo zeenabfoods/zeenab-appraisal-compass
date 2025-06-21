@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
@@ -87,24 +88,20 @@ export function EmployeeQuestionManager() {
   };
 
   const handleQuestionSave = () => {
-    fetchQuestions(selectedStaff);
+    console.log('Question save callback triggered');
+    if (selectedStaff) {
+      fetchQuestions(selectedStaff);
+    }
     fetchAllQuestions();
     setQuestionDialogOpen(false);
     setEditingQuestion(null);
-    toast({
-      title: "Success",
-      description: editingQuestion ? "Question updated successfully" : "Question created successfully"
-    });
   };
 
   const handleSectionSave = () => {
+    console.log('Section save callback triggered');
     fetchSections();
     setSectionDialogOpen(false);
     setEditingSection(null);
-    toast({
-      title: "Success",
-      description: editingSection ? "Section updated successfully" : "Section created successfully"
-    });
   };
 
   const handleDeleteQuestion = async (questionId: string) => {
