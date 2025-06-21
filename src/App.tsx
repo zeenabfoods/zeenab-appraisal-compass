@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -32,27 +32,70 @@ function App() {
           <BrowserRouter>
             <Routes>
               <Route path="/auth" element={<Auth />} />
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute>
-                    <DashboardLayout>
-                      <Outlet />
-                    </DashboardLayout>
-                  </ProtectedRoute>
-                }
-              >
-                <Route index element={<Index />} />
-                <Route path="employee-management" element={<EmployeeManagement />} />
-                <Route path="department-management" element={<DepartmentManagement />} />
-                <Route path="question-templates" element={<QuestionTemplates />} />
-                <Route path="employee-questions" element={<EmployeeQuestions />} />
-                <Route path="appraisal-cycles" element={<AppraisalCycles />} />
-                <Route path="my-appraisals" element={<MyAppraisals />} />
-                <Route path="manager-appraisals" element={<ManagerAppraisals />} />
-                <Route path="company-reports" element={<CompanyReports />} />
-                <Route path="notifications" element={<Notifications />} />
-              </Route>
+              <Route path="/" element={<Index />} />
+              <Route path="/employee-management" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <EmployeeManagement />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/department-management" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <DepartmentManagement />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/question-templates" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <QuestionTemplates />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/employee-questions" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <EmployeeQuestions />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/appraisal-cycles" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <AppraisalCycles />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/my-appraisals" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <MyAppraisals />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/manager-appraisals" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <ManagerAppraisals />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/company-reports" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <CompanyReports />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/notifications" element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Notifications />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              } />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
