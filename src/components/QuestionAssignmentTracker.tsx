@@ -93,6 +93,11 @@ export function QuestionAssignmentTracker() {
         const profile = assignment.profiles;
         
         if (!employeeAssignments.has(empId)) {
+          // Handle line_manager which could be an object or null
+          const lineManagerData = Array.isArray(profile.line_manager) 
+            ? profile.line_manager[0] 
+            : profile.line_manager;
+          
           employeeAssignments.set(empId, {
             employee_id: empId,
             employee_name: `${profile.first_name} ${profile.last_name}`,
@@ -101,8 +106,8 @@ export function QuestionAssignmentTracker() {
             questions_assigned: 0,
             appraisal_status: 'draft',
             assigned_date: assignment.assigned_at,
-            line_manager: profile.line_manager 
-              ? `${profile.line_manager.first_name} ${profile.line_manager.last_name}`
+            line_manager: lineManagerData 
+              ? `${lineManagerData.first_name} ${lineManagerData.last_name}`
               : 'N/A'
           });
         }
