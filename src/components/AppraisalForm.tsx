@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,6 +20,7 @@ interface Question {
   section_id: string;
   is_required: boolean;
   question_type: string;
+  section_name?: string;
 }
 
 interface Section {
@@ -61,6 +63,8 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
 
   const loadAppraisalData = async () => {
     try {
+      console.log('Loading appraisal data for employee:', employeeId, 'cycle:', cycleId);
+
       // Load sections
       const { data: sectionsData, error: sectionsError } = await supabase
         .from('appraisal_question_sections')
@@ -71,16 +75,48 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
       if (sectionsError) throw sectionsError;
       setSections(sectionsData || []);
 
-      // Load questions for the cycle
-      const { data: questionsData, error: questionsError } = await supabase
-        .from('appraisal_questions')
-        .select('*')
+      // Load assigned questions for this specific employee and cycle
+      const { data: assignedQuestionsData, error: assignedError } = await supabase
+        .from('employee_appraisal_questions')
+        .select(`
+          id,
+          question_id,
+          appraisal_questions!inner (
+            id,
+            question_text,
+            question_type,
+            weight,
+            is_required,
+            section_id,
+            appraisal_question_sections (
+              name
+            )
+          )
+        `)
+        .eq('employee_id', employeeId)
         .eq('cycle_id', cycleId)
-        .eq('is_active', true)
-        .order('sort_order');
+        .eq('is_active', true);
 
-      if (questionsError) throw questionsError;
-      setQuestions(questionsData || []);
+      if (assignedError) {
+        console.error('Error loading assigned questions:', assignedError);
+        throw assignedError;
+      }
+
+      console.log('Assigned questions data:', assignedQuestionsData);
+
+      // Process the assigned questions
+      const processedQuestions: Question[] = (assignedQuestionsData || []).map((item: any) => ({
+        id: item.appraisal_questions.id,
+        question_text: item.appraisal_questions.question_text,
+        question_type: item.appraisal_questions.question_type,
+        weight: item.appraisal_questions.weight,
+        is_required: item.appraisal_questions.is_required,
+        section_id: item.appraisal_questions.section_id,
+        section_name: item.appraisal_questions.appraisal_question_sections?.name || 'General'
+      }));
+
+      console.log('Processed questions:', processedQuestions);
+      setQuestions(processedQuestions);
 
       // Load existing appraisal and responses
       const { data: appraisalData, error: appraisalError } = await supabase
@@ -88,12 +124,14 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
         .select('*')
         .eq('cycle_id', cycleId)
         .eq('employee_id', employeeId)
-        .single();
+        .maybeSingle();
 
-      if (appraisalError && appraisalError.code !== 'PGRST116') {
+      if (appraisalError) {
+        console.error('Error loading appraisal:', appraisalError);
         throw appraisalError;
       }
 
+      console.log('Appraisal data:', appraisalData);
       setAppraisalData(appraisalData);
 
       if (appraisalData) {
@@ -109,6 +147,7 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
         responsesData?.forEach(response => {
           responsesMap[response.question_id] = response;
         });
+        console.log('Loaded responses:', responsesMap);
         setResponses(responsesMap);
       }
     } catch (error) {
@@ -253,8 +292,38 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
     );
   }
 
+  if (questions.length === 0) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>No Questions Assigned</CardTitle>
+            <CardDescription>
+              No appraisal questions have been assigned to you for this cycle yet.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600">
+              Please contact your HR department or line manager if you believe this is an error.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const isReadOnly = mode === 'hr' || (appraisalData?.status === 'completed');
   const completionPercentage = getCompletionPercentage();
+
+  // Group questions by section
+  const questionsBySection = questions.reduce((acc, question) => {
+    const sectionName = question.section_name || 'General';
+    if (!acc[sectionName]) {
+      acc[sectionName] = [];
+    }
+    acc[sectionName].push(question);
+    return acc;
+  }, {} as Record<string, Question[]>);
 
   return (
     <div className="space-y-6">
@@ -284,84 +353,84 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
       </Card>
 
       {/* Questions by Section */}
-      {sections.map(section => {
-        const sectionQuestions = questions.filter(q => q.section_id === section.id);
-        if (sectionQuestions.length === 0) return null;
+      {Object.entries(questionsBySection).map(([sectionName, sectionQuestions]) => (
+        <Card key={sectionName}>
+          <CardHeader>
+            <CardTitle className="text-lg">{sectionName}</CardTitle>
+            <CardDescription>
+              {sectionQuestions.length} question{sectionQuestions.length !== 1 ? 's' : ''} in this section
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {sectionQuestions.map((question, index) => {
+              const response = responses[question.id] || {} as AppraisalResponse;
+              const currentRating = mode === 'employee' ? response.emp_rating : response.mgr_rating;
+              const currentComment = mode === 'employee' ? response.emp_comment : response.mgr_comment;
 
-        return (
-          <Card key={section.id}>
-            <CardHeader>
-              <CardTitle className="text-lg">{section.name}</CardTitle>
-              {section.description && (
-                <CardDescription>{section.description}</CardDescription>
-              )}
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {sectionQuestions.map((question, index) => {
-                const response = responses[question.id] || {} as AppraisalResponse;
-                const currentRating = mode === 'employee' ? response.emp_rating : response.mgr_rating;
-                const currentComment = mode === 'employee' ? response.emp_comment : response.mgr_comment;
-
-                return (
-                  <div key={question.id} className="space-y-4">
-                    <div className="flex justify-between items-start">
-                      <h4 className="font-medium text-gray-900">
-                        {index + 1}. {question.question_text}
-                      </h4>
+              return (
+                <div key={question.id} className="space-y-4">
+                  <div className="flex justify-between items-start">
+                    <h4 className="font-medium text-gray-900">
+                      {index + 1}. {question.question_text}
+                    </h4>
+                    <div className="flex items-center space-x-2">
                       {question.is_required && (
                         <Badge variant="outline" className="text-xs">Required</Badge>
                       )}
+                      <Badge variant="secondary" className="text-xs">
+                        Weight: {question.weight}
+                      </Badge>
                     </div>
-
-                    {/* Rating */}
-                    <div className="space-y-2">
-                      <Label>Rating (1-5 scale)</Label>
-                      <RadioGroup
-                        value={currentRating?.toString() || ''}
-                        onValueChange={(value) => handleRatingChange(question.id, parseInt(value))}
-                        className="flex space-x-4"
-                        disabled={isReadOnly}
-                      >
-                        {[1, 2, 3, 4, 5].map(rating => (
-                          <div key={rating} className="flex items-center space-x-2">
-                            <RadioGroupItem value={rating.toString()} id={`${question.id}-${rating}`} />
-                            <Label htmlFor={`${question.id}-${rating}`}>{rating}</Label>
-                          </div>
-                        ))}
-                      </RadioGroup>
-                    </div>
-
-                    {/* Comment */}
-                    <div className="space-y-2">
-                      <Label>Comments</Label>
-                      <Textarea
-                        placeholder="Add your comments..."
-                        value={currentComment || ''}
-                        onChange={(e) => handleCommentChange(question.id, e.target.value)}
-                        disabled={isReadOnly}
-                        rows={3}
-                      />
-                    </div>
-
-                    {/* Show other person's feedback if available */}
-                    {mode === 'manager' && response.emp_rating && (
-                      <div className="bg-gray-50 p-3 rounded-lg">
-                        <p className="text-sm font-medium text-gray-700">Employee Self-Assessment:</p>
-                        <p className="text-sm">Rating: {response.emp_rating}/5</p>
-                        {response.emp_comment && (
-                          <p className="text-sm mt-1">"{response.emp_comment}"</p>
-                        )}
-                      </div>
-                    )}
-
-                    {index < sectionQuestions.length - 1 && <Separator />}
                   </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        );
-      })}
+
+                  {/* Rating */}
+                  <div className="space-y-2">
+                    <Label>Rating (1-5 scale)</Label>
+                    <RadioGroup
+                      value={currentRating?.toString() || ''}
+                      onValueChange={(value) => handleRatingChange(question.id, parseInt(value))}
+                      className="flex space-x-4"
+                      disabled={isReadOnly}
+                    >
+                      {[1, 2, 3, 4, 5].map(rating => (
+                        <div key={rating} className="flex items-center space-x-2">
+                          <RadioGroupItem value={rating.toString()} id={`${question.id}-${rating}`} />
+                          <Label htmlFor={`${question.id}-${rating}`}>{rating}</Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                  </div>
+
+                  {/* Comment */}
+                  <div className="space-y-2">
+                    <Label>Comments</Label>
+                    <Textarea
+                      placeholder="Add your comments..."
+                      value={currentComment || ''}
+                      onChange={(e) => handleCommentChange(question.id, e.target.value)}
+                      disabled={isReadOnly}
+                      rows={3}
+                    />
+                  </div>
+
+                  {/* Show other person's feedback if available */}
+                  {mode === 'manager' && response.emp_rating && (
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-sm font-medium text-gray-700">Employee Self-Assessment:</p>
+                      <p className="text-sm">Rating: {response.emp_rating}/5</p>
+                      {response.emp_comment && (
+                        <p className="text-sm mt-1">"{response.emp_comment}"</p>
+                      )}
+                    </div>
+                  )}
+
+                  {index < sectionQuestions.length - 1 && <Separator />}
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      ))}
 
       {/* Action Buttons */}
       {!isReadOnly && (
