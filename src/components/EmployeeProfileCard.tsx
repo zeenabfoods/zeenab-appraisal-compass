@@ -1,29 +1,97 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, Building2, Users, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { User, Building2, Users, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Profile } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface EmployeeProfileCardProps {
   profile: Profile;
+  onProfileUpdate?: (updatedProfile: Profile) => void;
 }
 
-export function EmployeeProfileCard({ profile }: EmployeeProfileCardProps) {
+export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfileCardProps) {
+  const [currentProfile, setCurrentProfile] = useState<Profile>(profile);
+  const [refreshing, setRefreshing] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    setCurrentProfile(profile);
+  }, [profile]);
+
+  const refreshProfile = async () => {
+    setRefreshing(true);
+    try {
+      console.log('🔄 Refreshing profile data for user:', currentProfile.id);
+      
+      const { data: updatedProfile, error } = await supabase
+        .from('profiles')
+        .select(`
+          *,
+          department:departments!profiles_department_id_fkey(name),
+          line_manager:profiles!profiles_line_manager_id_fkey(first_name, last_name)
+        `)
+        .eq('id', currentProfile.id)
+        .single();
+
+      if (error) {
+        console.error('Error refreshing profile:', error);
+        throw error;
+      }
+
+      console.log('✅ Profile refreshed successfully:', updatedProfile);
+      
+      // Transform the data to match our Profile interface
+      const transformedProfile: Profile = {
+        ...updatedProfile,
+        department: updatedProfile.department ? { name: updatedProfile.department.name } : undefined
+      };
+
+      setCurrentProfile(transformedProfile);
+      
+      // Notify parent component of the update
+      if (onProfileUpdate) {
+        onProfileUpdate(transformedProfile);
+      }
+
+      toast({
+        title: "Profile Updated",
+        description: "Your profile information has been refreshed."
+      });
+    } catch (error) {
+      console.error('Error refreshing profile:', error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh profile information.",
+        variant: "destructive"
+      });
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const getDepartmentDisplay = () => {
-    if (profile.department?.name) {
-      return profile.department.name;
+    if (currentProfile.department?.name) {
+      return currentProfile.department.name;
     }
     return 'Not assigned';
   };
 
-  const getLineManagerDisplay = async () => {
-    // For now, we'll show a placeholder since we don't have the line manager info in the profile
-    // This would be enhanced to fetch line manager details
-    return profile.line_manager_id ? 'Assigned' : 'Not assigned';
+  const getLineManagerDisplay = () => {
+    if (currentProfile.line_manager_id) {
+      // If we have line manager data from the join
+      if (currentProfile.line_manager) {
+        return `${currentProfile.line_manager.first_name} ${currentProfile.line_manager.last_name}`;
+      }
+      return 'Assigned';
+    }
+    return 'Not assigned';
   };
 
-  const isProfileIncomplete = !profile.department_id || !profile.line_manager_id;
+  const isProfileIncomplete = !currentProfile.department_id || !currentProfile.line_manager_id;
 
   return (
     <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg">
@@ -33,12 +101,23 @@ export function EmployeeProfileCard({ profile }: EmployeeProfileCardProps) {
             <User className="h-5 w-5" />
             My Profile
           </CardTitle>
-          {isProfileIncomplete && (
-            <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">
-              <AlertTriangle className="h-3 w-3 mr-1" />
-              Pending Setup
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {isProfileIncomplete && (
+              <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                Pending Setup
+              </Badge>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={refreshProfile}
+              disabled={refreshing}
+              className="h-8 w-8 p-0"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
         </div>
         <CardDescription>
           Your current profile and organizational information
@@ -52,7 +131,7 @@ export function EmployeeProfileCard({ profile }: EmployeeProfileCardProps) {
               Name
             </div>
             <p className="text-gray-900">
-              {profile.first_name} {profile.last_name}
+              {currentProfile.first_name} {currentProfile.last_name}
             </p>
           </div>
 
@@ -62,7 +141,7 @@ export function EmployeeProfileCard({ profile }: EmployeeProfileCardProps) {
               Role
             </div>
             <Badge variant="secondary" className="capitalize">
-              {profile.role}
+              {currentProfile.role}
             </Badge>
           </div>
 
@@ -71,7 +150,7 @@ export function EmployeeProfileCard({ profile }: EmployeeProfileCardProps) {
               <Building2 className="h-4 w-4" />
               Department
             </div>
-            <p className={`${!profile.department_id ? 'text-amber-600 italic' : 'text-gray-900'}`}>
+            <p className={`${!currentProfile.department_id ? 'text-amber-600 italic' : 'text-gray-900'}`}>
               {getDepartmentDisplay()}
             </p>
           </div>
@@ -81,18 +160,18 @@ export function EmployeeProfileCard({ profile }: EmployeeProfileCardProps) {
               <Users className="h-4 w-4" />
               Line Manager
             </div>
-            <p className={`${!profile.line_manager_id ? 'text-amber-600 italic' : 'text-gray-900'}`}>
-              {profile.line_manager_id ? 'Assigned' : 'Not assigned'}
+            <p className={`${!currentProfile.line_manager_id ? 'text-amber-600 italic' : 'text-gray-900'}`}>
+              {getLineManagerDisplay()}
             </p>
           </div>
 
-          {profile.position && (
+          {currentProfile.position && (
             <div className="space-y-2 md:col-span-2">
               <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
                 <Badge className="h-4 w-4" />
                 Position
               </div>
-              <p className="text-gray-900">{profile.position}</p>
+              <p className="text-gray-900">{currentProfile.position}</p>
             </div>
           )}
         </div>
@@ -106,6 +185,16 @@ export function EmployeeProfileCard({ profile }: EmployeeProfileCardProps) {
                 <p className="text-amber-700 mt-1">
                   Your department and line manager assignment is pending. Please contact HR to complete your profile setup.
                 </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={refreshProfile}
+                  disabled={refreshing}
+                  className="mt-2"
+                >
+                  <RefreshCw className={`h-3 w-3 mr-1 ${refreshing ? 'animate-spin' : ''}`} />
+                  Check for Updates
+                </Button>
               </div>
             </div>
           </div>

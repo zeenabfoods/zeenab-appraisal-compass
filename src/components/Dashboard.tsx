@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,6 +10,7 @@ import { EmployeeAssignedQuestions } from '@/components/EmployeeAssignedQuestion
 import { AppraisalHistoryCard } from '@/components/AppraisalHistoryCard';
 import { EmployeeProfileCard } from '@/components/EmployeeProfileCard';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { Profile } from '@/hooks/useAuth';
 import { 
   Users, 
   TrendingUp, 
@@ -56,6 +56,7 @@ const statusData = [
 
 export function Dashboard() {
   const { profile, user, loading, authReady } = useAuth();
+  const [currentProfile, setCurrentProfile] = useState<Profile | null>(profile);
   const [cycles, setCycles] = useState<AppraisalCycle[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     totalEmployees: 0,
@@ -66,6 +67,11 @@ export function Dashboard() {
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [showAccessDialog, setShowAccessDialog] = useState(false);
   const [selectedAppraisal, setSelectedAppraisal] = useState<string>('');
+
+  // Update current profile when auth profile changes
+  useEffect(() => {
+    setCurrentProfile(profile);
+  }, [profile]);
 
   useEffect(() => {
     // Only load dashboard data when auth is ready and user exists
@@ -123,6 +129,11 @@ export function Dashboard() {
     } finally {
       setDashboardLoading(false);
     }
+  };
+
+  const handleProfileUpdate = (updatedProfile: Profile) => {
+    console.log('📋 Dashboard received profile update:', updatedProfile);
+    setCurrentProfile(updatedProfile);
   };
 
   const handleAppraisalClick = (cycle: AppraisalCycle) => {
@@ -186,7 +197,7 @@ export function Dashboard() {
   }
 
   // Get display name - always have a fallback
-  const displayName = profile?.first_name || user?.user_metadata?.first_name || user?.email?.split('@')[0] || 'User';
+  const displayName = currentProfile?.first_name || user?.user_metadata?.first_name || user?.email?.split('@')[0] || 'User';
 
   return (
     <div className="space-y-6">
@@ -200,14 +211,17 @@ export function Dashboard() {
         </p>
       </div>
 
-      {/* Employee Profile Card - Show for all users */}
-      {profile && (
-        <EmployeeProfileCard profile={profile} />
+      {/* Employee Profile Card - Show for all users with updated profile */}
+      {currentProfile && (
+        <EmployeeProfileCard 
+          profile={currentProfile} 
+          onProfileUpdate={handleProfileUpdate}
+        />
       )}
 
       {/* Show assigned questions for employees */}
-      {profile && (profile.role === 'staff' || profile.role === 'manager') && (
-        <EmployeeAssignedQuestions employeeId={profile.id} />
+      {currentProfile && (currentProfile.role === 'staff' || currentProfile.role === 'manager') && (
+        <EmployeeAssignedQuestions employeeId={currentProfile.id} />
       )}
 
       {/* Stats Grid - Always show with default or loaded data */}
@@ -291,7 +305,7 @@ export function Dashboard() {
       </div>
 
       {/* Team Overview (for managers) */}
-      {(profile?.role === 'manager' || profile?.role === 'hr' || profile?.role === 'admin') && (
+      {(currentProfile?.role === 'manager' || currentProfile?.role === 'hr' || currentProfile?.role === 'admin') && (
         <div className="grid gap-6 md:grid-cols-2">
           <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg">
             <CardHeader>
