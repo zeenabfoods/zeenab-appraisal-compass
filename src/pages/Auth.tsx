@@ -32,7 +32,7 @@ export default function Auth() {
   const [managers, setManagers] = useState<Profile[]>([]);
   const [selectedRole, setSelectedRole] = useState<string>('staff');
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
-  const [assignedManager, setAssignedManager] = useState<string>('');
+  const [selectedManager, setSelectedManager] = useState<string>('');
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState<string>('');
 
@@ -58,7 +58,6 @@ export default function Auth() {
     } catch (error) {
       console.error('❌ Error loading initial data:', error);
       setDataError('Failed to load system data. Some features may not be available.');
-      // Don't show toast error - we'll handle this gracefully
     } finally {
       setDataLoading(false);
     }
@@ -75,7 +74,6 @@ export default function Auth() {
       
       if (error) {
         console.error('❌ Error fetching departments:', error);
-        // Don't throw - handle gracefully
         setDepartments([]);
         return;
       }
@@ -101,7 +99,6 @@ export default function Auth() {
       
       if (error) {
         console.error('❌ Error fetching managers:', error);
-        // Don't throw - handle gracefully
         setManagers([]);
         return;
       }
@@ -119,19 +116,11 @@ export default function Auth() {
     console.log('🏢 Department selected:', departmentId);
     setSelectedDepartment(departmentId);
     
-    if (departmentId === 'none') {
-      setAssignedManager('');
-      return;
-    }
-    
-    // Find the selected department and its line manager
+    // Auto-suggest line manager based on department, but don't force it
     const selectedDept = departments.find(dept => dept.id === departmentId);
     if (selectedDept && selectedDept.line_manager_id) {
-      console.log('👔 Auto-assigning line manager:', selectedDept.line_manager_id);
-      setAssignedManager(selectedDept.line_manager_id);
-    } else {
-      console.log('⚠️ No line manager found for department:', selectedDept?.name || 'Unknown');
-      setAssignedManager('');
+      console.log('💡 Suggesting line manager:', selectedDept.line_manager_id);
+      setSelectedManager(selectedDept.line_manager_id);
     }
   };
 
@@ -162,8 +151,10 @@ export default function Auth() {
     const firstName = formData.get('firstName') as string;
     const lastName = formData.get('lastName') as string;
     const role = formData.get('role') as 'staff' | 'manager' | 'hr' | 'admin';
-    const departmentId = selectedDepartment === 'none' ? undefined : selectedDepartment;
-    const lineManagerId = (role === 'admin' || assignedManager === 'none') ? undefined : assignedManager;
+    
+    // Use selected values for department and manager
+    const departmentId = selectedDepartment || undefined;
+    const lineManagerId = (role === 'admin' || !selectedManager) ? undefined : selectedManager;
 
     console.log('📝 Signing up with data:', {
       email,
@@ -328,18 +319,18 @@ export default function Auth() {
                       </SelectContent>
                     </Select>
                   </div>
+                  
                   <div className="space-y-2">
                     <Label htmlFor="department">Department (Optional)</Label>
                     <Select 
-                      name="department" 
                       value={selectedDepartment}
                       onValueChange={handleDepartmentChange}
                     >
                       <SelectTrigger className="backdrop-blur-sm bg-white/70 border-white/40">
-                        <SelectValue placeholder="Select your department (optional)" />
+                        <SelectValue placeholder="Choose your department (optional)" />
                       </SelectTrigger>
                       <SelectContent className="backdrop-blur-md bg-white/90 z-50">
-                        <SelectItem value="none">No Department</SelectItem>
+                        <SelectItem value="">No Department</SelectItem>
                         {departments.length > 0 ? (
                           departments.map((dept) => (
                             <SelectItem key={dept.id} value={dept.id}>
@@ -353,29 +344,41 @@ export default function Auth() {
                         )}
                       </SelectContent>
                     </Select>
-                    {departments.length === 0 && (
-                      <p className="text-sm text-blue-600">
-                        You can be assigned to a department after registration.
-                      </p>
-                    )}
                   </div>
+
                   {selectedRole !== 'admin' && (
                     <div className="space-y-2">
                       <Label htmlFor="lineManager">Line Manager (Optional)</Label>
-                      <Input
-                        id="lineManager"
-                        value={assignedManager ? getManagerName(assignedManager) : 'No manager assigned'}
-                        className="backdrop-blur-sm bg-gray-100/70 border-white/40"
-                        readOnly
-                        placeholder="Will be assigned based on department or later"
-                      />
-                      {managers.length === 0 && (
+                      <Select 
+                        value={selectedManager}
+                        onValueChange={setSelectedManager}
+                      >
+                        <SelectTrigger className="backdrop-blur-sm bg-white/70 border-white/40">
+                          <SelectValue placeholder="Choose your line manager (optional)" />
+                        </SelectTrigger>
+                        <SelectContent className="backdrop-blur-md bg-white/90 z-50">
+                          <SelectItem value="">No Manager</SelectItem>
+                          {managers.length > 0 ? (
+                            managers.map((manager) => (
+                              <SelectItem key={manager.id} value={manager.id}>
+                                {manager.first_name} {manager.last_name} ({manager.role.toUpperCase()})
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="no-mgr" disabled>
+                              No managers available
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      {selectedDepartment && departments.find(d => d.id === selectedDepartment)?.line_manager_id === selectedManager && (
                         <p className="text-sm text-blue-600">
-                          You can be assigned a line manager after registration.
+                          💡 This is the suggested manager for your chosen department
                         </p>
                       )}
                     </div>
                   )}
+
                   <Button 
                     type="submit" 
                     className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 shadow-lg" 
@@ -383,13 +386,6 @@ export default function Auth() {
                   >
                     {loading ? 'Creating account...' : 'Sign Up'}
                   </Button>
-                  
-                  {departments.length === 0 || managers.length === 0 ? (
-                    <div className="mt-4 p-3 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-md">
-                      <p className="font-medium">Note:</p>
-                      <p>Your account will be created successfully. Departments and managers can be assigned by an administrator after registration.</p>
-                    </div>
-                  ) : null}
                 </form>
               )}
             </TabsContent>
