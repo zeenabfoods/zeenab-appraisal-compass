@@ -56,6 +56,17 @@ export function SignUpForm({
     );
   }
 
+  // Get the line manager name for the selected department
+  const getLineManagerName = () => {
+    if (!selectedDepartment) return '';
+    
+    const selectedDept = departments.find(dept => dept.id === selectedDepartment);
+    if (!selectedDept || !selectedDept.line_manager_id) return '';
+    
+    const lineManager = managers.find(manager => manager.id === selectedDept.line_manager_id);
+    return lineManager ? `${lineManager.first_name} ${lineManager.last_name}` : '';
+  };
+
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       {dataError && (
@@ -152,31 +163,23 @@ export function SignUpForm({
       {selectedRole !== 'admin' && (
         <div className="space-y-2">
           <Label htmlFor="lineManager">Line Manager <span className="text-red-500">*</span></Label>
-          <Select 
-            value={selectedManager}
-            onValueChange={onManagerChange}
+          <Input
+            id="lineManager"
+            name="lineManager"
+            value={getLineManagerName()}
+            placeholder={selectedDepartment ? "Line manager will be assigned based on department" : "Please select a department first"}
+            className="backdrop-blur-sm bg-gray-100/70 border-white/40 text-gray-700"
+            readOnly
             required
-          >
-            <SelectTrigger className="backdrop-blur-sm bg-white/70 border-white/40">
-              <SelectValue placeholder="Choose your line manager" />
-            </SelectTrigger>
-            <SelectContent className="backdrop-blur-md bg-white/90 z-50">
-              {managers.length > 0 ? (
-                managers.map((manager) => (
-                  <SelectItem key={manager.id} value={manager.id}>
-                    {manager.first_name} {manager.last_name} ({manager.role.toUpperCase()})
-                  </SelectItem>
-                ))
-              ) : (
-                <SelectItem value="no-managers-available" disabled>
-                  No managers available
-                </SelectItem>
-              )}
-            </SelectContent>
-          </Select>
-          {selectedDepartment && departments.find(d => d.id === selectedDepartment)?.line_manager_id === selectedManager && (
+          />
+          {selectedDepartment && getLineManagerName() && (
             <p className="text-sm text-blue-600">
-              💡 This is the suggested manager for your chosen department
+              💡 Line manager automatically assigned based on your department
+            </p>
+          )}
+          {selectedDepartment && !getLineManagerName() && (
+            <p className="text-sm text-amber-600">
+              ⚠️ No line manager assigned to this department. Please contact HR.
             </p>
           )}
         </div>

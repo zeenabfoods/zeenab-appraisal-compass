@@ -32,11 +32,14 @@ export default function Auth() {
     console.log('🏢 Department selected:', departmentId);
     setSelectedDepartment(departmentId);
     
-    // Auto-suggest line manager based on department, but don't force it
+    // Auto-assign line manager based on department
     const selectedDept = departments.find(dept => dept.id === departmentId);
     if (selectedDept && selectedDept.line_manager_id) {
-      console.log('💡 Suggesting line manager:', selectedDept.line_manager_id);
+      console.log('💡 Auto-assigning line manager:', selectedDept.line_manager_id);
       setSelectedManager(selectedDept.line_manager_id);
+    } else {
+      console.log('⚠️ No line manager found for department:', departmentId);
+      setSelectedManager('');
     }
   };
 
@@ -80,10 +83,12 @@ export default function Auth() {
         return;
       }
       
-      if (!selectedManager || selectedManager === 'no-managers-available') {
+      // Check if department has a line manager assigned
+      const selectedDept = departments.find(dept => dept.id === selectedDepartment);
+      if (!selectedDept?.line_manager_id) {
         toast({
-          title: "Validation Error", 
-          description: "Please select a line manager.",
+          title: "Department Configuration Error",
+          description: "The selected department does not have a line manager assigned. Please contact HR or select a different department.",
           variant: "destructive"
         });
         setLoading(false);
@@ -91,9 +96,9 @@ export default function Auth() {
       }
     }
 
-    // Prepare the data - ensure we're sending valid IDs
+    // Prepare the data - use the auto-assigned line manager
     const departmentId = selectedDepartment && selectedDepartment !== 'no-departments-available' ? selectedDepartment : undefined;
-    const lineManagerId = (role !== 'admin' && selectedManager && selectedManager !== 'no-managers-available') ? selectedManager : undefined;
+    const lineManagerId = (role !== 'admin' && selectedManager) ? selectedManager : undefined;
 
     console.log('📝 Signing up with data:', {
       email,
