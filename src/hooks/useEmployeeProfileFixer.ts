@@ -202,8 +202,16 @@ export function useEmployeeProfileFixer() {
     } else {
       console.log('✅ HR manager found:', hrManager);
       
-      // Make sure the HR manager has the correct department
-      if (hrManager.department_id !== deptId) {
+      // Get the current HR manager with department info
+      const { data: currentManager, error: fetchError } = await supabase
+        .from('profiles')
+        .select('department_id')
+        .eq('id', hrManager.id)
+        .single();
+      
+      if (fetchError) {
+        console.error('❌ Error fetching HR manager details:', fetchError);
+      } else if (currentManager?.department_id !== deptId) {
         const { error: updateError } = await supabase
           .from('profiles')
           .update({ department_id: deptId })
