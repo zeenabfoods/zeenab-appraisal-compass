@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,17 +35,19 @@ export function EmployeeProfileFixer({ onFixCompleted }: EmployeeProfileFixerPro
 
       console.log('👤 Current profile state:', currentProfile);
 
-      // Get or create HR department
-      let { data: hrDept, error: deptError } = await supabase
+      // Get or create HR department - use limit(1) to avoid multiple rows error
+      let { data: hrDeptArray, error: deptError } = await supabase
         .from('departments')
         .select('id, name')
         .ilike('name', '%human%resource%')
-        .maybeSingle();
+        .limit(1);
 
-      if (deptError && deptError.code !== 'PGRST116') {
+      if (deptError) {
         console.error('❌ Error checking HR department:', deptError);
         throw deptError;
       }
+
+      let hrDept = hrDeptArray?.[0];
 
       if (!hrDept) {
         console.log('🏢 Creating HR department...');
@@ -71,19 +72,21 @@ export function EmployeeProfileFixer({ onFixCompleted }: EmployeeProfileFixerPro
         console.log('✅ HR department found:', hrDept);
       }
 
-      // Get HR manager
-      const { data: hrManager, error: managerError } = await supabase
+      // Get HR manager - use limit(1) to avoid multiple rows error
+      const { data: hrManagerArray, error: managerError } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, role')
         .eq('role', 'hr')
         .eq('first_name', 'Human')
         .eq('last_name', 'Resource')
-        .maybeSingle();
+        .limit(1);
 
       if (managerError) {
         console.error('❌ Error finding HR manager:', managerError);
         throw managerError;
       }
+
+      const hrManager = hrManagerArray?.[0];
 
       if (!hrManager) {
         toast({
@@ -124,9 +127,7 @@ export function EmployeeProfileFixer({ onFixCompleted }: EmployeeProfileFixerPro
           first_name, 
           last_name, 
           department_id, 
-          line_manager_id,
-          departments!profiles_department_id_fkey(name),
-          line_manager:profiles!profiles_line_manager_id_fkey(first_name, last_name)
+          line_manager_id
         `)
         .eq('id', '14085962-62dd-4d01-a9ed-d4dc43cfc7e5')
         .single();
@@ -134,7 +135,7 @@ export function EmployeeProfileFixer({ onFixCompleted }: EmployeeProfileFixerPro
       if (verifyError) {
         console.error('❌ Error verifying profile update:', verifyError);
       } else {
-        console.log('🔍 Verification - Profile with relations:', verificationProfile);
+        console.log('🔍 Verification - Updated profile:', verificationProfile);
       }
       
       setStatus('success');
