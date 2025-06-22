@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,6 +47,18 @@ export function SignUpForm({
   onDepartmentChange,
   onManagerChange
 }: SignUpFormProps) {
+  // Debug logging for sign-up form
+  React.useEffect(() => {
+    console.log('🔥 SignUpForm: Component state:', {
+      dataLoading,
+      dataError: dataError || 'none',
+      departmentsCount: departments?.length || 0,
+      managersCount: managers?.length || 0,
+      selectedRole,
+      selectedDepartment
+    });
+  }, [dataLoading, dataError, departments, managers, selectedRole, selectedDepartment]);
+
   if (dataLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -78,6 +91,13 @@ export function SignUpForm({
           >
             Refresh page
           </button>
+        </div>
+      )}
+      
+      {/* Show a note about sign-up access when no auth is required */}
+      {!dataError && departments.length === 0 && !dataLoading && (
+        <div className="p-3 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-md">
+          💡 If you don't see departments listed, this is normal for public sign-up. Departments will be available after account approval.
         </div>
       )}
       
@@ -141,14 +161,13 @@ export function SignUpForm({
       </div>
       
       <div className="space-y-2">
-        <Label htmlFor="department">Department <span className="text-red-500">*</span></Label>
+        <Label htmlFor="department">Department</Label>
         <Select 
           value={selectedDepartment}
           onValueChange={onDepartmentChange}
-          required
         >
           <SelectTrigger className="backdrop-blur-sm bg-white/70 border-white/40">
-            <SelectValue placeholder="Choose your department" />
+            <SelectValue placeholder="Choose your department (optional for sign-up)" />
           </SelectTrigger>
           <SelectContent className="backdrop-blur-md bg-white/90 z-50">
             {departments && departments.length > 0 ? (
@@ -159,21 +178,21 @@ export function SignUpForm({
               ))
             ) : (
               <SelectItem value="loading" disabled>
-                {dataLoading ? "Loading departments..." : "No departments available - please contact admin"}
+                {dataLoading ? "Loading departments..." : "No departments available for public signup"}
               </SelectItem>
             )}
           </SelectContent>
         </Select>
-        {departments.length === 0 && !dataLoading && (
-          <p className="text-sm text-amber-600">
-            ⚠️ No departments found. Please contact your administrator to set up departments.
+        {departments.length === 0 && !dataLoading && !dataError && (
+          <p className="text-sm text-blue-600">
+            ℹ️ Department assignment can be done after account creation by an administrator.
           </p>
         )}
       </div>
 
-      {selectedRole !== 'admin' && (
+      {selectedRole !== 'admin' && selectedDepartment && (
         <div className="space-y-2">
-          <Label htmlFor="lineManager">Line Manager <span className="text-red-500">*</span></Label>
+          <Label htmlFor="lineManager">Line Manager</Label>
           <Input
             id="lineManager"
             name="lineManager"
@@ -181,7 +200,6 @@ export function SignUpForm({
             placeholder={selectedDepartment ? "Line manager will be assigned based on department" : "Please select a department first"}
             className="backdrop-blur-sm bg-gray-100/70 border-white/40 text-gray-700"
             readOnly
-            required
           />
           {selectedDepartment && getLineManagerName() && (
             <p className="text-sm text-blue-600">
@@ -199,7 +217,7 @@ export function SignUpForm({
       <Button 
         type="submit" 
         className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 shadow-lg" 
-        disabled={loading || (departments.length === 0 && !dataLoading)}
+        disabled={loading}
       >
         {loading ? 'Creating account...' : 'Sign Up'}
       </Button>

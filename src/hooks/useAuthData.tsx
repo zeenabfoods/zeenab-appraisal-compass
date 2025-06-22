@@ -24,6 +24,8 @@ export function useAuthData() {
   const fetchDepartments = async () => {
     try {
       console.log('📋 Fetching departments...');
+      console.log('🔐 Current auth state:', await supabase.auth.getUser());
+      
       const { data, error } = await supabase
         .from('departments')
         .select('id, name, line_manager_id')
@@ -32,11 +34,17 @@ export function useAuthData() {
       
       if (error) {
         console.error('❌ Error fetching departments:', error);
+        console.error('❌ Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
         throw error;
       }
       
       console.log('✅ Departments fetched:', data?.length || 0, 'departments');
-      console.log('Departments data:', data);
+      console.log('📋 Departments data:', data);
       setDepartments(data || []);
       return data || [];
       
@@ -58,11 +66,17 @@ export function useAuthData() {
       
       if (error) {
         console.error('❌ Error fetching managers:', error);
+        console.error('❌ Manager error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
         throw error;
       }
       
       console.log('✅ Managers fetched:', data?.length || 0, 'managers');
-      console.log('Managers data:', data);
+      console.log('👔 Managers data:', data);
       setManagers(data || []);
       return data || [];
       
@@ -78,6 +92,11 @@ export function useAuthData() {
     
     try {
       console.log('📋 Starting to fetch departments and managers...');
+      console.log('🔐 Auth ready state check...');
+      
+      // Check if we have a session
+      const { data: session } = await supabase.auth.getSession();
+      console.log('📋 Session status:', session?.session ? 'Active' : 'No session');
       
       // Fetch both departments and managers
       const [departmentsData, managersData] = await Promise.all([
@@ -86,28 +105,44 @@ export function useAuthData() {
       ]);
       
       console.log('✅ Initial data loaded successfully');
-      console.log('Final state - Departments:', departmentsData?.length, 'Managers:', managersData?.length);
+      console.log('📊 Final state - Departments:', departmentsData?.length, 'Managers:', managersData?.length);
       
     } catch (error: any) {
       console.error('❌ Error loading initial data:', error);
-      setDataError(`Failed to load system data: ${error.message || 'Unknown error'}. Please refresh the page or contact support.`);
+      let errorMessage = 'Failed to load system data.';
+      
+      if (error.message?.includes('JWT')) {
+        errorMessage = 'Authentication required. Please sign in to access departments.';
+      } else if (error.code === 'PGRST116') {
+        errorMessage = 'Database access denied. Please check your permissions.';
+      } else {
+        errorMessage = `Failed to load system data: ${error.message || 'Unknown error'}. Please refresh the page or contact support.`;
+      }
+      
+      setDataError(errorMessage);
     } finally {
       setDataLoading(false);
     }
   };
 
   useEffect(() => {
-    console.log('🔄 Loading departments and managers data...');
-    loadInitialData();
+    console.log('🔄 useAuthData: Loading departments and managers data...');
+    
+    // Add a small delay to ensure auth is ready
+    const timer = setTimeout(() => {
+      loadInitialData();
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   // Add some debugging logs
   useEffect(() => {
-    console.log('📊 Current state:', {
+    console.log('📊 useAuthData: Current state:', {
       departments: departments.length,
       managers: managers.length,
       dataLoading,
-      dataError
+      dataError: dataError || 'none'
     });
   }, [departments, managers, dataLoading, dataError]);
 
