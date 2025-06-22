@@ -37,27 +37,10 @@ export function useQuestionAssignmentData() {
       setLoading(true);
       console.log('Fetching assignment data...');
 
-      // Get employee assignments with corrected query structure
+      // First, get all employee assignments
       const { data: employeeAssignments, error: assignmentError } = await supabase
         .from('employee_appraisal_questions')
-        .select(`
-          employee_id,
-          assigned_at,
-          cycle_id,
-          profiles (
-            id,
-            first_name,
-            last_name,
-            email,
-            department_id,
-            line_manager_id,
-            departments (name),
-            line_manager:profiles!profiles_line_manager_id_fkey (
-              first_name,
-              last_name
-            )
-          )
-        `)
+        .select('employee_id, assigned_at, cycle_id')
         .eq('is_active', true);
 
       if (assignmentError) {
@@ -65,9 +48,8 @@ export function useQuestionAssignmentData() {
         throw assignmentError;
       }
 
-      console.log('Raw assignment data:', employeeAssignments);
+      console.log('Employee assignments:', employeeAssignments);
 
-      // Handle case when no assignments exist
       if (!employeeAssignments || employeeAssignments.length === 0) {
         console.log('No assignments found');
         setAssignments([]);
@@ -91,7 +73,46 @@ export function useQuestionAssignmentData() {
 
       // Get unique employee IDs
       const employeeIds = [...new Set(employeeAssignments.map(a => a.employee_id))];
-      
+      console.log('Unique employee IDs:', employeeIds);
+
+      // Fetch employee profiles
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select(`
+          id,
+          first_name,
+          last_name,
+          email,
+          department_id,
+          line_manager_id
+        `)
+        .in('id', employeeIds);
+
+      if (profilesError) {
+        console.error('Profiles error:', profilesError);
+        throw profilesError;
+      }
+
+      console.log('Profiles data:', profiles);
+
+      // Fetch departments
+      const departmentIds = profiles?.map(p => p.department_id).filter(Boolean) || [];
+      const { data: departments } = await supabase
+        .from('departments')
+        .select('id, name')
+        .in('id', departmentIds);
+
+      console.log('Departments data:', departments);
+
+      // Fetch line managers
+      const managerIds = profiles?.map(p => p.line_manager_id).filter(Boolean) || [];
+      const { data: managers } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .in('id', managerIds);
+
+      console.log('Managers data:', managers);
+
       // Get appraisal status for each employee
       const { data: appraisals, error: appraisalError } = await supabase
         .from('appraisals')
@@ -109,7 +130,7 @@ export function useQuestionAssignmentData() {
       
       employeeAssignments.forEach((assignment: any) => {
         const employeeId = assignment.employee_id;
-        const profile = assignment.profiles;
+        const profile = profiles?.find(p => p.id === employeeId);
         
         if (!profile) {
           console.warn('No profile found for employee:', employeeId);
@@ -117,15 +138,17 @@ export function useQuestionAssignmentData() {
         }
 
         if (!employeeMap.has(employeeId)) {
+          const department = departments?.find(d => d.id === profile.department_id);
+          const manager = managers?.find(m => m.id === profile.line_manager_id);
           const employeeAppraisal = appraisals?.find(a => a.employee_id === employeeId);
           
           employeeMap.set(employeeId, {
             employee_id: employeeId,
             employee_name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim(),
             email: profile.email || 'No email',
-            department: profile.departments?.name || 'Not assigned',
-            line_manager: profile.line_manager 
-              ? `${profile.line_manager.first_name || ''} ${profile.line_manager.last_name || ''}`.trim()
+            department: department?.name || 'Not assigned',
+            line_manager: manager 
+              ? `${manager.first_name || ''} ${manager.last_name || ''}`.trim()
               : 'Not assigned',
             questions_assigned: 0,
             appraisal_status: employeeAppraisal?.status || 'not_started',
@@ -191,7 +214,6 @@ export function useQuestionAssignmentData() {
 
     } catch (error) {
       console.error('Error fetching assignment data:', error);
-      console.error('Error details:', error);
       toast({
         title: "Error",
         description: "Failed to load assignment tracking data. Please check console for details.",
