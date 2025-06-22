@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -112,7 +111,7 @@ export function useQuestionAssignmentData() {
 
       // Check if Ebenezer is in the profiles result
       const ebenezerInProfiles = profiles?.find(p => p.first_name === 'Ebenezer' && p.last_name === 'Ise');
-      console.log('EBENEZER IN PROFILES RESULT:', ebenezzerInProfiles);
+      console.log('EBENEZER IN PROFILES RESULT:', ebenezerInProfiles);
 
       // Fetch ALL departments to see what's available
       const { data: allDepartments, error: allDeptError } = await supabase
