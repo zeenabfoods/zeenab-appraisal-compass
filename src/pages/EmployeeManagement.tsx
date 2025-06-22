@@ -215,8 +215,8 @@ export default function EmployeeManagement() {
       email: employee.email,
       role: employee.role,
       position: employee.position || '',
-      department_id: employee.department_id || '',
-      line_manager_id: employee.line_manager_id || ''
+      department_id: employee.department_id || 'none',
+      line_manager_id: employee.line_manager_id || 'none'
     });
     setShowAddDialog(true);
   };
