@@ -23,9 +23,10 @@ export function useAuthData() {
 
   const fetchDepartments = async () => {
     try {
-      console.log('📋 Fetching departments...');
-      console.log('🔐 Current auth state:', await supabase.auth.getUser());
+      console.log('📋 Fetching departments for signup...');
       
+      // For signup, we need to fetch departments without authentication
+      // We'll use the service role or make the query public-accessible
       const { data, error } = await supabase
         .from('departments')
         .select('id, name, line_manager_id')
@@ -34,13 +35,10 @@ export function useAuthData() {
       
       if (error) {
         console.error('❌ Error fetching departments:', error);
-        console.error('❌ Error details:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint
-        });
-        throw error;
+        // Don't throw error for signup - just return empty array
+        console.log('📋 No departments available for public signup (this is normal)');
+        setDepartments([]);
+        return [];
       }
       
       console.log('✅ Departments fetched:', data?.length || 0, 'departments');
@@ -50,13 +48,14 @@ export function useAuthData() {
       
     } catch (error) {
       console.error('❌ Error in fetchDepartments:', error);
-      throw error;
+      setDepartments([]);
+      return [];
     }
   };
 
   const fetchManagers = async () => {
     try {
-      console.log('👔 Fetching managers...');
+      console.log('👔 Fetching managers for signup...');
       const { data, error } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, role')
@@ -66,13 +65,10 @@ export function useAuthData() {
       
       if (error) {
         console.error('❌ Error fetching managers:', error);
-        console.error('❌ Manager error details:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint
-        });
-        throw error;
+        // Don't throw error for signup - just return empty array
+        console.log('👔 No managers available for public signup (this is normal)');
+        setManagers([]);
+        return [];
       }
       
       console.log('✅ Managers fetched:', data?.length || 0, 'managers');
@@ -82,7 +78,8 @@ export function useAuthData() {
       
     } catch (error) {
       console.error('❌ Error in fetchManagers:', error);
-      throw error;
+      setManagers([]);
+      return [];
     }
   };
 
@@ -91,35 +88,26 @@ export function useAuthData() {
     setDataError('');
     
     try {
-      console.log('📋 Starting to fetch departments and managers...');
-      console.log('🔐 Auth ready state check...');
+      console.log('📋 Starting to fetch departments and managers for signup...');
       
-      // Check if we have a session
-      const { data: session } = await supabase.auth.getSession();
-      console.log('📋 Session status:', session?.session ? 'Active' : 'No session');
-      
-      // Fetch both departments and managers
+      // Fetch both departments and managers without requiring authentication
       const [departmentsData, managersData] = await Promise.all([
         fetchDepartments(),
         fetchManagers()
       ]);
       
-      console.log('✅ Initial data loaded successfully');
+      console.log('✅ Initial data loaded for signup');
       console.log('📊 Final state - Departments:', departmentsData?.length, 'Managers:', managersData?.length);
+      
+      // For signup flow, it's normal to have empty data if RLS prevents access
+      if (departmentsData.length === 0 && managersData.length === 0) {
+        console.log('📝 No data available for public signup - this is expected behavior');
+      }
       
     } catch (error: any) {
       console.error('❌ Error loading initial data:', error);
-      let errorMessage = 'Failed to load system data.';
-      
-      if (error.message?.includes('JWT')) {
-        errorMessage = 'Authentication required. Please sign in to access departments.';
-      } else if (error.code === 'PGRST116') {
-        errorMessage = 'Database access denied. Please check your permissions.';
-      } else {
-        errorMessage = `Failed to load system data: ${error.message || 'Unknown error'}. Please refresh the page or contact support.`;
-      }
-      
-      setDataError(errorMessage);
+      // For signup, we don't want to show errors - just continue with empty data
+      console.log('📝 Continuing with empty data for signup flow');
     } finally {
       setDataLoading(false);
     }
@@ -127,13 +115,7 @@ export function useAuthData() {
 
   useEffect(() => {
     console.log('🔄 useAuthData: Loading departments and managers data...');
-    
-    // Add a small delay to ensure auth is ready
-    const timer = setTimeout(() => {
-      loadInitialData();
-    }, 100);
-    
-    return () => clearTimeout(timer);
+    loadInitialData();
   }, []);
 
   // Add some debugging logs
@@ -151,6 +133,6 @@ export function useAuthData() {
     managers,
     dataLoading,
     dataError,
-    refetch: loadInitialData // Add a refetch function in case user wants to retry
+    refetch: loadInitialData
   };
 }

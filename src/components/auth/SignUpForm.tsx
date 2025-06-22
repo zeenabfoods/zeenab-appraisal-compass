@@ -55,9 +55,10 @@ export function SignUpForm({
       departmentsCount: departments?.length || 0,
       managersCount: managers?.length || 0,
       selectedRole,
-      selectedDepartment
+      selectedDepartment,
+      selectedManager
     });
-  }, [dataLoading, dataError, departments, managers, selectedRole, selectedDepartment]);
+  }, [dataLoading, dataError, departments, managers, selectedRole, selectedDepartment, selectedManager]);
 
   if (dataLoading) {
     return (
@@ -69,15 +70,22 @@ export function SignUpForm({
   }
 
   // Get the line manager name for the selected department
-  const getLineManagerName = () => {
-    if (!selectedDepartment) return '';
+  const getLineManagerInfo = () => {
+    if (!selectedDepartment || selectedDepartment === '') return { name: '', exists: false };
     
     const selectedDept = departments.find(dept => dept.id === selectedDepartment);
-    if (!selectedDept || !selectedDept.line_manager_id) return '';
+    if (!selectedDept || !selectedDept.line_manager_id) {
+      return { name: '', exists: false };
+    }
     
     const lineManager = managers.find(manager => manager.id === selectedDept.line_manager_id);
-    return lineManager ? `${lineManager.first_name} ${lineManager.last_name}` : '';
+    return {
+      name: lineManager ? `${lineManager.first_name} ${lineManager.last_name}` : '',
+      exists: !!lineManager
+    };
   };
+
+  const lineManagerInfo = getLineManagerInfo();
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
@@ -91,13 +99,6 @@ export function SignUpForm({
           >
             Refresh page
           </button>
-        </div>
-      )}
-      
-      {/* Show a note about sign-up access when no auth is required */}
-      {!dataError && departments.length === 0 && !dataLoading && (
-        <div className="p-3 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-md">
-          💡 If you don't see departments listed, this is normal for public sign-up. Departments will be available after account approval.
         </div>
       )}
       
@@ -123,6 +124,7 @@ export function SignUpForm({
           />
         </div>
       </div>
+      
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input
@@ -134,6 +136,7 @@ export function SignUpForm({
           required
         />
       </div>
+      
       <div className="space-y-2">
         <Label htmlFor="password">Password</Label>
         <Input
@@ -145,6 +148,7 @@ export function SignUpForm({
           required
         />
       </div>
+      
       <div className="space-y-2">
         <Label htmlFor="role">Role</Label>
         <Select name="role" defaultValue="staff" onValueChange={onRoleChange}>
@@ -161,13 +165,13 @@ export function SignUpForm({
       </div>
       
       <div className="space-y-2">
-        <Label htmlFor="department">Department</Label>
+        <Label htmlFor="department">Department (Optional)</Label>
         <Select 
           value={selectedDepartment}
           onValueChange={onDepartmentChange}
         >
           <SelectTrigger className="backdrop-blur-sm bg-white/70 border-white/40">
-            <SelectValue placeholder="Choose your department (optional for sign-up)" />
+            <SelectValue placeholder="Choose your department (optional)" />
           </SelectTrigger>
           <SelectContent className="backdrop-blur-md bg-white/90 z-50">
             {departments && departments.length > 0 ? (
@@ -177,38 +181,38 @@ export function SignUpForm({
                 </SelectItem>
               ))
             ) : (
-              <SelectItem value="loading" disabled>
-                {dataLoading ? "Loading departments..." : "No departments available for public signup"}
+              <SelectItem value="no-departments" disabled>
+                No departments available
               </SelectItem>
             )}
           </SelectContent>
         </Select>
-        {departments.length === 0 && !dataLoading && !dataError && (
+        {departments.length === 0 && !dataLoading && (
           <p className="text-sm text-blue-600">
-            ℹ️ Department assignment can be done after account creation by an administrator.
+            ℹ️ Department assignment will be done by HR after account creation.
           </p>
         )}
       </div>
 
-      {selectedRole !== 'admin' && selectedDepartment && (
+      {/* Always show line manager field if not admin and department is selected */}
+      {selectedRole !== 'admin' && selectedDepartment && selectedDepartment !== '' && (
         <div className="space-y-2">
           <Label htmlFor="lineManager">Line Manager</Label>
           <Input
             id="lineManager"
             name="lineManager"
-            value={getLineManagerName()}
-            placeholder={selectedDepartment ? "Line manager will be assigned based on department" : "Please select a department first"}
+            value={lineManagerInfo.name || 'Will be assigned based on department'}
+            placeholder="Line manager will be assigned based on department"
             className="backdrop-blur-sm bg-gray-100/70 border-white/40 text-gray-700"
             readOnly
           />
-          {selectedDepartment && getLineManagerName() && (
-            <p className="text-sm text-blue-600">
-              💡 Line manager automatically assigned based on your department
+          {lineManagerInfo.exists ? (
+            <p className="text-sm text-green-600">
+              ✅ Line manager: {lineManagerInfo.name}
             </p>
-          )}
-          {selectedDepartment && !getLineManagerName() && (
+          ) : (
             <p className="text-sm text-amber-600">
-              ⚠️ No line manager assigned to this department. Please contact HR.
+              ⚠️ Line manager will be assigned by HR after department confirmation
             </p>
           )}
         </div>
