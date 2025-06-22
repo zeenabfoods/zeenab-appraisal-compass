@@ -101,10 +101,23 @@ export function useQuestionAssignmentData() {
           // Get department name
           const departmentName = emp.departments?.name || 'No Department';
           
-          // Get manager name
-          const managerName = emp.manager 
-            ? `${emp.manager.first_name} ${emp.manager.last_name}`.trim()
-            : 'No Manager';
+          // Get manager name - handle both array and object cases
+          let managerName = 'No Manager';
+          if (emp.manager) {
+            // Check if manager is an array or object
+            if (Array.isArray(emp.manager)) {
+              // If it's an array, take the first element
+              const managerData = emp.manager[0];
+              if (managerData && managerData.first_name && managerData.last_name) {
+                managerName = `${managerData.first_name} ${managerData.last_name}`.trim();
+              }
+            } else {
+              // If it's an object, access properties directly
+              if (emp.manager.first_name && emp.manager.last_name) {
+                managerName = `${emp.manager.first_name} ${emp.manager.last_name}`.trim();
+              }
+            }
+          }
           
           return {
             employee_id: emp.id,
