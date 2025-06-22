@@ -36,7 +36,7 @@ export function useQuestionAssignmentData() {
     try {
       setLoading(true);
 
-      // Get employee assignments with a simpler approach
+      // Get employee assignments
       const { data: employeeAssignments, error: assignmentError } = await supabase
         .from('employee_appraisal_questions')
         .select(`
@@ -50,88 +50,68 @@ export function useQuestionAssignmentData() {
         throw assignmentError;
       }
 
-      // Get employee details separately
+      // Get unique employee IDs
       const employeeIds = [...new Set(employeeAssignments?.map(a => a.employee_id) || [])];
       
-      let employeeProfiles = [];
-      if (employeeIds.length > 0) {
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select(`
-            id,
-            first_name,
-            last_name,
-            email,
-            department_id,
-            line_manager_id
-          `)
-          .in('id', employeeIds);
-
-        if (profilesError) {
-          console.error('Profiles error:', profilesError);
-        } else {
-          employeeProfiles = profiles || [];
-        }
+      if (employeeIds.length === 0) {
+        setAssignments([]);
+        setStats({
+          totalEmployees: 0,
+          employeesWithQuestions: 0,
+          totalQuestionsAssigned: 0,
+          completedAppraisals: 0
+        });
+        return;
       }
 
-      // Get department names
-      const departmentIds = [...new Set(employeeProfiles.map(p => p.department_id).filter(Boolean))];
-      let departments = [];
-      if (departmentIds.length > 0) {
-        const { data: deptData, error: deptError } = await supabase
-          .from('departments')
-          .select('id, name')
-          .in('id', departmentIds);
+      // Get employee profiles with department and line manager info in a single query
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select(`
+          id,
+          first_name,
+          last_name,
+          email,
+          department_id,
+          line_manager_id,
+          departments!inner(name),
+          line_manager:profiles!line_manager_id(first_name, last_name)
+        `)
+        .in('id', employeeIds);
 
-        if (!deptError) {
-          departments = deptData || [];
-        }
+      if (profilesError) {
+        console.error('Profiles error:', profilesError);
       }
 
-      // Get line manager names
-      const managerIds = [...new Set(employeeProfiles.map(p => p.line_manager_id).filter(Boolean))];
-      let managers = [];
-      if (managerIds.length > 0) {
-        const { data: managerData, error: managerError } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name')
-          .in('id', managerIds);
-
-        if (!managerError) {
-          managers = managerData || [];
-        }
-      }
-
-      // Get appraisal status separately
+      // Get appraisal status
       const { data: appraisals, error: appraisalError } = await supabase
         .from('appraisals')
-        .select('employee_id, status');
+        .select('employee_id, status')
+        .in('employee_id', employeeIds);
 
       if (appraisalError) {
         console.error('Appraisal error:', appraisalError);
       }
 
-      // Process the data to get assignments
+      // Process the data to create assignments
       const employeeMap = new Map();
       
       (employeeAssignments || []).forEach((assignment: any) => {
         const employeeId = assignment.employee_id;
-        const profile = employeeProfiles.find(p => p.id === employeeId);
+        const profile = (profiles || []).find((p: any) => p.id === employeeId);
         
         if (!profile) return;
 
         if (!employeeMap.has(employeeId)) {
-          const department = departments.find(d => d.id === profile.department_id);
-          const lineManager = managers.find(m => m.id === profile.line_manager_id);
           const employeeAppraisal = appraisals?.find(a => a.employee_id === employeeId);
           
           employeeMap.set(employeeId, {
             employee_id: employeeId,
             employee_name: `${profile.first_name} ${profile.last_name}`,
             email: profile.email,
-            department: department?.name || 'Not assigned',
-            line_manager: lineManager 
-              ? `${lineManager.first_name} ${lineManager.last_name}` 
+            department: profile.departments?.name || 'Not assigned',
+            line_manager: profile.line_manager 
+              ? `${profile.line_manager.first_name} ${profile.line_manager.last_name}` 
               : 'Not assigned',
             questions_assigned: 0,
             appraisal_status: employeeAppraisal?.status || 'not_started',
