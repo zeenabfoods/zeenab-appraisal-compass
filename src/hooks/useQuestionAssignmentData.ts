@@ -21,27 +21,6 @@ export interface EmployeeAssignment {
   assigned_date: string;
 }
 
-interface ManagerData {
-  first_name: string;
-  last_name: string;
-}
-
-interface DepartmentData {
-  name: string;
-}
-
-interface EmployeeWithDetails {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  department_id: string;
-  line_manager_id: string;
-  is_active: boolean;
-  departments: DepartmentData | null;
-  manager: ManagerData | ManagerData[] | null;
-}
-
 export function useQuestionAssignmentData() {
   const { toast } = useToast();
   const [stats, setStats] = useState<AssignmentStats>({
@@ -58,20 +37,10 @@ export function useQuestionAssignmentData() {
       setLoading(true);
       console.log('🔄 Starting comprehensive assignment data fetch...');
 
-      // Get all employees with their department and manager info
+      // Get all employees with their department and manager info using separate queries
       const { data: allEmployees, error: employeesError } = await supabase
         .from('profiles')
-        .select(`
-          id, 
-          first_name, 
-          last_name, 
-          email, 
-          department_id, 
-          line_manager_id, 
-          is_active,
-          departments!profiles_department_id_fkey(name),
-          manager:profiles!profiles_line_manager_id_fkey(first_name, last_name)
-        `)
+        .select('id, first_name, last_name, email, department_id, line_manager_id, is_active')
         .eq('is_active', true);
 
       if (employeesError) {
@@ -79,7 +48,16 @@ export function useQuestionAssignmentData() {
         throw new Error(`Failed to fetch employees: ${employeesError.message}`);
       }
 
-      console.log(`👥 Found ${allEmployees?.length || 0} active employees with details:`, allEmployees);
+      console.log(`👥 Found ${allEmployees?.length || 0} active employees`);
+
+      // Get departments
+      const { data: departments, error: deptError } = await supabase
+        .from('departments')
+        .select('id, name');
+
+      if (deptError) {
+        console.error('❌ Error fetching departments:', deptError);
+      }
 
       // Get question assignments
       const { data: allAssignments, error: assignmentsError } = await supabase
@@ -89,7 +67,7 @@ export function useQuestionAssignmentData() {
       if (assignmentsError) {
         console.error('❌ Error fetching assignments:', assignmentsError);
       } else {
-        console.log(`📝 Found ${allAssignments?.length || 0} question assignments:`, allAssignments);
+        console.log(`📝 Found ${allAssignments?.length || 0} question assignments`);
       }
 
       // Get appraisals
@@ -100,8 +78,20 @@ export function useQuestionAssignmentData() {
       if (appraisalsError) {
         console.error('❌ Error fetching appraisals:', appraisalsError);
       } else {
-        console.log(`📋 Found ${appraisals?.length || 0} appraisals:`, appraisals);
+        console.log(`📋 Found ${appraisals?.length || 0} appraisals`);
       }
+
+      // Build department lookup
+      const deptLookup = new Map();
+      departments?.forEach(dept => {
+        deptLookup.set(dept.id, dept.name);
+      });
+
+      // Build manager lookup
+      const managerLookup = new Map();
+      allEmployees?.forEach(emp => {
+        managerLookup.set(emp.id, `${emp.first_name || ''} ${emp.last_name || ''}`.trim());
+      });
 
       // Build assignments manually with proper department and manager info
       const assignmentMap = new Map();
@@ -114,31 +104,16 @@ export function useQuestionAssignmentData() {
       });
 
       // Create final assignment list with updated employee info
-      const manualAssignments = (allEmployees as EmployeeWithDetails[])
+      const manualAssignments = allEmployees
         ?.filter(emp => assignmentMap.has(emp.id))
         .map(emp => {
           const empAssignments = assignmentMap.get(emp.id) || [];
           
           // Get department name
-          const departmentName = emp.departments?.name || 'No Department';
+          const departmentName = deptLookup.get(emp.department_id) || 'No Department';
           
-          // Get manager name - handle both array and object cases with proper typing
-          let managerName = 'No Manager';
-          if (emp.manager) {
-            if (Array.isArray(emp.manager)) {
-              // If it's an array, take the first element
-              const managerData = emp.manager[0] as ManagerData;
-              if (managerData?.first_name && managerData?.last_name) {
-                managerName = `${managerData.first_name} ${managerData.last_name}`.trim();
-              }
-            } else {
-              // If it's an object, access properties directly
-              const managerData = emp.manager as ManagerData;
-              if (managerData?.first_name && managerData?.last_name) {
-                managerName = `${managerData.first_name} ${managerData.last_name}`.trim();
-              }
-            }
-          }
+          // Get manager name
+          const managerName = managerLookup.get(emp.line_manager_id) || 'No Manager';
           
           return {
             employee_id: emp.id,
