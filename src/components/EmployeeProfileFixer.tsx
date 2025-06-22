@@ -20,9 +20,23 @@ export function EmployeeProfileFixer({ onFixCompleted }: EmployeeProfileFixerPro
       setFixing(true);
       setStatus('checking');
       
-      console.log('Starting employee profile fix...');
+      console.log('🔧 Starting employee profile fix...');
       
-      // First, get or create HR department
+      // First, check current profile state
+      const { data: currentProfile, error: profileCheckError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, department_id, line_manager_id')
+        .eq('id', '14085962-62dd-4d01-a9ed-d4dc43cfc7e5')
+        .single();
+
+      if (profileCheckError) {
+        console.error('❌ Error checking current profile:', profileCheckError);
+        throw profileCheckError;
+      }
+
+      console.log('👤 Current profile state:', currentProfile);
+
+      // Get or create HR department
       let { data: hrDept, error: deptError } = await supabase
         .from('departments')
         .select('id, name')
@@ -30,12 +44,12 @@ export function EmployeeProfileFixer({ onFixCompleted }: EmployeeProfileFixerPro
         .maybeSingle();
 
       if (deptError && deptError.code !== 'PGRST116') {
-        console.error('Error checking HR department:', deptError);
+        console.error('❌ Error checking HR department:', deptError);
         throw deptError;
       }
 
       if (!hrDept) {
-        console.log('Creating HR department...');
+        console.log('🏢 Creating HR department...');
         const { data: newDept, error: createDeptError } = await supabase
           .from('departments')
           .insert([{
@@ -47,12 +61,14 @@ export function EmployeeProfileFixer({ onFixCompleted }: EmployeeProfileFixerPro
           .single();
 
         if (createDeptError) {
-          console.error('Error creating HR department:', createDeptError);
+          console.error('❌ Error creating HR department:', createDeptError);
           throw createDeptError;
         }
         
         hrDept = newDept;
-        console.log('Created HR department:', hrDept);
+        console.log('✅ Created HR department:', hrDept);
+      } else {
+        console.log('✅ HR department found:', hrDept);
       }
 
       // Get HR manager
@@ -65,7 +81,7 @@ export function EmployeeProfileFixer({ onFixCompleted }: EmployeeProfileFixerPro
         .maybeSingle();
 
       if (managerError) {
-        console.error('Error finding HR manager:', managerError);
+        console.error('❌ Error finding HR manager:', managerError);
         throw managerError;
       }
 
@@ -79,7 +95,7 @@ export function EmployeeProfileFixer({ onFixCompleted }: EmployeeProfileFixerPro
         return;
       }
 
-      console.log('Found HR manager:', hrManager);
+      console.log('👔 HR manager found:', hrManager);
       setStatus('fixing');
 
       // Update Ebenezer Ise's profile
@@ -90,14 +106,36 @@ export function EmployeeProfileFixer({ onFixCompleted }: EmployeeProfileFixerPro
           line_manager_id: hrManager.id
         })
         .eq('id', '14085962-62dd-4d01-a9ed-d4dc43cfc7e5')
-        .select('id, first_name, last_name, department_id, line_manager_id');
+        .select('id, first_name, last_name, department_id, line_manager_id')
+        .single();
 
       if (updateError) {
-        console.error('Error updating employee profile:', updateError);
+        console.error('❌ Error updating employee profile:', updateError);
         throw updateError;
       }
 
-      console.log('Successfully updated employee profile:', updatedProfile);
+      console.log('✅ Successfully updated employee profile:', updatedProfile);
+      
+      // Verify the update by fetching fresh data
+      const { data: verificationProfile, error: verifyError } = await supabase
+        .from('profiles')
+        .select(`
+          id, 
+          first_name, 
+          last_name, 
+          department_id, 
+          line_manager_id,
+          departments!profiles_department_id_fkey(name),
+          line_manager:profiles!profiles_line_manager_id_fkey(first_name, last_name)
+        `)
+        .eq('id', '14085962-62dd-4d01-a9ed-d4dc43cfc7e5')
+        .single();
+
+      if (verifyError) {
+        console.error('❌ Error verifying profile update:', verifyError);
+      } else {
+        console.log('🔍 Verification - Profile with relations:', verificationProfile);
+      }
       
       setStatus('success');
       toast({
@@ -105,16 +143,16 @@ export function EmployeeProfileFixer({ onFixCompleted }: EmployeeProfileFixerPro
         description: "Employee profile updated successfully! Department and line manager have been assigned.",
       });
 
-      // Trigger refresh callback with a delay to ensure data propagation
+      // Trigger refresh callback with a longer delay to ensure data propagation
       if (onFixCompleted) {
         setTimeout(() => {
-          console.log('Triggering data refresh...');
+          console.log('🔄 Triggering data refresh after profile fix...');
           onFixCompleted();
-        }, 1000);
+        }, 2000); // Increased delay to ensure database propagation
       }
 
     } catch (error) {
-      console.error('Error in fixEmployeeProfile:', error);
+      console.error('❌ Error in fixEmployeeProfile:', error);
       setStatus('error');
       toast({
         title: "Error",
@@ -143,15 +181,15 @@ export function EmployeeProfileFixer({ onFixCompleted }: EmployeeProfileFixerPro
   const getStatusMessage = () => {
     switch (status) {
       case 'checking':
-        return 'Checking department and manager data...';
+        return 'Checking current profile and department data...';
       case 'fixing':
-        return 'Updating employee profile...';
+        return 'Updating employee profile with department and manager...';
       case 'success':
-        return 'Employee profile successfully updated! Data should refresh automatically.';
+        return 'Employee profile successfully updated with HR department and manager!';
       case 'error':
         return 'Failed to update employee profile.';
       default:
-        return 'Employee profile needs department and line manager assignment.';
+        return 'Employee profile needs department and line manager assignment to show correctly in tracking.';
     }
   };
 
@@ -160,7 +198,7 @@ export function EmployeeProfileFixer({ onFixCompleted }: EmployeeProfileFixerPro
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
           {getStatusIcon()}
-          <span>Employee Profile Fix</span>
+          <span>Fix Profile Assignment Issue</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -177,7 +215,7 @@ export function EmployeeProfileFixer({ onFixCompleted }: EmployeeProfileFixerPro
             {fixing ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Fixing...
+                Fixing Profile...
               </>
             ) : (
               'Fix Employee Profile'
@@ -188,14 +226,14 @@ export function EmployeeProfileFixer({ onFixCompleted }: EmployeeProfileFixerPro
         {status === 'success' && (
           <div className="space-y-2">
             <p className="text-sm text-green-600 font-medium">
-              ✅ Profile updated! The assignment tracking should refresh automatically.
+              ✅ Profile fixed! The assignment tracking should now show proper department and manager.
             </p>
             <Button 
               onClick={() => onFixCompleted?.()}
               variant="outline"
               size="sm"
             >
-              Refresh Data Now
+              Refresh Assignment Data
             </Button>
           </div>
         )}

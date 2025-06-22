@@ -35,7 +35,7 @@ export function useQuestionAssignmentData() {
   const fetchAssignmentData = async () => {
     try {
       setLoading(true);
-      console.log('Fetching assignment data...');
+      console.log('🔄 Starting fresh assignment data fetch...');
 
       // Get all employee assignments
       const { data: employeeAssignments, error: assignmentError } = await supabase
@@ -44,17 +44,17 @@ export function useQuestionAssignmentData() {
         .eq('is_active', true);
 
       if (assignmentError) {
-        console.error('Assignment error:', assignmentError);
+        console.error('❌ Assignment error:', assignmentError);
         throw assignmentError;
       }
 
-      console.log('Employee assignments:', employeeAssignments);
+      console.log('📋 Employee assignments found:', employeeAssignments?.length || 0);
 
       if (!employeeAssignments || employeeAssignments.length === 0) {
-        console.log('No assignments found');
+        console.log('ℹ️ No assignments found');
         setAssignments([]);
         
-        // Get total employees count (all active employees)
+        // Get total employees count
         const { data: allEmployees } = await supabase
           .from('profiles')
           .select('id')
@@ -71,48 +71,36 @@ export function useQuestionAssignmentData() {
 
       // Get unique employee IDs
       const employeeIds = [...new Set(employeeAssignments.map(a => a.employee_id))];
-      console.log('Unique employee IDs:', employeeIds);
+      console.log('👥 Unique employee IDs with assignments:', employeeIds);
 
-      // Fetch employee profiles with FRESH data
+      // Fetch FRESH employee profiles with department and manager info
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, email, department_id, line_manager_id')
+        .select(`
+          id, 
+          first_name, 
+          last_name, 
+          email, 
+          department_id, 
+          line_manager_id,
+          departments!profiles_department_id_fkey(
+            id,
+            name
+          ),
+          line_manager:profiles!profiles_line_manager_id_fkey(
+            id,
+            first_name,
+            last_name
+          )
+        `)
         .in('id', employeeIds);
 
       if (profilesError) {
-        console.error('Profiles error:', profilesError);
+        console.error('❌ Profiles error:', profilesError);
         throw profilesError;
       }
 
-      console.log('Fresh profiles data:', profiles);
-
-      // For Ebenezer specifically, let's check his current profile data
-      const ebenezerProfile = profiles?.find(p => p.id === '14085962-62dd-4d01-a9ed-d4dc43cfc7e5');
-      console.log('Ebenezer current profile:', ebenezerProfile);
-
-      // Fetch departments - get all departments to ensure we have the data
-      const { data: departments, error: deptError } = await supabase
-        .from('departments')
-        .select('id, name')
-        .eq('is_active', true);
-
-      if (deptError) {
-        console.error('Departments error:', deptError);
-      }
-
-      console.log('All departments data:', departments);
-
-      // Fetch line managers - get all active profiles that could be managers
-      const { data: managers, error: mgrsError } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, role')
-        .eq('is_active', true);
-
-      if (mgrsError) {
-        console.error('Managers error:', mgrsError);
-      }
-
-      console.log('All managers data:', managers);
+      console.log('👤 Fresh profiles with relations:', profiles);
 
       // Fetch appraisals data
       const { data: appraisals, error: appraisalsError } = await supabase
@@ -121,10 +109,8 @@ export function useQuestionAssignmentData() {
         .in('employee_id', employeeIds);
 
       if (appraisalsError) {
-        console.error('Appraisals error:', appraisalsError);
+        console.error('❌ Appraisals error:', appraisalsError);
       }
-
-      console.log('Appraisals data:', appraisals);
 
       // Process the data to create assignments
       const employeeMap = new Map();
@@ -133,35 +119,27 @@ export function useQuestionAssignmentData() {
         const employeeId = assignment.employee_id;
         const profile = profiles?.find(p => p.id === employeeId);
         
-        console.log(`Processing assignment for employee ${employeeId}:`, {
-          assignment,
-          profile
-        });
-        
         if (!profile) {
-          console.warn('No profile found for employee:', employeeId);
+          console.warn('⚠️ No profile found for employee:', employeeId);
           return;
         }
 
         if (!employeeMap.has(employeeId)) {
           const employeeAppraisal = appraisals?.find(a => a.employee_id === employeeId);
           
-          // Find department and manager info
-          const department = departments?.find(d => d.id === profile.department_id);
-          const manager = managers?.find(m => m.id === profile.line_manager_id);
-          
-          const departmentName = department?.name || 'Not assigned';
-          const managerName = manager 
-            ? `${manager.first_name || ''} ${manager.last_name || ''}`.trim()
+          // Extract department and manager info from the joined data
+          const departmentName = profile.departments?.name || 'Not assigned';
+          const managerName = profile.line_manager 
+            ? `${profile.line_manager.first_name || ''} ${profile.line_manager.last_name || ''}`.trim()
             : 'Not assigned';
           
-          console.log(`For employee ${profile.first_name} ${profile.last_name}:`, {
-            'department_id from profile': profile.department_id,
-            'found department': department,
-            'resolved department': departmentName,
-            'line_manager_id from profile': profile.line_manager_id,
-            'found manager': manager,
-            'resolved manager': managerName
+          console.log(`👤 Processing ${profile.first_name} ${profile.last_name}:`, {
+            'department_id': profile.department_id,
+            'department_name': departmentName,
+            'line_manager_id': profile.line_manager_id,
+            'manager_name': managerName,
+            'departments_relation': profile.departments,
+            'line_manager_relation': profile.line_manager
           });
           
           employeeMap.set(employeeId, {
@@ -181,17 +159,17 @@ export function useQuestionAssignmentData() {
       });
 
       const assignmentsList = Array.from(employeeMap.values());
-      console.log('Final processed assignments:', assignmentsList);
+      console.log('✅ Final processed assignments:', assignmentsList);
       setAssignments(assignmentsList);
 
-      // Calculate stats - get ALL active employees for total count
+      // Calculate stats
       const { data: allEmployees, error: employeesError } = await supabase
         .from('profiles')
         .select('id')
         .eq('is_active', true);
 
       if (employeesError) {
-        console.error('Error fetching employees:', employeesError);
+        console.error('❌ Error fetching employees:', employeesError);
       }
 
       const { data: totalQuestions, error: questionsError } = await supabase
@@ -200,7 +178,7 @@ export function useQuestionAssignmentData() {
         .eq('is_active', true);
 
       if (questionsError) {
-        console.error('Error fetching total questions:', questionsError);
+        console.error('❌ Error fetching total questions:', questionsError);
       }
 
       const { data: completedAppraisals, error: completedError } = await supabase
@@ -209,15 +187,8 @@ export function useQuestionAssignmentData() {
         .eq('status', 'completed');
 
       if (completedError) {
-        console.error('Error fetching completed appraisals:', completedError);
+        console.error('❌ Error fetching completed appraisals:', completedError);
       }
-
-      console.log('STATS CALCULATION:', {
-        'allEmployees count': allEmployees?.length,
-        'employeeMap size': employeeMap.size,
-        'totalQuestions count': totalQuestions?.length,
-        'completedAppraisals count': completedAppraisals?.length
-      });
 
       setStats({
         totalEmployees: allEmployees?.length || 0,
@@ -226,15 +197,21 @@ export function useQuestionAssignmentData() {
         completedAppraisals: completedAppraisals?.length || 0
       });
 
+      console.log('📊 Stats updated:', {
+        totalEmployees: allEmployees?.length || 0,
+        employeesWithQuestions: employeeMap.size,
+        totalQuestionsAssigned: totalQuestions?.length || 0,
+        completedAppraisals: completedAppraisals?.length || 0
+      });
+
     } catch (error) {
-      console.error('Error fetching assignment data:', error);
+      console.error('❌ Error fetching assignment data:', error);
       toast({
         title: "Error",
         description: "Failed to load assignment tracking data. Please check console for details.",
         variant: "destructive"
       });
       
-      // Set empty state on error
       setAssignments([]);
       setStats({
         totalEmployees: 0,
