@@ -34,6 +34,7 @@ export default function Auth() {
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
   const [assignedManager, setAssignedManager] = useState<string>('');
   const [dataLoading, setDataLoading] = useState(true);
+  const [dataError, setDataError] = useState<string>('');
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -49,17 +50,15 @@ export default function Auth() {
 
   const loadInitialData = async () => {
     setDataLoading(true);
+    setDataError('');
     try {
       console.log('📋 Starting to fetch departments and managers...');
       await Promise.all([fetchDepartments(), fetchManagers()]);
       console.log('✅ Initial data loaded successfully');
     } catch (error) {
       console.error('❌ Error loading initial data:', error);
-      toast({
-        title: "Data Loading Error",
-        description: "Failed to load departments and managers. Please refresh the page.",
-        variant: "destructive"
-      });
+      setDataError('Failed to load system data. Some features may not be available.');
+      // Don't show toast error - we'll handle this gracefully
     } finally {
       setDataLoading(false);
     }
@@ -76,47 +75,17 @@ export default function Auth() {
       
       if (error) {
         console.error('❌ Error fetching departments:', error);
-        throw error;
+        // Don't throw - handle gracefully
+        setDepartments([]);
+        return;
       }
       
       console.log('✅ Departments fetched:', data?.length || 0, 'departments');
-      console.log('📋 Department data:', data);
       setDepartments(data || []);
       
-      // If no departments exist, create a default one
-      if (!data || data.length === 0) {
-        console.log('⚠️ No departments found, creating default HR department...');
-        await createDefaultDepartment();
-      }
     } catch (error) {
       console.error('❌ Error in fetchDepartments:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load departments. Please try again.",
-        variant: "destructive"
-      });
       setDepartments([]);
-    }
-  };
-
-  const createDefaultDepartment = async () => {
-    try {
-      console.log('🏢 Creating default HR department...');
-      const { data: hrDept, error: deptError } = await supabase
-        .from('departments')
-        .insert({
-          name: 'Human Resources',
-          description: 'HR Department - Default'
-        })
-        .select()
-        .single();
-
-      if (deptError) throw deptError;
-      
-      console.log('✅ Default HR department created:', hrDept);
-      setDepartments([hrDept]);
-    } catch (error) {
-      console.error('❌ Error creating default department:', error);
     }
   };
 
@@ -132,24 +101,16 @@ export default function Auth() {
       
       if (error) {
         console.error('❌ Error fetching managers:', error);
-        throw error;
+        // Don't throw - handle gracefully
+        setManagers([]);
+        return;
       }
       
       console.log('✅ Managers fetched:', data?.length || 0, 'managers');
-      console.log('👔 Manager data:', data);
       setManagers(data || []);
       
-      // If no managers exist, we'll show a message but allow signup
-      if (!data || data.length === 0) {
-        console.log('⚠️ No managers found in system');
-      }
     } catch (error) {
       console.error('❌ Error in fetchManagers:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load managers. Please try again.",
-        variant: "destructive"
-      });
       setManagers([]);
     }
   };
@@ -299,10 +260,16 @@ export default function Auth() {
               {dataLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600"></div>
-                  <span className="ml-2 text-sm text-gray-600">Loading departments and managers...</span>
+                  <span className="ml-2 text-sm text-gray-600">Loading system data...</span>
                 </div>
               ) : (
                 <form onSubmit={handleSignUp} className="space-y-4">
+                  {dataError && (
+                    <div className="p-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md">
+                      {dataError}
+                    </div>
+                  )}
+                  
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="firstName">First Name</Label>
@@ -362,14 +329,14 @@ export default function Auth() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="department">Department</Label>
+                    <Label htmlFor="department">Department (Optional)</Label>
                     <Select 
                       name="department" 
                       value={selectedDepartment}
                       onValueChange={handleDepartmentChange}
                     >
                       <SelectTrigger className="backdrop-blur-sm bg-white/70 border-white/40">
-                        <SelectValue placeholder="Select your department" />
+                        <SelectValue placeholder="Select your department (optional)" />
                       </SelectTrigger>
                       <SelectContent className="backdrop-blur-md bg-white/90 z-50">
                         <SelectItem value="none">No Department</SelectItem>
@@ -380,31 +347,31 @@ export default function Auth() {
                             </SelectItem>
                           ))
                         ) : (
-                          <SelectItem value="loading" disabled>
-                            Loading departments...
+                          <SelectItem value="no-dept" disabled>
+                            No departments available
                           </SelectItem>
                         )}
                       </SelectContent>
                     </Select>
-                    {departments.length === 0 && !dataLoading && (
-                      <p className="text-sm text-amber-600">
-                        Departments will be created automatically. You can select one later.
+                    {departments.length === 0 && (
+                      <p className="text-sm text-blue-600">
+                        You can be assigned to a department after registration.
                       </p>
                     )}
                   </div>
                   {selectedRole !== 'admin' && (
                     <div className="space-y-2">
-                      <Label htmlFor="lineManager">Line Manager</Label>
+                      <Label htmlFor="lineManager">Line Manager (Optional)</Label>
                       <Input
                         id="lineManager"
                         value={assignedManager ? getManagerName(assignedManager) : 'No manager assigned'}
                         className="backdrop-blur-sm bg-gray-100/70 border-white/40"
                         readOnly
-                        placeholder="Will be assigned based on department"
+                        placeholder="Will be assigned based on department or later"
                       />
-                      {managers.length === 0 && !dataLoading && (
-                        <p className="text-sm text-amber-600">
-                          No managers available. You can be assigned a manager later.
+                      {managers.length === 0 && (
+                        <p className="text-sm text-blue-600">
+                          You can be assigned a line manager after registration.
                         </p>
                       )}
                     </div>
@@ -412,10 +379,17 @@ export default function Auth() {
                   <Button 
                     type="submit" 
                     className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 shadow-lg" 
-                    disabled={loading || dataLoading}
+                    disabled={loading}
                   >
                     {loading ? 'Creating account...' : 'Sign Up'}
                   </Button>
+                  
+                  {departments.length === 0 || managers.length === 0 ? (
+                    <div className="mt-4 p-3 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-md">
+                      <p className="font-medium">Note:</p>
+                      <p>Your account will be created successfully. Departments and managers can be assigned by an administrator after registration.</p>
+                    </div>
+                  ) : null}
                 </form>
               )}
             </TabsContent>
