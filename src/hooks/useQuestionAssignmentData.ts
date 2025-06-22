@@ -35,7 +35,7 @@ export function useQuestionAssignmentData() {
   const fetchAssignmentData = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Starting fresh assignment data fetch...');
+      console.log('🔄 Starting assignment data fetch...');
 
       // Get all employee assignments
       const { data: employeeAssignments, error: assignmentError } = await supabase
@@ -73,26 +73,10 @@ export function useQuestionAssignmentData() {
       const employeeIds = [...new Set(employeeAssignments.map(a => a.employee_id))];
       console.log('👥 Unique employee IDs with assignments:', employeeIds);
 
-      // Fetch FRESH employee profiles with department and manager info
+      // Fetch employee profiles without complex joins
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select(`
-          id, 
-          first_name, 
-          last_name, 
-          email, 
-          department_id, 
-          line_manager_id,
-          departments!profiles_department_id_fkey(
-            id,
-            name
-          ),
-          line_manager:profiles!profiles_line_manager_id_fkey(
-            id,
-            first_name,
-            last_name
-          )
-        `)
+        .select('id, first_name, last_name, email, department_id, line_manager_id')
         .in('id', employeeIds);
 
       if (profilesError) {
@@ -100,7 +84,21 @@ export function useQuestionAssignmentData() {
         throw profilesError;
       }
 
-      console.log('👤 Fresh profiles with relations:', profiles);
+      console.log('👤 Profiles fetched:', profiles);
+
+      // Fetch departments separately
+      const departmentIds = profiles?.map(p => p.department_id).filter(Boolean) || [];
+      const { data: departments } = await supabase
+        .from('departments')
+        .select('id, name')
+        .in('id', departmentIds);
+
+      // Fetch line managers separately
+      const managerIds = profiles?.map(p => p.line_manager_id).filter(Boolean) || [];
+      const { data: managers } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .in('id', managerIds);
 
       // Fetch appraisals data
       const { data: appraisals, error: appraisalsError } = await supabase
@@ -127,19 +125,20 @@ export function useQuestionAssignmentData() {
         if (!employeeMap.has(employeeId)) {
           const employeeAppraisal = appraisals?.find(a => a.employee_id === employeeId);
           
-          // Extract department and manager info from the joined data
-          const departmentName = profile.departments?.name || 'Not assigned';
-          const managerName = profile.line_manager 
-            ? `${profile.line_manager.first_name || ''} ${profile.line_manager.last_name || ''}`.trim()
+          // Find department and manager info
+          const department = departments?.find(d => d.id === profile.department_id);
+          const manager = managers?.find(m => m.id === profile.line_manager_id);
+          
+          const departmentName = department?.name || 'Not assigned';
+          const managerName = manager 
+            ? `${manager.first_name || ''} ${manager.last_name || ''}`.trim()
             : 'Not assigned';
           
           console.log(`👤 Processing ${profile.first_name} ${profile.last_name}:`, {
             'department_id': profile.department_id,
             'department_name': departmentName,
             'line_manager_id': profile.line_manager_id,
-            'manager_name': managerName,
-            'departments_relation': profile.departments,
-            'line_manager_relation': profile.line_manager
+            'manager_name': managerName
           });
           
           employeeMap.set(employeeId, {
