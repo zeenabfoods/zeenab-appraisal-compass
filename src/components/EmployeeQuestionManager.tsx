@@ -12,6 +12,7 @@ import { FixedBulkQuestionAssignment } from './FixedBulkQuestionAssignment';
 import { NotificationCenter } from './NotificationCenter';
 import { PerformanceScoreCalculator } from './PerformanceScoreCalculator';
 import { QuestionAssignmentTracker } from './QuestionAssignmentTracker';
+import { QuickEmployeeAssignmentFixer } from './QuickEmployeeAssignmentFixer';
 import { useEmployeeQuestions } from '@/hooks/useEmployeeQuestions';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -265,6 +266,7 @@ export function EmployeeQuestionManager() {
         </TabsContent>
         
         <TabsContent value="tracking" className="space-y-6">
+          <QuickEmployeeAssignmentFixer />
           <QuestionAssignmentTracker />
         </TabsContent>
         
