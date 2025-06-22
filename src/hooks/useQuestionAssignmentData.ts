@@ -37,6 +37,21 @@ export function useQuestionAssignmentData() {
       setLoading(true);
       console.log('Fetching assignment data...');
 
+      // First, let's check all employees in the database to understand the discrepancy
+      const { data: allEmployeesCheck, error: allEmployeesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email, department_id, line_manager_id, role, is_active')
+        .eq('is_active', true);
+
+      console.log('ALL EMPLOYEES CHECK:', allEmployeesCheck);
+      console.log('Total employees in profiles table:', allEmployeesCheck?.length);
+
+      // Specifically check Ebenezer Ise
+      const ebenezer = allEmployeesCheck?.find(emp => 
+        emp.first_name === 'Ebenezer' && emp.last_name === 'Ise'
+      );
+      console.log('EBENEZER ISE PROFILE DATA:', ebenezer);
+
       // First, get all employee assignments
       const { data: employeeAssignments, error: assignmentError } = await supabase
         .from('employee_appraisal_questions')
@@ -75,7 +90,7 @@ export function useQuestionAssignmentData() {
       const employeeIds = [...new Set(employeeAssignments.map(a => a.employee_id))];
       console.log('Unique employee IDs:', employeeIds);
 
-      // Fetch employee profiles
+      // Fetch employee profiles with detailed logging
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select(`
@@ -93,10 +108,23 @@ export function useQuestionAssignmentData() {
         throw profilesError;
       }
 
-      console.log('Profiles data:', profiles);
+      console.log('Profiles data for assigned employees:', profiles);
 
-      // Fetch departments
+      // Check if Ebenezer is in the profiles result
+      const ebenezerInProfiles = profiles?.find(p => p.first_name === 'Ebenezer' && p.last_name === 'Ise');
+      console.log('EBENEZER IN PROFILES RESULT:', ebenezzerInProfiles);
+
+      // Fetch ALL departments to see what's available
+      const { data: allDepartments, error: allDeptError } = await supabase
+        .from('departments')
+        .select('id, name, is_active');
+
+      console.log('ALL DEPARTMENTS:', allDepartments);
+
+      // Fetch departments for our employees
       const departmentIds = profiles?.map(p => p.department_id).filter(Boolean) || [];
+      console.log('Department IDs from profiles:', departmentIds);
+      
       const { data: departments } = await supabase
         .from('departments')
         .select('id, name')
@@ -104,8 +132,18 @@ export function useQuestionAssignmentData() {
 
       console.log('Departments data:', departments);
 
-      // Fetch line managers
+      // Fetch ALL managers to see what's available
+      const { data: allManagers, error: allMgrError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, role')
+        .eq('is_active', true);
+
+      console.log('ALL POTENTIAL MANAGERS:', allManagers);
+
+      // Fetch line managers for our employees
       const managerIds = profiles?.map(p => p.line_manager_id).filter(Boolean) || [];
+      console.log('Manager IDs from profiles:', managerIds);
+      
       const { data: managers } = await supabase
         .from('profiles')
         .select('id, first_name, last_name')
@@ -132,6 +170,11 @@ export function useQuestionAssignmentData() {
         const employeeId = assignment.employee_id;
         const profile = profiles?.find(p => p.id === employeeId);
         
+        console.log(`Processing assignment for employee ${employeeId}:`, {
+          assignment,
+          profile
+        });
+        
         if (!profile) {
           console.warn('No profile found for employee:', employeeId);
           return;
@@ -141,6 +184,13 @@ export function useQuestionAssignmentData() {
           const department = departments?.find(d => d.id === profile.department_id);
           const manager = managers?.find(m => m.id === profile.line_manager_id);
           const employeeAppraisal = appraisals?.find(a => a.employee_id === employeeId);
+          
+          console.log(`For employee ${profile.first_name} ${profile.last_name}:`, {
+            'profile.department_id': profile.department_id,
+            'found department': department,
+            'profile.line_manager_id': profile.line_manager_id,
+            'found manager': manager
+          });
           
           employeeMap.set(employeeId, {
             employee_id: employeeId,
@@ -161,7 +211,7 @@ export function useQuestionAssignmentData() {
       });
 
       const assignmentsList = Array.from(employeeMap.values());
-      console.log('Processed assignments:', assignmentsList);
+      console.log('Final processed assignments:', assignmentsList);
       setAssignments(assignmentsList);
 
       // Calculate stats
@@ -194,6 +244,13 @@ export function useQuestionAssignmentData() {
         if (completedError) {
           console.error('Error fetching completed appraisals:', completedError);
         }
+
+        console.log('STATS CALCULATION:', {
+          'allEmployees count': allEmployees?.length,
+          'employeeMap size': employeeMap.size,
+          'totalQuestions count': totalQuestions?.length,
+          'completedAppraisals count': completedAppraisals?.length
+        });
 
         setStats({
           totalEmployees: allEmployees?.length || 0,
