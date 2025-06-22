@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -75,12 +74,14 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
       if (sectionsError) throw sectionsError;
       setSections(sectionsData || []);
 
-      // Load assigned questions for this specific employee and cycle
+      // Load assigned questions for this specific employee and cycle with better query
+      console.log('Fetching assigned questions...');
       const { data: assignedQuestionsData, error: assignedError } = await supabase
         .from('employee_appraisal_questions')
         .select(`
           id,
           question_id,
+          assigned_at,
           appraisal_questions!inner (
             id,
             question_text,
@@ -88,34 +89,56 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
             weight,
             is_required,
             section_id,
-            appraisal_question_sections (
-              name
+            appraisal_question_sections!inner (
+              id,
+              name,
+              description,
+              sort_order
             )
           )
         `)
         .eq('employee_id', employeeId)
         .eq('cycle_id', cycleId)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .order('appraisal_questions.appraisal_question_sections.sort_order', { ascending: true });
 
       if (assignedError) {
         console.error('Error loading assigned questions:', assignedError);
         throw assignedError;
       }
 
-      console.log('Assigned questions data:', assignedQuestionsData);
+      console.log('Raw assigned questions data:', assignedQuestionsData);
 
-      // Process the assigned questions
-      const processedQuestions: Question[] = (assignedQuestionsData || []).map((item: any) => ({
-        id: item.appraisal_questions.id,
-        question_text: item.appraisal_questions.question_text,
-        question_type: item.appraisal_questions.question_type,
-        weight: item.appraisal_questions.weight,
-        is_required: item.appraisal_questions.is_required,
-        section_id: item.appraisal_questions.section_id,
-        section_name: item.appraisal_questions.appraisal_question_sections?.name || 'General'
-      }));
+      // Process the assigned questions with better error handling
+      const processedQuestions: Question[] = [];
+      
+      if (assignedQuestionsData && assignedQuestionsData.length > 0) {
+        assignedQuestionsData.forEach((item: any) => {
+          if (item.appraisal_questions && item.appraisal_questions.appraisal_question_sections) {
+            processedQuestions.push({
+              id: item.appraisal_questions.id,
+              question_text: item.appraisal_questions.question_text,
+              question_type: item.appraisal_questions.question_type,
+              weight: item.appraisal_questions.weight,
+              is_required: item.appraisal_questions.is_required,
+              section_id: item.appraisal_questions.section_id,
+              section_name: item.appraisal_questions.appraisal_question_sections.name
+            });
+          }
+        });
+      }
 
       console.log('Processed questions:', processedQuestions);
+      console.log('Number of questions loaded:', processedQuestions.length);
+      
+      // Group by section to verify we have multiple sections
+      const questionsBySection = processedQuestions.reduce((acc, q) => {
+        const sectionName = q.section_name || 'Unknown';
+        acc[sectionName] = (acc[sectionName] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      
+      console.log('Questions by section:', questionsBySection);
       setQuestions(processedQuestions);
 
       // Load existing appraisal and responses
@@ -341,6 +364,8 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
     acc[sectionName].push(question);
     return acc;
   }, {} as Record<string, Question[]>);
+
+  console.log('Final questionsBySection for rendering:', questionsBySection);
 
   return (
     <div className="space-y-6">
