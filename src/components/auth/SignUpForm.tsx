@@ -124,16 +124,16 @@ export function SignUpForm({
       </div>
       
       <div className="space-y-2">
-        <Label htmlFor="department">Department (Optional)</Label>
+        <Label htmlFor="department">Department <span className="text-red-500">*</span></Label>
         <Select 
           value={selectedDepartment}
           onValueChange={onDepartmentChange}
+          required
         >
           <SelectTrigger className="backdrop-blur-sm bg-white/70 border-white/40">
-            <SelectValue placeholder="Choose your department (optional)" />
+            <SelectValue placeholder="Choose your department" />
           </SelectTrigger>
           <SelectContent className="backdrop-blur-md bg-white/90 z-50">
-            <SelectItem value="no-department">No Department</SelectItem>
             {departments.length > 0 ? (
               departments.map((dept) => (
                 <SelectItem key={dept.id} value={dept.id}>
@@ -151,16 +151,16 @@ export function SignUpForm({
 
       {selectedRole !== 'admin' && (
         <div className="space-y-2">
-          <Label htmlFor="lineManager">Line Manager (Optional)</Label>
+          <Label htmlFor="lineManager">Line Manager <span className="text-red-500">*</span></Label>
           <Select 
             value={selectedManager}
             onValueChange={onManagerChange}
+            required
           >
             <SelectTrigger className="backdrop-blur-sm bg-white/70 border-white/40">
-              <SelectValue placeholder="Choose your line manager (optional)" />
+              <SelectValue placeholder="Choose your line manager" />
             </SelectTrigger>
             <SelectContent className="backdrop-blur-md bg-white/90 z-50">
-              <SelectItem value="no-manager">No Manager</SelectItem>
               {managers.length > 0 ? (
                 managers.map((manager) => (
                   <SelectItem key={manager.id} value={manager.id}>

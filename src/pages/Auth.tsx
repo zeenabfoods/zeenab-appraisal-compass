@@ -8,10 +8,12 @@ import { useAuthData } from '@/hooks/useAuthData';
 import { AuthBackground } from '@/components/auth/AuthBackground';
 import { SignInForm } from '@/components/auth/SignInForm';
 import { SignUpForm } from '@/components/auth/SignUpForm';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Auth() {
   const { signIn, signUp, user } = useAuthContext();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string>('staff');
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
@@ -66,9 +68,32 @@ export default function Auth() {
     const lastName = formData.get('lastName') as string;
     const role = formData.get('role') as 'staff' | 'manager' | 'hr' | 'admin';
     
-    // Handle the new placeholder values - convert them back to undefined for the database
-    const departmentId = selectedDepartment === 'no-department' ? undefined : selectedDepartment || undefined;
-    const lineManagerId = (role === 'admin' || selectedManager === 'no-manager') ? undefined : selectedManager || undefined;
+    // Validate required fields for non-admin users
+    if (role !== 'admin') {
+      if (!selectedDepartment || selectedDepartment === 'no-departments-available') {
+        toast({
+          title: "Validation Error",
+          description: "Please select a department.",
+          variant: "destructive"
+        });
+        setLoading(false);
+        return;
+      }
+      
+      if (!selectedManager || selectedManager === 'no-managers-available') {
+        toast({
+          title: "Validation Error", 
+          description: "Please select a line manager.",
+          variant: "destructive"
+        });
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Prepare the data - ensure we're sending valid IDs
+    const departmentId = selectedDepartment && selectedDepartment !== 'no-departments-available' ? selectedDepartment : undefined;
+    const lineManagerId = (role !== 'admin' && selectedManager && selectedManager !== 'no-managers-available') ? selectedManager : undefined;
 
     console.log('📝 Signing up with data:', {
       email,
