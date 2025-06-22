@@ -21,6 +21,27 @@ export interface EmployeeAssignment {
   assigned_date: string;
 }
 
+interface ManagerData {
+  first_name: string;
+  last_name: string;
+}
+
+interface DepartmentData {
+  name: string;
+}
+
+interface EmployeeWithDetails {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  department_id: string;
+  line_manager_id: string;
+  is_active: boolean;
+  departments: DepartmentData | null;
+  manager: ManagerData | ManagerData[] | null;
+}
+
 export function useQuestionAssignmentData() {
   const { toast } = useToast();
   const [stats, setStats] = useState<AssignmentStats>({
@@ -93,7 +114,7 @@ export function useQuestionAssignmentData() {
       });
 
       // Create final assignment list with updated employee info
-      const manualAssignments = allEmployees
+      const manualAssignments = (allEmployees as EmployeeWithDetails[])
         ?.filter(emp => assignmentMap.has(emp.id))
         .map(emp => {
           const empAssignments = assignmentMap.get(emp.id) || [];
@@ -101,20 +122,20 @@ export function useQuestionAssignmentData() {
           // Get department name
           const departmentName = emp.departments?.name || 'No Department';
           
-          // Get manager name - handle both array and object cases
+          // Get manager name - handle both array and object cases with proper typing
           let managerName = 'No Manager';
           if (emp.manager) {
-            // Check if manager is an array or object
             if (Array.isArray(emp.manager)) {
               // If it's an array, take the first element
-              const managerData = emp.manager[0];
-              if (managerData && managerData.first_name && managerData.last_name) {
+              const managerData = emp.manager[0] as ManagerData;
+              if (managerData?.first_name && managerData?.last_name) {
                 managerName = `${managerData.first_name} ${managerData.last_name}`.trim();
               }
             } else {
               // If it's an object, access properties directly
-              if (emp.manager.first_name && emp.manager.last_name) {
-                managerName = `${emp.manager.first_name} ${emp.manager.last_name}`.trim();
+              const managerData = emp.manager as ManagerData;
+              if (managerData?.first_name && managerData?.last_name) {
+                managerName = `${managerData.first_name} ${managerData.last_name}`.trim();
               }
             }
           }
