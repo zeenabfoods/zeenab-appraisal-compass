@@ -37,14 +37,14 @@ export function useQuestionAssignmentData() {
       setLoading(true);
       console.log('Fetching assignment data...');
 
-      // Get employee assignments with better query structure
+      // Get employee assignments with corrected query structure
       const { data: employeeAssignments, error: assignmentError } = await supabase
         .from('employee_appraisal_questions')
         .select(`
           employee_id,
           assigned_at,
           cycle_id,
-          profiles!employee_appraisal_questions_employee_id_fkey (
+          profiles (
             id,
             first_name,
             last_name,
@@ -67,13 +67,21 @@ export function useQuestionAssignmentData() {
 
       console.log('Raw assignment data:', employeeAssignments);
 
-      // Get unique employee IDs
-      const employeeIds = [...new Set(employeeAssignments?.map(a => a.employee_id) || [])];
-      
-      if (employeeIds.length === 0) {
+      // Handle case when no assignments exist
+      if (!employeeAssignments || employeeAssignments.length === 0) {
+        console.log('No assignments found');
         setAssignments([]);
+        
+        // Still fetch basic stats
+        const { data: allEmployees } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('is_active', true)
+          .neq('role', 'admin')
+          .neq('role', 'hr');
+
         setStats({
-          totalEmployees: 0,
+          totalEmployees: allEmployees?.length || 0,
           employeesWithQuestions: 0,
           totalQuestionsAssigned: 0,
           completedAppraisals: 0
@@ -81,6 +89,9 @@ export function useQuestionAssignmentData() {
         return;
       }
 
+      // Get unique employee IDs
+      const employeeIds = [...new Set(employeeAssignments.map(a => a.employee_id))];
+      
       // Get appraisal status for each employee
       const { data: appraisals, error: appraisalError } = await supabase
         .from('appraisals')
@@ -96,7 +107,7 @@ export function useQuestionAssignmentData() {
       // Process the data to create assignments
       const employeeMap = new Map();
       
-      (employeeAssignments || []).forEach((assignment: any) => {
+      employeeAssignments.forEach((assignment: any) => {
         const employeeId = assignment.employee_id;
         const profile = assignment.profiles;
         
@@ -110,15 +121,15 @@ export function useQuestionAssignmentData() {
           
           employeeMap.set(employeeId, {
             employee_id: employeeId,
-            employee_name: `${profile.first_name} ${profile.last_name}`,
-            email: profile.email,
+            employee_name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim(),
+            email: profile.email || 'No email',
             department: profile.departments?.name || 'Not assigned',
             line_manager: profile.line_manager 
-              ? `${profile.line_manager.first_name} ${profile.line_manager.last_name}` 
+              ? `${profile.line_manager.first_name || ''} ${profile.line_manager.last_name || ''}`.trim()
               : 'Not assigned',
             questions_assigned: 0,
             appraisal_status: employeeAppraisal?.status || 'not_started',
-            assigned_date: assignment.assigned_at
+            assigned_date: assignment.assigned_at || new Date().toISOString()
           });
         }
 
@@ -139,15 +150,27 @@ export function useQuestionAssignmentData() {
           .neq('role', 'admin')
           .neq('role', 'hr');
 
+        if (employeesError) {
+          console.error('Error fetching employees:', employeesError);
+        }
+
         const { data: totalQuestions, error: questionsError } = await supabase
           .from('employee_appraisal_questions')
           .select('id')
           .eq('is_active', true);
 
+        if (questionsError) {
+          console.error('Error fetching total questions:', questionsError);
+        }
+
         const { data: completedAppraisals, error: completedError } = await supabase
           .from('appraisals')
           .select('id')
           .eq('status', 'completed');
+
+        if (completedError) {
+          console.error('Error fetching completed appraisals:', completedError);
+        }
 
         setStats({
           totalEmployees: allEmployees?.length || 0,
@@ -157,6 +180,7 @@ export function useQuestionAssignmentData() {
         });
       } catch (statsError) {
         console.error('Error fetching stats:', statsError);
+        // Fallback stats calculation
         setStats({
           totalEmployees: 0,
           employeesWithQuestions: employeeMap.size,
@@ -167,10 +191,20 @@ export function useQuestionAssignmentData() {
 
     } catch (error) {
       console.error('Error fetching assignment data:', error);
+      console.error('Error details:', error);
       toast({
         title: "Error",
-        description: "Failed to load assignment tracking data",
+        description: "Failed to load assignment tracking data. Please check console for details.",
         variant: "destructive"
+      });
+      
+      // Set empty state on error
+      setAssignments([]);
+      setStats({
+        totalEmployees: 0,
+        employeesWithQuestions: 0,
+        totalQuestionsAssigned: 0,
+        completedAppraisals: 0
       });
     } finally {
       setLoading(false);
