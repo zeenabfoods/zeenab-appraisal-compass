@@ -35,10 +35,61 @@ export function useQuestionAssignmentData() {
   const fetchAssignmentData = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Starting assignment data fetch...');
+      console.log('🔄 Starting comprehensive assignment data fetch...');
 
-      // Get all employee assignments
-      const { data: employeeAssignments, error: assignmentError } = await supabase
+      // First, let's check what data we actually have
+      console.log('📊 Checking basic data availability...');
+      
+      // Check total employees
+      const { data: allEmployees, error: employeesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email, department_id, line_manager_id, is_active')
+        .eq('is_active', true);
+
+      if (employeesError) {
+        console.error('❌ Error checking employees:', employeesError);
+        throw new Error(`Failed to fetch employees: ${employeesError.message}`);
+      }
+
+      console.log(`👥 Found ${allEmployees?.length || 0} active employees:`, allEmployees);
+
+      // Check departments
+      const { data: departments, error: deptError } = await supabase
+        .from('departments')
+        .select('id, name');
+
+      if (deptError) {
+        console.error('❌ Error checking departments:', deptError);
+      } else {
+        console.log(`🏢 Found ${departments?.length || 0} departments:`, departments);
+      }
+
+      // Check employee appraisal questions
+      const { data: allAssignments, error: assignmentsError } = await supabase
+        .from('employee_appraisal_questions')
+        .select('employee_id, question_id, cycle_id, assigned_at, is_active');
+
+      if (assignmentsError) {
+        console.error('❌ Error checking assignments:', assignmentsError);
+      } else {
+        console.log(`📝 Found ${allAssignments?.length || 0} question assignments:`, allAssignments);
+      }
+
+      // Check appraisals
+      const { data: appraisals, error: appraisalsError } = await supabase
+        .from('appraisals')
+        .select('id, employee_id, status');
+
+      if (appraisalsError) {
+        console.error('❌ Error checking appraisals:', appraisalsError);
+      } else {
+        console.log(`📋 Found ${appraisals?.length || 0} appraisals:`, appraisals);
+      }
+
+      // Now try the complex query with better error handling
+      console.log('🔍 Attempting complex assignment query...');
+      
+      const { data: employeeAssignments, error: complexError } = await supabase
         .from('employee_appraisal_questions')
         .select(`
           employee_id, 
@@ -50,40 +101,27 @@ export function useQuestionAssignmentData() {
             last_name,
             email,
             department_id,
-            line_manager_id,
-            departments(name),
-            line_manager:profiles!profiles_line_manager_id_fkey(first_name, last_name)
+            line_manager_id
           )
         `)
         .eq('is_active', true);
 
-      if (assignmentError) {
-        console.error('❌ Assignment error:', assignmentError);
-        throw assignmentError;
+      if (complexError) {
+        console.error('❌ Complex query error:', complexError);
+        console.log('🔄 Falling back to simpler approach...');
+        
+        // Fallback: Build assignments manually
+        return await buildAssignmentsManually(allEmployees, allAssignments, departments);
       }
 
-      console.log('📋 Raw employee assignments:', employeeAssignments);
+      console.log('✅ Complex query successful:', employeeAssignments);
 
       if (!employeeAssignments || employeeAssignments.length === 0) {
-        console.log('ℹ️ No assignments found');
-        setAssignments([]);
-        
-        // Get total employees count
-        const { data: allEmployees } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('is_active', true);
-
-        setStats({
-          totalEmployees: allEmployees?.length || 0,
-          employeesWithQuestions: 0,
-          totalQuestionsAssigned: 0,
-          completedAppraisals: 0
-        });
-        return;
+        console.log('ℹ️ No complex assignments found, trying manual approach...');
+        return await buildAssignmentsManually(allEmployees, allAssignments, departments);
       }
 
-      // Process assignments by employee
+      // Process the successful complex query results
       const employeeMap = new Map();
       
       employeeAssignments.forEach((assignment: any) => {
@@ -93,24 +131,12 @@ export function useQuestionAssignmentData() {
         const employeeId = profile.id;
         
         if (!employeeMap.has(employeeId)) {
-          const departmentName = profile.departments?.name || 'Not assigned';
-          const managerName = profile.line_manager 
-            ? `${profile.line_manager.first_name || ''} ${profile.line_manager.last_name || ''}`.trim()
-            : 'Not assigned';
-          
-          console.log(`👤 Processing ${profile.first_name} ${profile.last_name}:`, {
-            'department': departmentName,
-            'manager': managerName,
-            'department_id': profile.department_id,
-            'line_manager_id': profile.line_manager_id
-          });
-          
           employeeMap.set(employeeId, {
             employee_id: employeeId,
             employee_name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim(),
             email: profile.email || 'No email',
-            department: departmentName,
-            line_manager: managerName,
+            department: 'Department needed',
+            line_manager: 'Manager needed', 
             questions_assigned: 0,
             appraisal_status: 'not_started',
             assigned_date: assignment.assigned_at || new Date().toISOString()
@@ -125,37 +151,23 @@ export function useQuestionAssignmentData() {
       console.log('✅ Final processed assignments:', assignmentsList);
       setAssignments(assignmentsList);
 
-      // Calculate stats
-      const { data: allEmployees } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('is_active', true);
-
-      const { data: totalQuestions } = await supabase
-        .from('employee_appraisal_questions')
-        .select('id')
-        .eq('is_active', true);
-
-      const { data: completedAppraisals } = await supabase
-        .from('appraisals')
-        .select('id')
-        .eq('status', 'completed');
-
+      // Set stats
       setStats({
         totalEmployees: allEmployees?.length || 0,
         employeesWithQuestions: employeeMap.size,
-        totalQuestionsAssigned: totalQuestions?.length || 0,
-        completedAppraisals: completedAppraisals?.length || 0
+        totalQuestionsAssigned: allAssignments?.length || 0,
+        completedAppraisals: appraisals?.filter(a => a.status === 'completed').length || 0
       });
 
     } catch (error) {
-      console.error('❌ Error fetching assignment data:', error);
+      console.error('❌ Critical error in fetchAssignmentData:', error);
       toast({
         title: "Error",
-        description: "Failed to load assignment tracking data. Please check console for details.",
+        description: `Failed to load assignment data: ${error.message}. Check console for details.`,
         variant: "destructive"
       });
       
+      // Set empty state
       setAssignments([]);
       setStats({
         totalEmployees: 0,
@@ -166,6 +178,68 @@ export function useQuestionAssignmentData() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const buildAssignmentsManually = async (employees: any[], assignments: any[], departments: any[]) => {
+    console.log('🔧 Building assignments manually...');
+    
+    if (!employees || employees.length === 0) {
+      console.log('⚠️ No employees found for manual building');
+      setAssignments([]);
+      setStats({
+        totalEmployees: 0,
+        employeesWithQuestions: 0,
+        totalQuestionsAssigned: 0,
+        completedAppraisals: 0
+      });
+      return;
+    }
+
+    // Create a map of department names
+    const deptMap = new Map();
+    departments?.forEach(dept => {
+      deptMap.set(dept.id, dept.name);
+    });
+
+    // Create assignment map
+    const assignmentMap = new Map();
+    assignments?.forEach(assignment => {
+      const employeeId = assignment.employee_id;
+      if (!assignmentMap.has(employeeId)) {
+        assignmentMap.set(employeeId, []);
+      }
+      assignmentMap.get(employeeId).push(assignment);
+    });
+
+    // Build final assignment list
+    const manualAssignments = employees
+      .filter(emp => assignmentMap.has(emp.id))
+      .map(emp => {
+        const empAssignments = assignmentMap.get(emp.id) || [];
+        const departmentName = emp.department_id ? deptMap.get(emp.department_id) || 'Unknown Department' : 'No Department';
+        
+        return {
+          employee_id: emp.id,
+          employee_name: `${emp.first_name || ''} ${emp.last_name || ''}`.trim(),
+          email: emp.email || 'No email',
+          department: departmentName,
+          line_manager: emp.line_manager_id ? 'Manager assigned' : 'No Manager',
+          questions_assigned: empAssignments.length,
+          appraisal_status: 'not_started',
+          assigned_date: empAssignments[0]?.assigned_at || new Date().toISOString()
+        };
+      });
+
+    console.log('🔧 Manual assignments built:', manualAssignments);
+    setAssignments(manualAssignments);
+
+    // Update stats
+    setStats({
+      totalEmployees: employees.length,
+      employeesWithQuestions: manualAssignments.length,
+      totalQuestionsAssigned: assignments?.length || 0,
+      completedAppraisals: 0 // We'll get this separately if needed
+    });
   };
 
   useEffect(() => {

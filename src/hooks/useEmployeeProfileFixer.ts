@@ -15,54 +15,84 @@ export function useEmployeeProfileFixer() {
       setFixing(true);
       setStatus('checking');
       
-      console.log('🔧 Starting employee profile fix...');
+      console.log('🔧 Starting comprehensive employee profile fix...');
       
-      // Check current profile state
-      const { data: currentProfile, error: profileCheckError } = await supabase
+      // First, let's check what employees we have without proper departments/managers
+      const { data: allEmployees, error: employeesError } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, department_id, line_manager_id')
-        .eq('id', '14085962-62dd-4d01-a9ed-d4dc43cfc7e5')
-        .single();
+        .select('id, first_name, last_name, email, department_id, line_manager_id, is_active')
+        .eq('is_active', true);
 
-      if (profileCheckError) {
-        console.error('❌ Error checking current profile:', profileCheckError);
-        throw profileCheckError;
+      if (employeesError) {
+        console.error('❌ Error checking employees:', employeesError);
+        throw employeesError;
       }
 
-      console.log('👤 Current profile state:', currentProfile);
+      console.log('👥 All active employees:', allEmployees);
+
+      // Find employees without departments or managers
+      const employeesNeedingFix = allEmployees?.filter(emp => 
+        !emp.department_id || !emp.line_manager_id
+      ) || [];
+
+      console.log('🔧 Employees needing fix:', employeesNeedingFix);
+
+      if (employeesNeedingFix.length === 0) {
+        console.log('✅ All employees already have departments and managers');
+        setStatus('success');
+        toast({
+          title: "Success",
+          description: "All employees already have proper department and manager assignments!",
+        });
+        if (onFixCompleted) onFixCompleted();
+        return;
+      }
+
+      setStatus('fixing');
 
       // Get or create HR department
       const hrDept = await getOrCreateHRDepartment();
       console.log('🏢 HR Department:', hrDept);
       
       // Get or create HR manager
-      const hrManager = await getOrCreateHRManager();
+      const hrManager = await getOrCreateHRManager(hrDept.id);
       console.log('👔 HR Manager:', hrManager);
       
-      setStatus('fixing');
+      // Update all employees that need fixing
+      const updatePromises = employeesNeedingFix.map(async (employee) => {
+        const updates: any = {};
+        
+        if (!employee.department_id) {
+          updates.department_id = hrDept.id;
+        }
+        
+        if (!employee.line_manager_id) {
+          updates.line_manager_id = hrManager.id;
+        }
 
-      // Update employee profile
-      const { data: updatedProfile, error: updateError } = await supabase
-        .from('profiles')
-        .update({
-          department_id: hrDept.id,
-          line_manager_id: hrManager.id
-        })
-        .eq('id', '14085962-62dd-4d01-a9ed-d4dc43cfc7e5')
-        .select('id, first_name, last_name, department_id, line_manager_id')
-        .single();
+        if (Object.keys(updates).length > 0) {
+          console.log(`🔄 Updating employee ${employee.first_name} ${employee.last_name} with:`, updates);
+          
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update(updates)
+            .eq('id', employee.id);
 
-      if (updateError) {
-        console.error('❌ Error updating employee profile:', updateError);
-        throw updateError;
-      }
+          if (updateError) {
+            console.error(`❌ Error updating employee ${employee.id}:`, updateError);
+            throw updateError;
+          }
+        }
+      });
 
-      console.log('✅ Successfully updated employee profile:', updatedProfile);
+      await Promise.all(updatePromises);
+
+      console.log('✅ Successfully updated all employee profiles');
       
       setStatus('success');
       toast({
         title: "Success",
-        description: "Employee profile updated successfully! Department and line manager have been assigned.",
+        description: `Successfully updated ${employeesNeedingFix.length} employee profile(s) with department and manager assignments!`,
       });
 
       // Trigger refresh callback
@@ -78,7 +108,7 @@ export function useEmployeeProfileFixer() {
       setStatus('error');
       toast({
         title: "Error",
-        description: `Failed to fix employee profile: ${error.message}`,
+        description: `Failed to fix employee profiles: ${error.message}`,
         variant: "destructive"
       });
     } finally {
@@ -127,12 +157,13 @@ export function useEmployeeProfileFixer() {
     return hrDept;
   };
 
-  const getOrCreateHRManager = async () => {
+  const getOrCreateHRManager = async (deptId: string) => {
     // First try to find existing HR manager
     let { data: hrManagerArray, error: managerError } = await supabase
       .from('profiles')
-      .select('id, first_name, last_name, role')
+      .select('id, first_name, last_name, role, email')
       .eq('role', 'hr')
+      .eq('is_active', true)
       .limit(1);
 
     if (managerError) {
@@ -144,15 +175,18 @@ export function useEmployeeProfileFixer() {
 
     if (!hrManager) {
       console.log('👔 Creating HR manager profile...');
-      // Create a new HR manager profile
+      // Create a new HR manager profile with a proper UUID
+      const hrManagerId = crypto.randomUUID();
+      
       const { data: newManager, error: createManagerError } = await supabase
         .from('profiles')
         .insert([{
-          id: '00000000-0000-0000-0000-000000000001', // Use a fixed UUID for HR manager
+          id: hrManagerId,
           email: 'hr.manager@company.com',
           first_name: 'HR',
           last_name: 'Manager',
           role: 'hr',
+          department_id: deptId,
           is_active: true
         }])
         .select()
@@ -167,6 +201,20 @@ export function useEmployeeProfileFixer() {
       console.log('✅ Created HR manager:', hrManager);
     } else {
       console.log('✅ HR manager found:', hrManager);
+      
+      // Make sure the HR manager has the correct department
+      if (hrManager.department_id !== deptId) {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ department_id: deptId })
+          .eq('id', hrManager.id);
+          
+        if (updateError) {
+          console.error('❌ Error updating HR manager department:', updateError);
+        } else {
+          console.log('✅ Updated HR manager department');
+        }
+      }
     }
 
     return hrManager;
