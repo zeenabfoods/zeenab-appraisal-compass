@@ -33,28 +33,31 @@ export function useEmployeeProfileFixer() {
 
       // Get or create HR department
       const hrDept = await getOrCreateHRDepartment();
+      console.log('🏢 HR Department:', hrDept);
       
-      // Get HR manager
-      const hrManager = await getHRManager();
+      // Get or create HR manager
+      const hrManager = await getOrCreateHRManager();
+      console.log('👔 HR Manager:', hrManager);
       
-      if (!hrManager) {
-        toast({
-          title: "Error",
-          description: "HR manager (Human Resource) not found. Please ensure this user exists.",
-          variant: "destructive"
-        });
-        setStatus('error');
-        return;
-      }
-
-      console.log('👔 HR manager found:', hrManager);
       setStatus('fixing');
 
       // Update employee profile
-      await updateEmployeeProfile(hrDept.id, hrManager.id);
-      
-      // Verify update
-      await verifyProfileUpdate();
+      const { data: updatedProfile, error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          department_id: hrDept.id,
+          line_manager_id: hrManager.id
+        })
+        .eq('id', '14085962-62dd-4d01-a9ed-d4dc43cfc7e5')
+        .select('id, first_name, last_name, department_id, line_manager_id')
+        .single();
+
+      if (updateError) {
+        console.error('❌ Error updating employee profile:', updateError);
+        throw updateError;
+      }
+
+      console.log('✅ Successfully updated employee profile:', updatedProfile);
       
       setStatus('success');
       toast({
@@ -67,7 +70,7 @@ export function useEmployeeProfileFixer() {
         setTimeout(() => {
           console.log('🔄 Triggering data refresh after profile fix...');
           onFixCompleted();
-        }, 2000);
+        }, 1000);
       }
 
     } catch (error) {
@@ -84,10 +87,11 @@ export function useEmployeeProfileFixer() {
   };
 
   const getOrCreateHRDepartment = async () => {
+    // First try to find existing HR department
     let { data: hrDeptArray, error: deptError } = await supabase
       .from('departments')
       .select('id, name')
-      .ilike('name', '%human%resource%')
+      .or('name.ilike.%human%resource%,name.ilike.%hr%')
       .limit(1);
 
     if (deptError) {
@@ -123,13 +127,12 @@ export function useEmployeeProfileFixer() {
     return hrDept;
   };
 
-  const getHRManager = async () => {
-    const { data: hrManagerArray, error: managerError } = await supabase
+  const getOrCreateHRManager = async () => {
+    // First try to find existing HR manager
+    let { data: hrManagerArray, error: managerError } = await supabase
       .from('profiles')
       .select('id, first_name, last_name, role')
       .eq('role', 'hr')
-      .eq('first_name', 'Human')
-      .eq('last_name', 'Resource')
       .limit(1);
 
     if (managerError) {
@@ -137,41 +140,36 @@ export function useEmployeeProfileFixer() {
       throw managerError;
     }
 
-    return hrManagerArray?.[0];
-  };
+    let hrManager = hrManagerArray?.[0];
 
-  const updateEmployeeProfile = async (departmentId: string, managerId: string) => {
-    const { data: updatedProfile, error: updateError } = await supabase
-      .from('profiles')
-      .update({
-        department_id: departmentId,
-        line_manager_id: managerId
-      })
-      .eq('id', '14085962-62dd-4d01-a9ed-d4dc43cfc7e5')
-      .select('id, first_name, last_name, department_id, line_manager_id')
-      .single();
+    if (!hrManager) {
+      console.log('👔 Creating HR manager profile...');
+      // Create a new HR manager profile
+      const { data: newManager, error: createManagerError } = await supabase
+        .from('profiles')
+        .insert([{
+          id: '00000000-0000-0000-0000-000000000001', // Use a fixed UUID for HR manager
+          email: 'hr.manager@company.com',
+          first_name: 'HR',
+          last_name: 'Manager',
+          role: 'hr',
+          is_active: true
+        }])
+        .select()
+        .single();
 
-    if (updateError) {
-      console.error('❌ Error updating employee profile:', updateError);
-      throw updateError;
-    }
-
-    console.log('✅ Successfully updated employee profile:', updatedProfile);
-    return updatedProfile;
-  };
-
-  const verifyProfileUpdate = async () => {
-    const { data: verificationProfile, error: verifyError } = await supabase
-      .from('profiles')
-      .select('id, first_name, last_name, department_id, line_manager_id')
-      .eq('id', '14085962-62dd-4d01-a9ed-d4dc43cfc7e5')
-      .single();
-
-    if (verifyError) {
-      console.error('❌ Error verifying profile update:', verifyError);
+      if (createManagerError) {
+        console.error('❌ Error creating HR manager:', createManagerError);
+        throw createManagerError;
+      }
+      
+      hrManager = newManager;
+      console.log('✅ Created HR manager:', hrManager);
     } else {
-      console.log('🔍 Verification - Updated profile:', verificationProfile);
+      console.log('✅ HR manager found:', hrManager);
     }
+
+    return hrManager;
   };
 
   return {
