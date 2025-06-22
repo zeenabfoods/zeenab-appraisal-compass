@@ -141,7 +141,7 @@ export function SignUpForm({
                 </SelectItem>
               ))
             ) : (
-              <SelectItem value="no-dept" disabled>
+              <SelectItem value="no-departments-available" disabled>
                 No departments available
               </SelectItem>
             )}
@@ -168,7 +168,7 @@ export function SignUpForm({
                   </SelectItem>
                 ))
               ) : (
-                <SelectItem value="no-mgr" disabled>
+                <SelectItem value="no-managers-available" disabled>
                   No managers available
                 </SelectItem>
               )}
