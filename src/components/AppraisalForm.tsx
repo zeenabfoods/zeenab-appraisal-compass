@@ -290,6 +290,19 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
         if (error) throw error;
       }
 
+      // Notify line manager when employee submits appraisal
+      if (mode === 'employee' && submit && appraisalId) {
+        const { error: notifyError } = await supabase.rpc('notify_line_manager_submission', {
+          appraisal_id_param: appraisalId,
+          employee_id_param: employeeId
+        });
+
+        if (notifyError) {
+          console.error('Error sending line manager notification:', notifyError);
+          // Don't throw error - notification failure shouldn't block the main flow
+        }
+      }
+
       toast({
         title: "Success",
         description: submit ? (mode === 'employee' ? "Appraisal submitted successfully" : "Review completed successfully") : "Progress saved",

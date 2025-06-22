@@ -832,6 +832,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      notify_line_manager_submission: {
+        Args: { appraisal_id_param: string; employee_id_param: string }
+        Returns: undefined
+      }
     }
     Enums: {
       appraisal_status:
