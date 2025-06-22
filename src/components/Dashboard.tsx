@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,6 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { AppraisalAccessDialog } from '@/components/AppraisalAccessDialog';
 import { EmployeeAssignedQuestions } from '@/components/EmployeeAssignedQuestions';
 import { AppraisalHistoryCard } from '@/components/AppraisalHistoryCard';
+import { EmployeeProfileCard } from '@/components/EmployeeProfileCard';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { 
   Users, 
@@ -197,6 +199,11 @@ export function Dashboard() {
           {dashboardLoading ? 'Loading your dashboard...' : 'Here\'s your performance dashboard overview'}
         </p>
       </div>
+
+      {/* Employee Profile Card - Show for all users */}
+      {profile && (
+        <EmployeeProfileCard profile={profile} />
+      )}
 
       {/* Show assigned questions for employees */}
       {profile && (profile.role === 'staff' || profile.role === 'manager') && (

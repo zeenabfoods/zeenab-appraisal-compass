@@ -4,22 +4,15 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '@/components/AuthProvider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAuthData } from '@/hooks/useAuthData';
 import { AuthBackground } from '@/components/auth/AuthBackground';
 import { SignInForm } from '@/components/auth/SignInForm';
 import { SignUpForm } from '@/components/auth/SignUpForm';
-import { useToast } from '@/hooks/use-toast';
 
 export default function Auth() {
   const { signIn, signUp, user } = useAuthContext();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string>('staff');
-  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
-  const [selectedManager, setSelectedManager] = useState<string>('');
-  
-  const { departments, managers, dataLoading, dataError } = useAuthData();
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -27,21 +20,6 @@ export default function Auth() {
       navigate('/');
     }
   }, [user, navigate]);
-
-  const handleDepartmentChange = (departmentId: string) => {
-    console.log('🏢 Department selected:', departmentId);
-    setSelectedDepartment(departmentId);
-    
-    // Auto-assign line manager based on department
-    const selectedDept = departments.find(dept => dept.id === departmentId);
-    if (selectedDept && selectedDept.line_manager_id) {
-      console.log('💡 Auto-assigning line manager:', selectedDept.line_manager_id);
-      setSelectedManager(selectedDept.line_manager_id);
-    } else {
-      console.log('⚠️ No line manager found for department:', departmentId);
-      setSelectedManager('');
-    }
-  };
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -70,42 +48,18 @@ export default function Auth() {
     const firstName = formData.get('firstName') as string;
     const lastName = formData.get('lastName') as string;
     const role = formData.get('role') as 'staff' | 'manager' | 'hr' | 'admin';
-    
-    // Remove the strict department validation - make it truly optional for sign-up
-    // Only validate if user is not admin and actually selected a department that requires a line manager
-    if (role !== 'admin' && selectedDepartment && selectedDepartment !== '') {
-      // Check if department has a line manager assigned only if a department was selected
-      const selectedDept = departments.find(dept => dept.id === selectedDepartment);
-      if (!selectedDept?.line_manager_id) {
-        toast({
-          title: "Department Configuration Error",
-          description: "The selected department does not have a line manager assigned. Please contact HR or select a different department.",
-          variant: "destructive"
-        });
-        setLoading(false);
-        return;
-      }
-    }
 
-    // Prepare the data - only include department/manager if actually selected
-    const departmentId = selectedDepartment && selectedDepartment !== '' ? selectedDepartment : undefined;
-    const lineManagerId = (role !== 'admin' && selectedManager && selectedManager !== '') ? selectedManager : undefined;
-
-    console.log('📝 Signing up with data:', {
+    console.log('📝 Signing up with simplified data:', {
       email,
       firstName,
       lastName,
-      role,
-      departmentId,
-      lineManagerId
+      role
     });
 
     await signUp(email, password, {
       first_name: firstName,
       last_name: lastName,
-      role: role || 'staff',
-      department_id: departmentId,
-      line_manager_id: lineManagerId
+      role: role || 'staff'
     });
     
     setLoading(false);
@@ -152,16 +106,8 @@ export default function Auth() {
               <SignUpForm
                 onSubmit={handleSignUp}
                 loading={loading}
-                dataLoading={dataLoading}
-                dataError={dataError}
-                departments={departments}
-                managers={managers}
                 selectedRole={selectedRole}
-                selectedDepartment={selectedDepartment}
-                selectedManager={selectedManager}
                 onRoleChange={setSelectedRole}
-                onDepartmentChange={handleDepartmentChange}
-                onManagerChange={setSelectedManager}
               />
             </TabsContent>
           </Tabs>
