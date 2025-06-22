@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '@/components/AuthProvider';
@@ -9,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface Department {
   id: string;
@@ -26,6 +26,7 @@ interface Profile {
 export default function Auth() {
   const { signIn, signUp, user } = useAuthContext();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [managers, setManagers] = useState<Profile[]>([]);
@@ -41,7 +42,7 @@ export default function Auth() {
   }
 
   useEffect(() => {
-    console.log('Loading departments and managers data...');
+    console.log('🔄 Loading departments and managers data...');
     loadInitialData();
   }, []);
 
@@ -49,8 +50,14 @@ export default function Auth() {
     setDataLoading(true);
     try {
       await Promise.all([fetchDepartments(), fetchManagers()]);
+      console.log('✅ Initial data loaded successfully');
     } catch (error) {
-      console.error('Error loading initial data:', error);
+      console.error('❌ Error loading initial data:', error);
+      toast({
+        title: "Data Loading Error",
+        description: "Failed to load departments and managers. Please refresh the page.",
+        variant: "destructive"
+      });
     } finally {
       setDataLoading(false);
     }
@@ -58,7 +65,7 @@ export default function Auth() {
 
   const fetchDepartments = async () => {
     try {
-      console.log('Fetching departments...');
+      console.log('📋 Fetching departments...');
       const { data, error } = await supabase
         .from('departments')
         .select('id, name, line_manager_id')
@@ -66,22 +73,27 @@ export default function Auth() {
         .order('name');
       
       if (error) {
-        console.error('Error fetching departments:', error);
+        console.error('❌ Error fetching departments:', error);
         throw error;
       }
       
-      console.log('Departments fetched successfully:', data);
+      console.log('✅ Departments fetched:', data?.length || 0, 'departments');
+      console.log('📋 Department data:', data);
       setDepartments(data || []);
     } catch (error) {
-      console.error('Error in fetchDepartments:', error);
-      // Set empty array on error to prevent UI issues
+      console.error('❌ Error in fetchDepartments:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load departments. Please try again.",
+        variant: "destructive"
+      });
       setDepartments([]);
     }
   };
 
   const fetchManagers = async () => {
     try {
-      console.log('Fetching managers...');
+      console.log('👔 Fetching managers...');
       const { data, error } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, role')
@@ -90,21 +102,26 @@ export default function Auth() {
         .order('first_name');
       
       if (error) {
-        console.error('Error fetching managers:', error);
+        console.error('❌ Error fetching managers:', error);
         throw error;
       }
       
-      console.log('Managers fetched successfully:', data);
+      console.log('✅ Managers fetched:', data?.length || 0, 'managers');
+      console.log('👔 Manager data:', data);
       setManagers(data || []);
     } catch (error) {
-      console.error('Error in fetchManagers:', error);
-      // Set empty array on error to prevent UI issues
+      console.error('❌ Error in fetchManagers:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load managers. Please try again.",
+        variant: "destructive"
+      });
       setManagers([]);
     }
   };
 
   const handleDepartmentChange = (departmentId: string) => {
-    console.log('Department selected:', departmentId);
+    console.log('🏢 Department selected:', departmentId);
     setSelectedDepartment(departmentId);
     
     if (departmentId === 'none') {
@@ -115,10 +132,10 @@ export default function Auth() {
     // Find the selected department and its line manager
     const selectedDept = departments.find(dept => dept.id === departmentId);
     if (selectedDept && selectedDept.line_manager_id) {
-      console.log('Auto-assigning line manager:', selectedDept.line_manager_id);
+      console.log('👔 Auto-assigning line manager:', selectedDept.line_manager_id);
       setAssignedManager(selectedDept.line_manager_id);
     } else {
-      console.log('No line manager found for department');
+      console.log('⚠️ No line manager found for department:', selectedDept?.name || 'Unknown');
       setAssignedManager('');
     }
   };
@@ -153,7 +170,7 @@ export default function Auth() {
     const departmentId = selectedDepartment === 'none' ? undefined : selectedDepartment;
     const lineManagerId = (role === 'admin' || assignedManager === 'none') ? undefined : assignedManager;
 
-    console.log('Signing up with data:', {
+    console.log('📝 Signing up with data:', {
       email,
       firstName,
       lastName,
@@ -319,13 +336,22 @@ export default function Auth() {
                       </SelectTrigger>
                       <SelectContent className="backdrop-blur-md bg-white/90 z-50">
                         <SelectItem value="none">No Department</SelectItem>
-                        {departments.map((dept) => (
-                          <SelectItem key={dept.id} value={dept.id}>
-                            {dept.name}
+                        {departments.length > 0 ? (
+                          departments.map((dept) => (
+                            <SelectItem key={dept.id} value={dept.id}>
+                              {dept.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="loading" disabled>
+                            Loading departments...
                           </SelectItem>
-                        ))}
+                        )}
                       </SelectContent>
                     </Select>
+                    {departments.length === 0 && !dataLoading && (
+                      <p className="text-sm text-red-600">No departments available. Please contact admin.</p>
+                    )}
                   </div>
                   {selectedRole !== 'admin' && (
                     <div className="space-y-2">
@@ -337,6 +363,9 @@ export default function Auth() {
                         readOnly
                         placeholder="Will be assigned based on department"
                       />
+                      {managers.length === 0 && !dataLoading && (
+                        <p className="text-sm text-amber-600">No managers available in system.</p>
+                      )}
                     </div>
                   )}
                   <Button 
