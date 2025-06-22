@@ -11,6 +11,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Send, Clock, CheckCircle } from 'lucide-react';
+import { AutoQuestionAssignment } from '@/components/AutoQuestionAssignment';
 
 interface Question {
   id: string;
@@ -62,86 +63,91 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
 
   const loadAppraisalData = async () => {
     try {
-      console.log('Loading appraisal data for employee:', employeeId, 'cycle:', cycleId);
+      console.log('🔄 Loading appraisal data for employee:', employeeId, 'cycle:', cycleId);
 
-      // Load sections
+      // Load sections first
       const { data: sectionsData, error: sectionsError } = await supabase
         .from('appraisal_question_sections')
         .select('*')
         .eq('is_active', true)
         .order('sort_order');
 
-      if (sectionsError) throw sectionsError;
+      if (sectionsError) {
+        console.error('❌ Error loading sections:', sectionsError);
+        throw sectionsError;
+      }
+      
+      console.log('✅ Loaded sections:', sectionsData?.length || 0);
       setSections(sectionsData || []);
 
-      // Load assigned questions for this specific employee and cycle with better query
-      console.log('Fetching assigned questions...');
+      // Use simpler approach - get assigned question IDs first
+      console.log('🔍 Fetching assigned question IDs...');
       const { data: assignedQuestionsData, error: assignedError } = await supabase
         .from('employee_appraisal_questions')
-        .select(`
-          id,
-          question_id,
-          assigned_at,
-          appraisal_questions!inner (
-            id,
-            question_text,
-            question_type,
-            weight,
-            is_required,
-            section_id,
-            appraisal_question_sections!inner (
-              id,
-              name,
-              description,
-              sort_order
-            )
-          )
-        `)
+        .select('question_id')
         .eq('employee_id', employeeId)
         .eq('cycle_id', cycleId)
-        .eq('is_active', true)
-        .order('appraisal_questions.appraisal_question_sections.sort_order', { ascending: true });
+        .eq('is_active', true);
 
       if (assignedError) {
-        console.error('Error loading assigned questions:', assignedError);
+        console.error('❌ Error loading assigned questions:', assignedError);
         throw assignedError;
       }
 
-      console.log('Raw assigned questions data:', assignedQuestionsData);
+      console.log('📝 Found assigned question IDs:', assignedQuestionsData?.length || 0);
 
-      // Process the assigned questions with better error handling
-      const processedQuestions: Question[] = [];
-      
-      if (assignedQuestionsData && assignedQuestionsData.length > 0) {
-        assignedQuestionsData.forEach((item: any) => {
-          if (item.appraisal_questions && item.appraisal_questions.appraisal_question_sections) {
-            processedQuestions.push({
-              id: item.appraisal_questions.id,
-              question_text: item.appraisal_questions.question_text,
-              question_type: item.appraisal_questions.question_type,
-              weight: item.appraisal_questions.weight,
-              is_required: item.appraisal_questions.is_required,
-              section_id: item.appraisal_questions.section_id,
-              section_name: item.appraisal_questions.appraisal_question_sections.name
-            });
-          }
-        });
+      if (!assignedQuestionsData || assignedQuestionsData.length === 0) {
+        console.log('⚠️ No questions assigned to this employee');
+        setQuestions([]);
+        setLoading(false);
+        return;
       }
 
-      console.log('Processed questions:', processedQuestions);
-      console.log('Number of questions loaded:', processedQuestions.length);
-      
-      // Group by section to verify we have multiple sections
-      const questionsBySection = processedQuestions.reduce((acc, q) => {
-        const sectionName = q.section_name || 'Unknown';
-        acc[sectionName] = (acc[sectionName] || 0) + 1;
+      // Get the actual questions
+      const questionIds = assignedQuestionsData.map(q => q.question_id);
+      console.log('🔍 Fetching question details for IDs:', questionIds);
+
+      const { data: questionsData, error: questionsError } = await supabase
+        .from('appraisal_questions')
+        .select(`
+          id,
+          question_text,
+          question_type,
+          weight,
+          is_required,
+          section_id,
+          appraisal_question_sections!inner (
+            name
+          )
+        `)
+        .in('id', questionIds)
+        .eq('is_active', true);
+
+      if (questionsError) {
+        console.error('❌ Error loading question details:', questionsError);
+        throw questionsError;
+      }
+
+      // Process questions with section names
+      const processedQuestions: Question[] = (questionsData || []).map((q: any) => ({
+        id: q.id,
+        question_text: q.question_text,
+        question_type: q.question_type,
+        weight: q.weight,
+        is_required: q.is_required,
+        section_id: q.section_id,
+        section_name: q.appraisal_question_sections?.name || 'General'
+      }));
+
+      console.log('✅ Processed questions:', processedQuestions.length);
+      console.log('📊 Questions by section:', processedQuestions.reduce((acc, q) => {
+        acc[q.section_name || 'Unknown'] = (acc[q.section_name || 'Unknown'] || 0) + 1;
         return acc;
-      }, {} as Record<string, number>);
-      
-      console.log('Questions by section:', questionsBySection);
+      }, {} as Record<string, number>));
+
       setQuestions(processedQuestions);
 
-      // Load existing appraisal and responses
+      // Load existing appraisal
       const { data: appraisalData, error: appraisalError } = await supabase
         .from('appraisals')
         .select('*')
@@ -150,11 +156,11 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
         .maybeSingle();
 
       if (appraisalError) {
-        console.error('Error loading appraisal:', appraisalError);
+        console.error('❌ Error loading appraisal:', appraisalError);
         throw appraisalError;
       }
 
-      console.log('Appraisal data:', appraisalData);
+      console.log('📋 Appraisal data:', appraisalData);
       setAppraisalData(appraisalData);
 
       if (appraisalData) {
@@ -164,20 +170,24 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
           .select('*')
           .eq('appraisal_id', appraisalData.id);
 
-        if (responsesError) throw responsesError;
+        if (responsesError) {
+          console.error('❌ Error loading responses:', responsesError);
+          throw responsesError;
+        }
 
         const responsesMap: Record<string, AppraisalResponse> = {};
         responsesData?.forEach(response => {
           responsesMap[response.question_id] = response;
         });
-        console.log('Loaded responses:', responsesMap);
+        console.log('✅ Loaded responses:', Object.keys(responsesMap).length);
         setResponses(responsesMap);
       }
+
     } catch (error) {
-      console.error('Error loading appraisal data:', error);
+      console.error('❌ Critical error loading appraisal data:', error);
       toast({
         title: "Error",
-        description: "Failed to load appraisal data",
+        description: `Failed to load appraisal data: ${error.message}`,
         variant: "destructive",
       });
     } finally {
@@ -341,6 +351,7 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
     return (
       <div className="flex items-center justify-center p-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <span className="ml-2">Loading appraisal data...</span>
       </div>
     );
   }
@@ -348,6 +359,7 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
   if (questions.length === 0) {
     return (
       <div className="space-y-6">
+        <AutoQuestionAssignment employeeId={employeeId} cycleId={cycleId} />
         <Card>
           <CardHeader>
             <CardTitle>No Questions Assigned</CardTitle>
@@ -356,9 +368,12 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-gray-600">
-              Please contact your HR department or line manager if you believe this is an error.
+            <p className="text-gray-600 mb-4">
+              Questions are being automatically assigned. Please refresh the page in a moment.
             </p>
+            <Button onClick={() => window.location.reload()} variant="outline">
+              Refresh Page
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -378,7 +393,7 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
     return acc;
   }, {} as Record<string, Question[]>);
 
-  console.log('Final questionsBySection for rendering:', questionsBySection);
+  console.log('🎨 Final questionsBySection for rendering:', questionsBySection);
 
   return (
     <div className="space-y-6">
