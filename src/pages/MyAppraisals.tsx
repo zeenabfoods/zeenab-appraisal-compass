@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,7 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ClipboardList, Calendar, User } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { autoAssignQuestionsToEmployee } from '@/utils/autoAssignQuestions';
+import { ClipboardList, Calendar, User, RefreshCw } from 'lucide-react';
 
 interface Appraisal {
   id: string;
@@ -26,10 +27,12 @@ interface Appraisal {
 
 export default function MyAppraisals() {
   const { profile } = useAuth();
+  const { toast } = useToast();
   const [appraisals, setAppraisals] = useState<Appraisal[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAppraisal, setSelectedAppraisal] = useState<Appraisal | null>(null);
   const [showAppraisalForm, setShowAppraisalForm] = useState(false);
+  const [autoAssigning, setAutoAssigning] = useState(false);
 
   useEffect(() => {
     loadAppraisals();
@@ -39,6 +42,46 @@ export default function MyAppraisals() {
     if (!profile) return;
 
     try {
+      setLoading(true);
+      
+      // First, get active appraisal cycles
+      const { data: activeCycles, error: cyclesError } = await supabase
+        .from('appraisal_cycles')
+        .select('*')
+        .eq('status', 'active');
+
+      if (cyclesError) {
+        console.error('Error loading cycles:', cyclesError);
+        throw cyclesError;
+      }
+
+      // Create appraisals for active cycles if they don't exist
+      if (activeCycles && activeCycles.length > 0) {
+        for (const cycle of activeCycles) {
+          const { data: existingAppraisal } = await supabase
+            .from('appraisals')
+            .select('id')
+            .eq('employee_id', profile.id)
+            .eq('cycle_id', cycle.id)
+            .maybeSingle();
+
+          if (!existingAppraisal) {
+            const { error: createError } = await supabase
+              .from('appraisals')
+              .insert({
+                employee_id: profile.id,
+                cycle_id: cycle.id,
+                status: 'draft'
+              });
+
+            if (createError) {
+              console.error('Error creating appraisal:', createError);
+            }
+          }
+        }
+      }
+
+      // Now load all appraisals
       const { data, error } = await supabase
         .from('appraisals')
         .select(`
@@ -58,8 +101,66 @@ export default function MyAppraisals() {
       setAppraisals(data || []);
     } catch (error) {
       console.error('Error loading appraisals:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load appraisals",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAutoAssignQuestions = async () => {
+    if (!profile) return;
+
+    try {
+      setAutoAssigning(true);
+      
+      // Get active cycles and auto-assign questions
+      const { data: activeCycles } = await supabase
+        .from('appraisal_cycles')
+        .select('id, name')
+        .eq('status', 'active');
+
+      if (!activeCycles || activeCycles.length === 0) {
+        toast({
+          title: "Info",
+          description: "No active appraisal cycles found",
+        });
+        return;
+      }
+
+      let totalAssigned = 0;
+      for (const cycle of activeCycles) {
+        const result = await autoAssignQuestionsToEmployee(profile.id, cycle.id);
+        if (result.success && result.questionsAssigned) {
+          totalAssigned += result.questionsAssigned;
+        }
+      }
+
+      if (totalAssigned > 0) {
+        toast({
+          title: "Success",
+          description: `Assigned ${totalAssigned} questions to your appraisals`,
+        });
+        // Reload appraisals to reflect the changes
+        await loadAppraisals();
+      } else {
+        toast({
+          title: "Info",
+          description: "No new questions were assigned. You may already have all applicable questions.",
+        });
+      }
+    } catch (error) {
+      console.error('Error auto-assigning questions:', error);
+      toast({
+        title: "Error",
+        description: "Failed to assign questions",
+        variant: "destructive",
+      });
+    } finally {
+      setAutoAssigning(false);
     }
   };
 
@@ -73,7 +174,18 @@ export default function MyAppraisals() {
     }
   };
 
-  const openAppraisal = (appraisal: Appraisal) => {
+  const openAppraisal = async (appraisal: Appraisal) => {
+    // Auto-assign questions if needed before opening the appraisal
+    if (profile) {
+      const result = await autoAssignQuestionsToEmployee(profile.id, appraisal.cycle_id);
+      if (result.success && result.questionsAssigned && result.questionsAssigned > 0) {
+        toast({
+          title: "Questions Assigned",
+          description: `${result.questionsAssigned} questions have been assigned to this appraisal`,
+        });
+      }
+    }
+    
     setSelectedAppraisal(appraisal);
     setShowAppraisalForm(true);
   };
@@ -89,9 +201,19 @@ export default function MyAppraisals() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">My Appraisals</h2>
-        <p className="text-gray-600">View and complete your performance appraisals</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">My Appraisals</h2>
+          <p className="text-gray-600">View and complete your performance appraisals</p>
+        </div>
+        <Button 
+          onClick={handleAutoAssignQuestions}
+          disabled={autoAssigning}
+          variant="outline"
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${autoAssigning ? 'animate-spin' : ''}`} />
+          {autoAssigning ? 'Assigning Questions...' : 'Assign Questions'}
+        </Button>
       </div>
 
       {/* Appraisals List */}
@@ -139,9 +261,13 @@ export default function MyAppraisals() {
           <CardContent className="flex flex-col items-center justify-center py-12">
             <ClipboardList className="h-12 w-12 text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-900">No appraisals available</h3>
-            <p className="text-gray-500 text-center">
+            <p className="text-gray-500 text-center mb-4">
               Your appraisals will appear here when appraisal cycles are created.
             </p>
+            <Button onClick={handleAutoAssignQuestions} disabled={autoAssigning}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${autoAssigning ? 'animate-spin' : ''}`} />
+              {autoAssigning ? 'Checking...' : 'Check for Appraisals'}
+            </Button>
           </CardContent>
         </Card>
       )}
