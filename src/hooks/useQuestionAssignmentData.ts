@@ -73,7 +73,7 @@ export function useQuestionAssignmentData() {
       const employeeIds = [...new Set(employeeAssignments.map(a => a.employee_id))];
       console.log('Unique employee IDs:', employeeIds);
 
-      // Fetch employee profiles
+      // Fetch employee profiles with department and manager data in a single query
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select(`
@@ -82,7 +82,16 @@ export function useQuestionAssignmentData() {
           last_name,
           email,
           department_id,
-          line_manager_id
+          line_manager_id,
+          departments:department_id (
+            id,
+            name
+          ),
+          line_manager:line_manager_id (
+            id,
+            first_name,
+            last_name
+          )
         `)
         .in('id', employeeIds);
 
@@ -91,21 +100,18 @@ export function useQuestionAssignmentData() {
         throw profilesError;
       }
 
-      console.log('Profiles data for assigned employees:', profiles);
+      console.log('Profiles data with relationships:', profiles);
 
-      // Fetch ALL departments and managers at once for better performance
-      const [departmentsResult, managersResult, appraisalsResult] = await Promise.all([
-        supabase.from('departments').select('id, name').eq('is_active', true),
-        supabase.from('profiles').select('id, first_name, last_name').eq('is_active', true),
-        supabase.from('appraisals').select('employee_id, status').in('employee_id', employeeIds)
-      ]);
+      // Fetch appraisals data
+      const { data: appraisals, error: appraisalsError } = await supabase
+        .from('appraisals')
+        .select('employee_id, status')
+        .in('employee_id', employeeIds);
 
-      const departments = departmentsResult.data || [];
-      const managers = managersResult.data || [];
-      const appraisals = appraisalsResult.data || [];
+      if (appraisalsError) {
+        console.error('Appraisals error:', appraisalsError);
+      }
 
-      console.log('All departments:', departments);
-      console.log('All managers:', managers);
       console.log('Appraisals data:', appraisals);
 
       // Process the data to create assignments
@@ -126,25 +132,29 @@ export function useQuestionAssignmentData() {
         }
 
         if (!employeeMap.has(employeeId)) {
-          const department = departments.find(d => d.id === profile.department_id);
-          const manager = managers.find(m => m.id === profile.line_manager_id);
-          const employeeAppraisal = appraisals.find(a => a.employee_id === employeeId);
+          const employeeAppraisal = appraisals?.find(a => a.employee_id === employeeId);
+          
+          // Extract department and manager info from the joined data
+          const departmentName = profile.departments?.name || 'Not assigned';
+          const managerName = profile.line_manager 
+            ? `${profile.line_manager.first_name || ''} ${profile.line_manager.last_name || ''}`.trim()
+            : 'Not assigned';
           
           console.log(`For employee ${profile.first_name} ${profile.last_name}:`, {
-            'profile.department_id': profile.department_id,
-            'found department': department,
-            'profile.line_manager_id': profile.line_manager_id,
-            'found manager': manager
+            'department_id': profile.department_id,
+            'departments': profile.departments,
+            'resolved department': departmentName,
+            'line_manager_id': profile.line_manager_id,
+            'line_manager': profile.line_manager,
+            'resolved manager': managerName
           });
           
           employeeMap.set(employeeId, {
             employee_id: employeeId,
             employee_name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim(),
             email: profile.email || 'No email',
-            department: department?.name || 'Not assigned',
-            line_manager: manager 
-              ? `${manager.first_name || ''} ${manager.last_name || ''}`.trim()
-              : 'Not assigned',
+            department: departmentName,
+            line_manager: managerName,
             questions_assigned: 0,
             appraisal_status: employeeAppraisal?.status || 'not_started',
             assigned_date: assignment.assigned_at || new Date().toISOString()
