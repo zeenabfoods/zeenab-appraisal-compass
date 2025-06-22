@@ -6,7 +6,11 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 
-export function EmployeeProfileFixer() {
+interface EmployeeProfileFixerProps {
+  onFixCompleted?: () => void;
+}
+
+export function EmployeeProfileFixer({ onFixCompleted }: EmployeeProfileFixerProps) {
   const { toast } = useToast();
   const [fixing, setFixing] = useState(false);
   const [status, setStatus] = useState<'idle' | 'checking' | 'fixing' | 'success' | 'error'>('idle');
@@ -101,6 +105,14 @@ export function EmployeeProfileFixer() {
         description: "Employee profile updated successfully! Department and line manager have been assigned.",
       });
 
+      // Trigger refresh callback with a delay to ensure data propagation
+      if (onFixCompleted) {
+        setTimeout(() => {
+          console.log('Triggering data refresh...');
+          onFixCompleted();
+        }, 1000);
+      }
+
     } catch (error) {
       console.error('Error in fixEmployeeProfile:', error);
       setStatus('error');
@@ -135,7 +147,7 @@ export function EmployeeProfileFixer() {
       case 'fixing':
         return 'Updating employee profile...';
       case 'success':
-        return 'Employee profile successfully updated!';
+        return 'Employee profile successfully updated! Data should refresh automatically.';
       case 'error':
         return 'Failed to update employee profile.';
       default:
@@ -174,9 +186,18 @@ export function EmployeeProfileFixer() {
         )}
         
         {status === 'success' && (
-          <p className="text-sm text-green-600 font-medium">
-            ✅ Profile updated! The assignment tracking should now show the correct department and line manager.
-          </p>
+          <div className="space-y-2">
+            <p className="text-sm text-green-600 font-medium">
+              ✅ Profile updated! The assignment tracking should refresh automatically.
+            </p>
+            <Button 
+              onClick={() => onFixCompleted?.()}
+              variant="outline"
+              size="sm"
+            >
+              Refresh Data Now
+            </Button>
+          </div>
         )}
       </CardContent>
     </Card>
