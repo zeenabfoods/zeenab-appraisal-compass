@@ -266,7 +266,6 @@ export function EmployeeQuestionManager() {
         </TabsContent>
         
         <TabsContent value="tracking" className="space-y-6">
-          <QuickEmployeeAssignmentFixer />
           <QuestionAssignmentTracker />
         </TabsContent>
         

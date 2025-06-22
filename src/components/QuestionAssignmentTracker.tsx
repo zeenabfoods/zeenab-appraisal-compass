@@ -2,7 +2,6 @@
 import React from 'react';
 import { AssignmentStatsCards } from '@/components/AssignmentStatsCards';
 import { AssignmentTable } from '@/components/AssignmentTable';
-import { QuickEmployeeAssignmentFixer } from '@/components/QuickEmployeeAssignmentFixer';
 import { useQuestionAssignmentData } from '@/hooks/useQuestionAssignmentData';
 
 export function QuestionAssignmentTracker() {
@@ -18,7 +17,6 @@ export function QuestionAssignmentTracker() {
 
   return (
     <div className="space-y-6">
-      <QuickEmployeeAssignmentFixer onFixCompleted={refetch} />
       <AssignmentStatsCards stats={stats} />
       <AssignmentTable assignments={assignments} />
     </div>
