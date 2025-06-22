@@ -246,28 +246,28 @@ export function useAuth() {
   const signOut = async () => {
     try {
       console.log('Attempting to sign out...');
-      const { error } = await supabase.auth.signOut();
       
-      if (error) {
-        console.error('Sign out error:', error);
-        toast({
-          title: "Sign Out Error",
-          description: error.message,
-          variant: "destructive"
-        });
-      } else {
-        console.log('Sign out successful');
-        toast({
-          title: "Success",
-          description: "You have been signed out successfully."
-        });
-      }
-    } catch (error: any) {
-      console.error('Sign out exception:', error);
+      // Clear local state immediately to prevent UI issues
+      setUser(null);
+      setSession(null);
+      setProfile(null);
+      
+      // Attempt to sign out from Supabase
+      // If session is missing, this will still clear any remaining auth state
+      await supabase.auth.signOut({ scope: 'local' });
+      
+      console.log('Sign out completed successfully');
       toast({
-        title: "Sign Out Error",
-        description: "An unexpected error occurred while signing out.",
-        variant: "destructive"
+        title: "Success",
+        description: "You have been signed out successfully."
+      });
+    } catch (error: any) {
+      console.log('Sign out error (handled gracefully):', error);
+      // Even if there's an error, we've already cleared local state
+      // This handles the "Auth session missing!" error gracefully
+      toast({
+        title: "Success",
+        description: "You have been signed out successfully."
       });
     }
   };
