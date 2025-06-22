@@ -36,10 +36,11 @@ export default function Auth() {
   const [dataLoading, setDataLoading] = useState(true);
 
   // Redirect if already authenticated
-  if (user) {
-    navigate('/');
-    return null;
-  }
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
 
   useEffect(() => {
     console.log('🔄 Loading departments and managers data...');
@@ -49,6 +50,7 @@ export default function Auth() {
   const loadInitialData = async () => {
     setDataLoading(true);
     try {
+      console.log('📋 Starting to fetch departments and managers...');
       await Promise.all([fetchDepartments(), fetchManagers()]);
       console.log('✅ Initial data loaded successfully');
     } catch (error) {
@@ -80,6 +82,12 @@ export default function Auth() {
       console.log('✅ Departments fetched:', data?.length || 0, 'departments');
       console.log('📋 Department data:', data);
       setDepartments(data || []);
+      
+      // If no departments exist, create a default one
+      if (!data || data.length === 0) {
+        console.log('⚠️ No departments found, creating default HR department...');
+        await createDefaultDepartment();
+      }
     } catch (error) {
       console.error('❌ Error in fetchDepartments:', error);
       toast({
@@ -88,6 +96,27 @@ export default function Auth() {
         variant: "destructive"
       });
       setDepartments([]);
+    }
+  };
+
+  const createDefaultDepartment = async () => {
+    try {
+      console.log('🏢 Creating default HR department...');
+      const { data: hrDept, error: deptError } = await supabase
+        .from('departments')
+        .insert({
+          name: 'Human Resources',
+          description: 'HR Department - Default'
+        })
+        .select()
+        .single();
+
+      if (deptError) throw deptError;
+      
+      console.log('✅ Default HR department created:', hrDept);
+      setDepartments([hrDept]);
+    } catch (error) {
+      console.error('❌ Error creating default department:', error);
     }
   };
 
@@ -109,6 +138,11 @@ export default function Auth() {
       console.log('✅ Managers fetched:', data?.length || 0, 'managers');
       console.log('👔 Manager data:', data);
       setManagers(data || []);
+      
+      // If no managers exist, we'll show a message but allow signup
+      if (!data || data.length === 0) {
+        console.log('⚠️ No managers found in system');
+      }
     } catch (error) {
       console.error('❌ Error in fetchManagers:', error);
       toast({
@@ -194,6 +228,10 @@ export default function Auth() {
     const manager = managers.find(m => m.id === managerId);
     return manager ? `${manager.first_name} ${manager.last_name} (${manager.role.toUpperCase()})` : 'Unknown Manager';
   };
+
+  if (user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-white to-red-50 px-4 relative overflow-hidden">
@@ -329,7 +367,6 @@ export default function Auth() {
                       name="department" 
                       value={selectedDepartment}
                       onValueChange={handleDepartmentChange}
-                      required
                     >
                       <SelectTrigger className="backdrop-blur-sm bg-white/70 border-white/40">
                         <SelectValue placeholder="Select your department" />
@@ -350,7 +387,9 @@ export default function Auth() {
                       </SelectContent>
                     </Select>
                     {departments.length === 0 && !dataLoading && (
-                      <p className="text-sm text-red-600">No departments available. Please contact admin.</p>
+                      <p className="text-sm text-amber-600">
+                        Departments will be created automatically. You can select one later.
+                      </p>
                     )}
                   </div>
                   {selectedRole !== 'admin' && (
@@ -364,7 +403,9 @@ export default function Auth() {
                         placeholder="Will be assigned based on department"
                       />
                       {managers.length === 0 && !dataLoading && (
-                        <p className="text-sm text-amber-600">No managers available in system.</p>
+                        <p className="text-sm text-amber-600">
+                          No managers available. You can be assigned a manager later.
+                        </p>
                       )}
                     </div>
                   )}
