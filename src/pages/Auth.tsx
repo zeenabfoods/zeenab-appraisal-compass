@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '@/components/AuthProvider';
@@ -31,6 +32,7 @@ export default function Auth() {
   const [selectedRole, setSelectedRole] = useState<string>('staff');
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
   const [assignedManager, setAssignedManager] = useState<string>('');
+  const [dataLoading, setDataLoading] = useState(true);
 
   // Redirect if already authenticated
   if (user) {
@@ -39,9 +41,20 @@ export default function Auth() {
   }
 
   useEffect(() => {
-    fetchDepartments();
-    fetchManagers();
+    console.log('Loading departments and managers data...');
+    loadInitialData();
   }, []);
+
+  const loadInitialData = async () => {
+    setDataLoading(true);
+    try {
+      await Promise.all([fetchDepartments(), fetchManagers()]);
+    } catch (error) {
+      console.error('Error loading initial data:', error);
+    } finally {
+      setDataLoading(false);
+    }
+  };
 
   const fetchDepartments = async () => {
     try {
@@ -54,13 +67,15 @@ export default function Auth() {
       
       if (error) {
         console.error('Error fetching departments:', error);
-        return;
+        throw error;
       }
       
-      console.log('Departments fetched:', data);
+      console.log('Departments fetched successfully:', data);
       setDepartments(data || []);
     } catch (error) {
-      console.error('Error fetching departments:', error);
+      console.error('Error in fetchDepartments:', error);
+      // Set empty array on error to prevent UI issues
+      setDepartments([]);
     }
   };
 
@@ -76,19 +91,26 @@ export default function Auth() {
       
       if (error) {
         console.error('Error fetching managers:', error);
-        return;
+        throw error;
       }
       
-      console.log('Managers fetched:', data);
+      console.log('Managers fetched successfully:', data);
       setManagers(data || []);
     } catch (error) {
-      console.error('Error fetching managers:', error);
+      console.error('Error in fetchManagers:', error);
+      // Set empty array on error to prevent UI issues
+      setManagers([]);
     }
   };
 
   const handleDepartmentChange = (departmentId: string) => {
     console.log('Department selected:', departmentId);
     setSelectedDepartment(departmentId);
+    
+    if (departmentId === 'none') {
+      setAssignedManager('');
+      return;
+    }
     
     // Find the selected department and its line manager
     const selectedDept = departments.find(dept => dept.id === departmentId);
@@ -128,8 +150,8 @@ export default function Auth() {
     const firstName = formData.get('firstName') as string;
     const lastName = formData.get('lastName') as string;
     const role = formData.get('role') as 'staff' | 'manager' | 'hr' | 'admin';
-    const departmentId = selectedDepartment;
-    const lineManagerId = assignedManager || undefined;
+    const departmentId = selectedDepartment === 'none' ? undefined : selectedDepartment;
+    const lineManagerId = (role === 'admin' || assignedManager === 'none') ? undefined : assignedManager;
 
     console.log('Signing up with data:', {
       email,
@@ -145,7 +167,7 @@ export default function Auth() {
       last_name: lastName,
       role: role || 'staff',
       department_id: departmentId,
-      line_manager_id: role === 'admin' ? undefined : lineManagerId
+      line_manager_id: lineManagerId
     });
     
     setLoading(false);
@@ -219,101 +241,113 @@ export default function Auth() {
             </TabsContent>
             
             <TabsContent value="signup">
-              <form onSubmit={handleSignUp} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              {dataLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600"></div>
+                  <span className="ml-2 text-sm text-gray-600">Loading departments and managers...</span>
+                </div>
+              ) : (
+                <form onSubmit={handleSignUp} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName">First Name</Label>
+                      <Input
+                        id="firstName"
+                        name="firstName"
+                        placeholder="First name"
+                        className="backdrop-blur-sm bg-white/70 border-white/40"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">Last Name</Label>
+                      <Input
+                        id="lastName"
+                        name="lastName"
+                        placeholder="Last name"
+                        className="backdrop-blur-sm bg-white/70 border-white/40"
+                        required
+                      />
+                    </div>
+                  </div>
                   <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
+                    <Label htmlFor="email">Email</Label>
                     <Input
-                      id="firstName"
-                      name="firstName"
-                      placeholder="First name"
+                      id="email"
+                      name="email"
+                      type="email"
+                      placeholder="Enter your email"
                       className="backdrop-blur-sm bg-white/70 border-white/40"
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name</Label>
+                    <Label htmlFor="password">Password</Label>
                     <Input
-                      id="lastName"
-                      name="lastName"
-                      placeholder="Last name"
+                      id="password"
+                      name="password"
+                      type="password"
+                      placeholder="Create a password"
                       className="backdrop-blur-sm bg-white/70 border-white/40"
                       required
                     />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    className="backdrop-blur-sm bg-white/70 border-white/40"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    placeholder="Create a password"
-                    className="backdrop-blur-sm bg-white/70 border-white/40"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
-                  <Select name="role" defaultValue="staff" onValueChange={setSelectedRole}>
-                    <SelectTrigger className="backdrop-blur-sm bg-white/70 border-white/40">
-                      <SelectValue placeholder="Select your role" />
-                    </SelectTrigger>
-                    <SelectContent className="backdrop-blur-md bg-white/90">
-                      <SelectItem value="staff">Staff</SelectItem>
-                      <SelectItem value="manager">Manager</SelectItem>
-                      <SelectItem value="hr">HR</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="department">Department</Label>
-                  <Select 
-                    name="department" 
-                    value={selectedDepartment}
-                    onValueChange={handleDepartmentChange}
-                    required
+                  <div className="space-y-2">
+                    <Label htmlFor="role">Role</Label>
+                    <Select name="role" defaultValue="staff" onValueChange={setSelectedRole}>
+                      <SelectTrigger className="backdrop-blur-sm bg-white/70 border-white/40">
+                        <SelectValue placeholder="Select your role" />
+                      </SelectTrigger>
+                      <SelectContent className="backdrop-blur-md bg-white/90 z-50">
+                        <SelectItem value="staff">Staff</SelectItem>
+                        <SelectItem value="manager">Manager</SelectItem>
+                        <SelectItem value="hr">HR</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="department">Department</Label>
+                    <Select 
+                      name="department" 
+                      value={selectedDepartment}
+                      onValueChange={handleDepartmentChange}
+                      required
+                    >
+                      <SelectTrigger className="backdrop-blur-sm bg-white/70 border-white/40">
+                        <SelectValue placeholder="Select your department" />
+                      </SelectTrigger>
+                      <SelectContent className="backdrop-blur-md bg-white/90 z-50">
+                        <SelectItem value="none">No Department</SelectItem>
+                        {departments.map((dept) => (
+                          <SelectItem key={dept.id} value={dept.id}>
+                            {dept.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {selectedRole !== 'admin' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="lineManager">Line Manager</Label>
+                      <Input
+                        id="lineManager"
+                        value={assignedManager ? getManagerName(assignedManager) : 'No manager assigned'}
+                        className="backdrop-blur-sm bg-gray-100/70 border-white/40"
+                        readOnly
+                        placeholder="Will be assigned based on department"
+                      />
+                    </div>
+                  )}
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 shadow-lg" 
+                    disabled={loading || dataLoading}
                   >
-                    <SelectTrigger className="backdrop-blur-sm bg-white/70 border-white/40">
-                      <SelectValue placeholder="Select your department" />
-                    </SelectTrigger>
-                    <SelectContent className="backdrop-blur-md bg-white/90">
-                      {departments.map((dept) => (
-                        <SelectItem key={dept.id} value={dept.id}>
-                          {dept.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {selectedRole !== 'admin' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="lineManager">Line Manager</Label>
-                    <Input
-                      id="lineManager"
-                      value={assignedManager ? getManagerName(assignedManager) : 'No manager assigned'}
-                      className="backdrop-blur-sm bg-gray-100/70 border-white/40"
-                      readOnly
-                      placeholder="Will be assigned based on department"
-                    />
-                  </div>
-                )}
-                <Button type="submit" className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 shadow-lg" disabled={loading}>
-                  {loading ? 'Creating account...' : 'Sign Up'}
-                </Button>
-              </form>
+                    {loading ? 'Creating account...' : 'Sign Up'}
+                  </Button>
+                </form>
+              )}
             </TabsContent>
           </Tabs>
         </CardContent>
