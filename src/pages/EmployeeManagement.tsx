@@ -151,8 +151,8 @@ export default function EmployeeManagement() {
             email: newEmployee.email,
             role: newEmployee.role as any,
             position: newEmployee.position || null,
-            department_id: newEmployee.department_id || null,
-            line_manager_id: newEmployee.line_manager_id || null
+            department_id: newEmployee.department_id === 'none' ? null : newEmployee.department_id || null,
+            line_manager_id: newEmployee.line_manager_id === 'none' ? null : newEmployee.line_manager_id || null
           })
           .eq('id', editingEmployee.id);
 
@@ -359,7 +359,7 @@ export default function EmployeeManagement() {
                       <SelectValue placeholder="Select department" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No Department</SelectItem>
+                      <SelectItem value="none">No Department</SelectItem>
                       {departments.map(dept => (
                         <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
                       ))}
@@ -374,7 +374,7 @@ export default function EmployeeManagement() {
                       <SelectValue placeholder="Select manager" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No Manager</SelectItem>
+                      <SelectItem value="none">No Manager</SelectItem>
                       {employees
                         .filter(emp => emp.role === 'manager' || emp.role === 'hr' || emp.role === 'admin')
                         .map(manager => (
