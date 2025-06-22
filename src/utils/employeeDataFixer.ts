@@ -12,6 +12,8 @@ export async function updateEmployeeAssignments() {
       .ilike('name', '%human%resource%')
       .single();
 
+    let hrDepartmentId: string;
+
     if (deptError || !hrDept) {
       console.error('HR department not found:', deptError);
       // If HR department doesn't exist, create it
@@ -31,6 +33,9 @@ export async function updateEmployeeAssignments() {
       }
       
       console.log('Created HR department:', newDept);
+      hrDepartmentId = newDept.id;
+    } else {
+      hrDepartmentId = hrDept.id;
     }
 
     // Get the HR manager (Human Resource user)
@@ -53,7 +58,7 @@ export async function updateEmployeeAssignments() {
     const { data: updatedProfile, error: updateError } = await supabase
       .from('profiles')
       .update({
-        department_id: hrDept?.id || newDept?.id,
+        department_id: hrDepartmentId,
         line_manager_id: hrManager.id
       })
       .eq('id', '14085962-62dd-4d01-a9ed-d4dc43cfc7e5')
