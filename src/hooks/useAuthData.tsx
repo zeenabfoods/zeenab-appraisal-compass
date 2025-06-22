@@ -32,16 +32,17 @@ export function useAuthData() {
       
       if (error) {
         console.error('❌ Error fetching departments:', error);
-        setDepartments([]);
-        return;
+        throw error;
       }
       
       console.log('✅ Departments fetched:', data?.length || 0, 'departments');
+      console.log('Departments data:', data);
       setDepartments(data || []);
+      return data || [];
       
     } catch (error) {
       console.error('❌ Error in fetchDepartments:', error);
-      setDepartments([]);
+      throw error;
     }
   };
 
@@ -57,29 +58,39 @@ export function useAuthData() {
       
       if (error) {
         console.error('❌ Error fetching managers:', error);
-        setManagers([]);
-        return;
+        throw error;
       }
       
       console.log('✅ Managers fetched:', data?.length || 0, 'managers');
+      console.log('Managers data:', data);
       setManagers(data || []);
+      return data || [];
       
     } catch (error) {
       console.error('❌ Error in fetchManagers:', error);
-      setManagers([]);
+      throw error;
     }
   };
 
   const loadInitialData = async () => {
     setDataLoading(true);
     setDataError('');
+    
     try {
       console.log('📋 Starting to fetch departments and managers...');
-      await Promise.all([fetchDepartments(), fetchManagers()]);
+      
+      // Fetch both departments and managers
+      const [departmentsData, managersData] = await Promise.all([
+        fetchDepartments(),
+        fetchManagers()
+      ]);
+      
       console.log('✅ Initial data loaded successfully');
-    } catch (error) {
+      console.log('Final state - Departments:', departmentsData?.length, 'Managers:', managersData?.length);
+      
+    } catch (error: any) {
       console.error('❌ Error loading initial data:', error);
-      setDataError('Failed to load system data. Some features may not be available.');
+      setDataError(`Failed to load system data: ${error.message || 'Unknown error'}. Please refresh the page or contact support.`);
     } finally {
       setDataLoading(false);
     }
@@ -90,10 +101,21 @@ export function useAuthData() {
     loadInitialData();
   }, []);
 
+  // Add some debugging logs
+  useEffect(() => {
+    console.log('📊 Current state:', {
+      departments: departments.length,
+      managers: managers.length,
+      dataLoading,
+      dataError
+    });
+  }, [departments, managers, dataLoading, dataError]);
+
   return {
     departments,
     managers,
     dataLoading,
-    dataError
+    dataError,
+    refetch: loadInitialData // Add a refetch function in case user wants to retry
   };
 }

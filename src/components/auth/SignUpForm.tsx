@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -72,6 +71,13 @@ export function SignUpForm({
       {dataError && (
         <div className="p-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md">
           {dataError}
+          <button 
+            type="button" 
+            onClick={() => window.location.reload()} 
+            className="ml-2 text-amber-800 underline hover:no-underline"
+          >
+            Refresh page
+          </button>
         </div>
       )}
       
@@ -145,19 +151,24 @@ export function SignUpForm({
             <SelectValue placeholder="Choose your department" />
           </SelectTrigger>
           <SelectContent className="backdrop-blur-md bg-white/90 z-50">
-            {departments.length > 0 ? (
+            {departments && departments.length > 0 ? (
               departments.map((dept) => (
                 <SelectItem key={dept.id} value={dept.id}>
                   {dept.name}
                 </SelectItem>
               ))
             ) : (
-              <SelectItem value="no-departments-available" disabled>
-                No departments available
+              <SelectItem value="loading" disabled>
+                {dataLoading ? "Loading departments..." : "No departments available - please contact admin"}
               </SelectItem>
             )}
           </SelectContent>
         </Select>
+        {departments.length === 0 && !dataLoading && (
+          <p className="text-sm text-amber-600">
+            ⚠️ No departments found. Please contact your administrator to set up departments.
+          </p>
+        )}
       </div>
 
       {selectedRole !== 'admin' && (
@@ -188,7 +199,7 @@ export function SignUpForm({
       <Button 
         type="submit" 
         className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 shadow-lg" 
-        disabled={loading}
+        disabled={loading || (departments.length === 0 && !dataLoading)}
       >
         {loading ? 'Creating account...' : 'Sign Up'}
       </Button>
