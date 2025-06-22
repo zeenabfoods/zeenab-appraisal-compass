@@ -71,19 +71,10 @@ export default function Auth() {
     const lastName = formData.get('lastName') as string;
     const role = formData.get('role') as 'staff' | 'manager' | 'hr' | 'admin';
     
-    // Validate required fields for non-admin users
-    if (role !== 'admin') {
-      if (!selectedDepartment || selectedDepartment === 'no-departments-available') {
-        toast({
-          title: "Validation Error",
-          description: "Please select a department.",
-          variant: "destructive"
-        });
-        setLoading(false);
-        return;
-      }
-      
-      // Check if department has a line manager assigned
+    // Remove the strict department validation - make it truly optional for sign-up
+    // Only validate if user is not admin and actually selected a department that requires a line manager
+    if (role !== 'admin' && selectedDepartment && selectedDepartment !== '') {
+      // Check if department has a line manager assigned only if a department was selected
       const selectedDept = departments.find(dept => dept.id === selectedDepartment);
       if (!selectedDept?.line_manager_id) {
         toast({
@@ -96,9 +87,9 @@ export default function Auth() {
       }
     }
 
-    // Prepare the data - use the auto-assigned line manager
-    const departmentId = selectedDepartment && selectedDepartment !== 'no-departments-available' ? selectedDepartment : undefined;
-    const lineManagerId = (role !== 'admin' && selectedManager) ? selectedManager : undefined;
+    // Prepare the data - only include department/manager if actually selected
+    const departmentId = selectedDepartment && selectedDepartment !== '' ? selectedDepartment : undefined;
+    const lineManagerId = (role !== 'admin' && selectedManager && selectedManager !== '') ? selectedManager : undefined;
 
     console.log('📝 Signing up with data:', {
       email,
