@@ -73,26 +73,10 @@ export function useQuestionAssignmentData() {
       const employeeIds = [...new Set(employeeAssignments.map(a => a.employee_id))];
       console.log('Unique employee IDs:', employeeIds);
 
-      // Fetch employee profiles with department and manager data in a single query
+      // Fetch employee profiles - simplified query first
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select(`
-          id,
-          first_name,
-          last_name,
-          email,
-          department_id,
-          line_manager_id,
-          departments:department_id (
-            id,
-            name
-          ),
-          line_manager:line_manager_id (
-            id,
-            first_name,
-            last_name
-          )
-        `)
+        .select('id, first_name, last_name, email, department_id, line_manager_id')
         .in('id', employeeIds);
 
       if (profilesError) {
@@ -100,7 +84,33 @@ export function useQuestionAssignmentData() {
         throw profilesError;
       }
 
-      console.log('Profiles data with relationships:', profiles);
+      console.log('Profiles data:', profiles);
+
+      // Fetch departments separately
+      const departmentIds = profiles?.map(p => p.department_id).filter(Boolean) || [];
+      const { data: departments, error: deptError } = await supabase
+        .from('departments')
+        .select('id, name')
+        .in('id', departmentIds);
+
+      if (deptError) {
+        console.error('Departments error:', deptError);
+      }
+
+      console.log('Departments data:', departments);
+
+      // Fetch line managers separately
+      const managerIds = profiles?.map(p => p.line_manager_id).filter(Boolean) || [];
+      const { data: managers, error: mgrsError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .in('id', managerIds);
+
+      if (mgrsError) {
+        console.error('Managers error:', mgrsError);
+      }
+
+      console.log('Managers data:', managers);
 
       // Fetch appraisals data
       const { data: appraisals, error: appraisalsError } = await supabase
@@ -134,18 +144,21 @@ export function useQuestionAssignmentData() {
         if (!employeeMap.has(employeeId)) {
           const employeeAppraisal = appraisals?.find(a => a.employee_id === employeeId);
           
-          // Extract department and manager info from the joined data
-          const departmentName = profile.departments?.name || 'Not assigned';
-          const managerName = profile.line_manager 
-            ? `${profile.line_manager.first_name || ''} ${profile.line_manager.last_name || ''}`.trim()
+          // Find department and manager info
+          const department = departments?.find(d => d.id === profile.department_id);
+          const manager = managers?.find(m => m.id === profile.line_manager_id);
+          
+          const departmentName = department?.name || 'Not assigned';
+          const managerName = manager 
+            ? `${manager.first_name || ''} ${manager.last_name || ''}`.trim()
             : 'Not assigned';
           
           console.log(`For employee ${profile.first_name} ${profile.last_name}:`, {
             'department_id': profile.department_id,
-            'departments': profile.departments,
+            'found department': department,
             'resolved department': departmentName,
             'line_manager_id': profile.line_manager_id,
-            'line_manager': profile.line_manager,
+            'found manager': manager,
             'resolved manager': managerName
           });
           
@@ -205,7 +218,7 @@ export function useQuestionAssignmentData() {
       });
 
       setStats({
-        totalEmployees: allEmployees?.length || 0, // All active employees
+        totalEmployees: allEmployees?.length || 0,
         employeesWithQuestions: employeeMap.size,
         totalQuestionsAssigned: totalQuestions?.length || 0,
         completedAppraisals: completedAppraisals?.length || 0
