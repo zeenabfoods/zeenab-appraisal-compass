@@ -66,9 +66,9 @@ export default function Auth() {
     const lastName = formData.get('lastName') as string;
     const role = formData.get('role') as 'staff' | 'manager' | 'hr' | 'admin';
     
-    // Use selected values for department and manager
-    const departmentId = selectedDepartment || undefined;
-    const lineManagerId = (role === 'admin' || !selectedManager) ? undefined : selectedManager;
+    // Handle the new placeholder values - convert them back to undefined for the database
+    const departmentId = selectedDepartment === 'no-department' ? undefined : selectedDepartment || undefined;
+    const lineManagerId = (role === 'admin' || selectedManager === 'no-manager') ? undefined : selectedManager || undefined;
 
     console.log('📝 Signing up with data:', {
       email,

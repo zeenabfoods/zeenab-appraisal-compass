@@ -133,7 +133,7 @@ export function SignUpForm({
             <SelectValue placeholder="Choose your department (optional)" />
           </SelectTrigger>
           <SelectContent className="backdrop-blur-md bg-white/90 z-50">
-            <SelectItem value="">No Department</SelectItem>
+            <SelectItem value="no-department">No Department</SelectItem>
             {departments.length > 0 ? (
               departments.map((dept) => (
                 <SelectItem key={dept.id} value={dept.id}>
@@ -160,7 +160,7 @@ export function SignUpForm({
               <SelectValue placeholder="Choose your line manager (optional)" />
             </SelectTrigger>
             <SelectContent className="backdrop-blur-md bg-white/90 z-50">
-              <SelectItem value="">No Manager</SelectItem>
+              <SelectItem value="no-manager">No Manager</SelectItem>
               {managers.length > 0 ? (
                 managers.map((manager) => (
                   <SelectItem key={manager.id} value={manager.id}>
