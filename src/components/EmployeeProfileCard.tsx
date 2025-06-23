@@ -13,8 +13,13 @@ interface EmployeeProfileCardProps {
   onProfileUpdate?: (updatedProfile: Profile) => void;
 }
 
+interface ExtendedProfile extends Profile {
+  department?: { name: string };
+  line_manager?: { first_name: string; last_name: string };
+}
+
 export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfileCardProps) {
-  const [currentProfile, setCurrentProfile] = useState<Profile>(profile);
+  const [currentProfile, setCurrentProfile] = useState<ExtendedProfile>(profile);
   const [refreshing, setRefreshing] = useState(false);
   const { toast } = useToast();
 
@@ -45,9 +50,13 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
       console.log('✅ Profile refreshed successfully:', updatedProfile);
       
       // Transform the data to match our Profile interface
-      const transformedProfile: Profile = {
+      const transformedProfile: ExtendedProfile = {
         ...updatedProfile,
-        department: updatedProfile.department ? { name: updatedProfile.department.name } : undefined
+        department: updatedProfile.department ? { name: updatedProfile.department.name } : undefined,
+        line_manager: updatedProfile.line_manager ? {
+          first_name: updatedProfile.line_manager.first_name,
+          last_name: updatedProfile.line_manager.last_name
+        } : undefined
       };
 
       setCurrentProfile(transformedProfile);
@@ -81,11 +90,11 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
   };
 
   const getLineManagerDisplay = () => {
+    if (currentProfile.line_manager) {
+      return `${currentProfile.line_manager.first_name} ${currentProfile.line_manager.last_name}`;
+    }
     if (currentProfile.line_manager_id) {
-      // If we have line manager data from the join
-      if (currentProfile.line_manager) {
-        return `${currentProfile.line_manager.first_name} ${currentProfile.line_manager.last_name}`;
-      }
+      // If we have line manager ID but no name data, show as assigned
       return 'Assigned';
     }
     return 'Not assigned';

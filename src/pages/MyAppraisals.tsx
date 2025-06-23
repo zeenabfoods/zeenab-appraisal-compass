@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -44,44 +45,49 @@ export default function MyAppraisals() {
     try {
       setLoading(true);
       
-      // First, get active appraisal cycles
-      const { data: activeCycles, error: cyclesError } = await supabase
-        .from('appraisal_cycles')
-        .select('*')
-        .eq('status', 'active');
+      // Only create appraisals for staff and managers, not HR/admin
+      if (profile.role === 'staff' || profile.role === 'manager') {
+        console.log('Loading appraisals for employee:', profile.id);
+        
+        // First, get active appraisal cycles
+        const { data: activeCycles, error: cyclesError } = await supabase
+          .from('appraisal_cycles')
+          .select('*')
+          .eq('status', 'active');
 
-      if (cyclesError) {
-        console.error('Error loading cycles:', cyclesError);
-        throw cyclesError;
-      }
+        if (cyclesError) {
+          console.error('Error loading cycles:', cyclesError);
+          throw cyclesError;
+        }
 
-      // Create appraisals for active cycles if they don't exist
-      if (activeCycles && activeCycles.length > 0) {
-        for (const cycle of activeCycles) {
-          const { data: existingAppraisal } = await supabase
-            .from('appraisals')
-            .select('id')
-            .eq('employee_id', profile.id)
-            .eq('cycle_id', cycle.id)
-            .maybeSingle();
-
-          if (!existingAppraisal) {
-            const { error: createError } = await supabase
+        // Create appraisals for active cycles if they don't exist
+        if (activeCycles && activeCycles.length > 0) {
+          for (const cycle of activeCycles) {
+            const { data: existingAppraisal } = await supabase
               .from('appraisals')
-              .insert({
-                employee_id: profile.id,
-                cycle_id: cycle.id,
-                status: 'draft'
-              });
+              .select('id')
+              .eq('employee_id', profile.id)
+              .eq('cycle_id', cycle.id)
+              .maybeSingle();
 
-            if (createError) {
-              console.error('Error creating appraisal:', createError);
+            if (!existingAppraisal) {
+              const { error: createError } = await supabase
+                .from('appraisals')
+                .insert({
+                  employee_id: profile.id,
+                  cycle_id: cycle.id,
+                  status: 'draft'
+                });
+
+              if (createError) {
+                console.error('Error creating appraisal:', createError);
+              }
             }
           }
         }
       }
 
-      // Now load all appraisals
+      // Load all appraisals for this user only
       const { data, error } = await supabase
         .from('appraisals')
         .select(`
@@ -189,6 +195,29 @@ export default function MyAppraisals() {
     setSelectedAppraisal(appraisal);
     setShowAppraisalForm(true);
   };
+
+  // Don't show this page for HR/Admin users since they don't have personal appraisals
+  if (profile?.role === 'hr' || profile?.role === 'admin') {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">My Appraisals</h2>
+          <p className="text-gray-600">Personal performance appraisals</p>
+        </div>
+
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <ClipboardList className="h-12 w-12 text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Personal Appraisals</h3>
+            <p className="text-gray-500 text-center">
+              As an {profile.role.toUpperCase()} user, you don't have personal appraisals. 
+              Use the dashboard to manage team appraisals and cycles.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
