@@ -144,32 +144,50 @@ export default function EmployeeManagement() {
       console.log('Submitting employee data:', newEmployee);
       
       if (editingEmployee) {
-        // Prepare the update data
+        // Prepare the update data - convert empty strings and 'none' to null
         const updateData = {
-          first_name: newEmployee.first_name,
-          last_name: newEmployee.last_name,
-          email: newEmployee.email,
+          first_name: newEmployee.first_name.trim(),
+          last_name: newEmployee.last_name.trim(),
+          email: newEmployee.email.trim(),
           role: newEmployee.role as any,
-          position: newEmployee.position || null,
-          department_id: newEmployee.department_id === 'none' || newEmployee.department_id === '' ? null : newEmployee.department_id,
-          line_manager_id: newEmployee.line_manager_id === 'none' || newEmployee.line_manager_id === '' ? null : newEmployee.line_manager_id
+          position: newEmployee.position?.trim() || null,
+          department_id: (newEmployee.department_id === 'none' || newEmployee.department_id === '') ? null : newEmployee.department_id,
+          line_manager_id: (newEmployee.line_manager_id === 'none' || newEmployee.line_manager_id === '') ? null : newEmployee.line_manager_id
         };
 
         console.log('Updating employee with data:', updateData);
+        console.log('Employee ID:', editingEmployee.id);
 
-        const { data, error } = await supabase
+        // First, let's check if the employee exists
+        const { data: existingEmployee, error: checkError } = await supabase
           .from('profiles')
-          .update(updateData)
+          .select('id')
           .eq('id', editingEmployee.id)
-          .select()
-          .single();
+          .maybeSingle();
 
-        if (error) {
-          console.error('Update error:', error);
-          throw error;
+        if (checkError) {
+          console.error('Error checking employee existence:', checkError);
+          throw new Error(`Failed to verify employee: ${checkError.message}`);
         }
 
-        console.log('Update successful:', data);
+        if (!existingEmployee) {
+          throw new Error('Employee not found');
+        }
+
+        console.log('Employee exists, proceeding with update...');
+
+        // Perform the update without expecting a return
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update(updateData)
+          .eq('id', editingEmployee.id);
+
+        if (updateError) {
+          console.error('Update error:', updateError);
+          throw new Error(`Failed to update employee: ${updateError.message}`);
+        }
+
+        console.log('Update successful');
         toast({ title: "Success", description: "Employee updated successfully" });
       } else {
         toast({ 
