@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -142,7 +141,7 @@ export function useQuestionAssignmentData() {
       // Update stats
       setStats({
         totalEmployees: allEmployees?.length || 0,
-        employeesWith Questions: manualAssignments.length,
+        employeesWithQuestions: manualAssignments.length,
         totalQuestionsAssigned: allAssignments?.filter(a => a.is_active).length || 0,
         completedAppraisals: appraisals?.filter(a => a.status === 'completed').length || 0
       });
