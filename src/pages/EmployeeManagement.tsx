@@ -201,7 +201,7 @@ export default function EmployeeManagement() {
       setEditingEmployee(null);
       resetForm();
       
-      // Reload data to reflect changes
+      // Reload data to reflect changes and update the editing employee state
       await loadData();
     } catch (error) {
       console.error('Error saving employee:', error);
@@ -242,6 +242,9 @@ export default function EmployeeManagement() {
 
   const editEmployee = (employee: Employee) => {
     console.log('Editing employee:', employee);
+    console.log('Employee department_id:', employee.department_id);
+    console.log('Employee line_manager_id:', employee.line_manager_id);
+    
     setEditingEmployee(employee);
     setNewEmployee({
       first_name: employee.first_name,
@@ -252,6 +255,17 @@ export default function EmployeeManagement() {
       department_id: employee.department_id || 'none',
       line_manager_id: employee.line_manager_id || 'none'
     });
+    
+    console.log('Form state set to:', {
+      first_name: employee.first_name,
+      last_name: employee.last_name,
+      email: employee.email,
+      role: employee.role,
+      position: employee.position || '',
+      department_id: employee.department_id || 'none',
+      line_manager_id: employee.line_manager_id || 'none'
+    });
+    
     setShowAddDialog(true);
   };
 
@@ -388,7 +402,13 @@ export default function EmployeeManagement() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="department">Department</Label>
-                  <Select value={newEmployee.department_id} onValueChange={(value) => setNewEmployee({ ...newEmployee, department_id: value })}>
+                  <Select 
+                    value={newEmployee.department_id} 
+                    onValueChange={(value) => {
+                      console.log('Department changed to:', value);
+                      setNewEmployee({ ...newEmployee, department_id: value });
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select department" />
                     </SelectTrigger>
@@ -403,7 +423,13 @@ export default function EmployeeManagement() {
                 
                 <div className="space-y-2">
                   <Label htmlFor="line_manager">Line Manager</Label>
-                  <Select value={newEmployee.line_manager_id} onValueChange={(value) => setNewEmployee({ ...newEmployee, line_manager_id: value })}>
+                  <Select 
+                    value={newEmployee.line_manager_id} 
+                    onValueChange={(value) => {
+                      console.log('Line manager changed to:', value);
+                      setNewEmployee({ ...newEmployee, line_manager_id: value });
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select manager" />
                     </SelectTrigger>
