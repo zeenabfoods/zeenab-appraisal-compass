@@ -32,7 +32,7 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
     try {
       console.log('🔄 Refreshing profile data for user:', currentProfile.id);
       
-      // Get the basic profile first
+      // Get the basic profile first with fresh data
       const { data: basicProfile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -44,11 +44,12 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
         throw profileError;
       }
 
-      console.log('✅ Basic profile fetched:', basicProfile);
+      console.log('✅ Fresh profile data:', basicProfile);
 
       // Get department info if department_id exists
       let departmentInfo = null;
       if (basicProfile.department_id) {
+        console.log('🏢 Fetching department for ID:', basicProfile.department_id);
         const { data: deptData, error: deptError } = await supabase
           .from('departments')
           .select('name')
@@ -57,12 +58,16 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
 
         if (!deptError && deptData) {
           departmentInfo = { name: deptData.name };
+          console.log('✅ Department found:', departmentInfo);
+        } else {
+          console.log('⚠️ Department not found or error:', deptError);
         }
       }
 
       // Get line manager info if line_manager_id exists
       let managerInfo = null;
       if (basicProfile.line_manager_id) {
+        console.log('👤 Fetching manager for ID:', basicProfile.line_manager_id);
         const { data: managerData, error: managerError } = await supabase
           .from('profiles')
           .select('first_name, last_name')
@@ -74,6 +79,9 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
             first_name: managerData.first_name,
             last_name: managerData.last_name
           };
+          console.log('✅ Manager found:', managerInfo);
+        } else {
+          console.log('⚠️ Manager not found or error:', managerError);
         }
       }
 
@@ -84,7 +92,7 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
         line_manager: managerInfo
       };
 
-      console.log('✅ Profile refreshed successfully:', updatedProfile);
+      console.log('✅ Complete refreshed profile:', updatedProfile);
       setCurrentProfile(updatedProfile);
       
       // Notify parent component of the update
@@ -94,13 +102,13 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
 
       toast({
         title: "Profile Updated",
-        description: "Your profile information has been refreshed."
+        description: "Your profile information has been refreshed successfully."
       });
     } catch (error) {
-      console.error('Error refreshing profile:', error);
+      console.error('❌ Error refreshing profile:', error);
       toast({
         title: "Error",
-        description: "Failed to refresh profile information.",
+        description: `Failed to refresh profile information: ${error.message}`,
         variant: "destructive"
       });
     } finally {

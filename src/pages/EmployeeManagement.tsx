@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -142,21 +141,35 @@ export default function EmployeeManagement() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      console.log('Submitting employee data:', newEmployee);
+      
       if (editingEmployee) {
-        const { error } = await supabase
-          .from('profiles')
-          .update({
-            first_name: newEmployee.first_name,
-            last_name: newEmployee.last_name,
-            email: newEmployee.email,
-            role: newEmployee.role as any,
-            position: newEmployee.position || null,
-            department_id: newEmployee.department_id === 'none' ? null : newEmployee.department_id || null,
-            line_manager_id: newEmployee.line_manager_id === 'none' ? null : newEmployee.line_manager_id || null
-          })
-          .eq('id', editingEmployee.id);
+        // Prepare the update data
+        const updateData = {
+          first_name: newEmployee.first_name,
+          last_name: newEmployee.last_name,
+          email: newEmployee.email,
+          role: newEmployee.role as any,
+          position: newEmployee.position || null,
+          department_id: newEmployee.department_id === 'none' || newEmployee.department_id === '' ? null : newEmployee.department_id,
+          line_manager_id: newEmployee.line_manager_id === 'none' || newEmployee.line_manager_id === '' ? null : newEmployee.line_manager_id
+        };
 
-        if (error) throw error;
+        console.log('Updating employee with data:', updateData);
+
+        const { data, error } = await supabase
+          .from('profiles')
+          .update(updateData)
+          .eq('id', editingEmployee.id)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Update error:', error);
+          throw error;
+        }
+
+        console.log('Update successful:', data);
         toast({ title: "Success", description: "Employee updated successfully" });
       } else {
         toast({ 
@@ -169,12 +182,14 @@ export default function EmployeeManagement() {
       setShowAddDialog(false);
       setEditingEmployee(null);
       resetForm();
-      loadData();
+      
+      // Reload data to reflect changes
+      await loadData();
     } catch (error) {
       console.error('Error saving employee:', error);
       toast({
         title: "Error",
-        description: "Failed to save employee",
+        description: `Failed to save employee: ${error.message}`,
         variant: "destructive"
       });
     }
@@ -208,6 +223,7 @@ export default function EmployeeManagement() {
   };
 
   const editEmployee = (employee: Employee) => {
+    console.log('Editing employee:', employee);
     setEditingEmployee(employee);
     setNewEmployee({
       first_name: employee.first_name,
@@ -377,6 +393,7 @@ export default function EmployeeManagement() {
                       <SelectItem value="none">No Manager</SelectItem>
                       {employees
                         .filter(emp => emp.role === 'manager' || emp.role === 'hr' || emp.role === 'admin')
+                        .filter(emp => emp.id !== editingEmployee?.id) // Don't let someone be their own manager
                         .map(manager => (
                           <SelectItem key={manager.id} value={manager.id}>
                             {manager.first_name} {manager.last_name}
