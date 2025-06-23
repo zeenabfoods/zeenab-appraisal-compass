@@ -37,7 +37,7 @@ export function useQuestionAssignmentData() {
       setLoading(true);
       console.log('🔄 Starting comprehensive assignment data fetch...');
 
-      // Get all employees with their department and manager info using separate queries
+      // Get all employees with their basic info
       const { data: allEmployees, error: employeesError } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, email, department_id, line_manager_id, is_active')
@@ -87,13 +87,13 @@ export function useQuestionAssignmentData() {
         deptLookup.set(dept.id, dept.name);
       });
 
-      // Build manager lookup
-      const managerLookup = new Map();
+      // Build manager lookup - Create a map of all employees for manager lookups
+      const employeeLookup = new Map();
       allEmployees?.forEach(emp => {
-        managerLookup.set(emp.id, `${emp.first_name || ''} ${emp.last_name || ''}`.trim());
+        employeeLookup.set(emp.id, emp);
       });
 
-      // Build assignments manually with proper department and manager info
+      // Build assignments with proper department and manager info
       const assignmentMap = new Map();
       allAssignments?.forEach(assignment => {
         const employeeId = assignment.employee_id;
@@ -103,17 +103,26 @@ export function useQuestionAssignmentData() {
         assignmentMap.get(employeeId).push(assignment);
       });
 
-      // Create final assignment list with updated employee info
+      // Create final assignment list with proper lookups
       const manualAssignments = allEmployees
         ?.filter(emp => assignmentMap.has(emp.id))
         .map(emp => {
           const empAssignments = assignmentMap.get(emp.id) || [];
           
           // Get department name
-          const departmentName = deptLookup.get(emp.department_id) || 'No Department';
+          const departmentName = emp.department_id ? 
+            (deptLookup.get(emp.department_id) || 'No Department') : 
+            'No Department';
           
-          // Get manager name
-          const managerName = managerLookup.get(emp.line_manager_id) || 'No Manager';
+          // Get manager name by looking up the manager in the employee lookup
+          const manager = emp.line_manager_id ? employeeLookup.get(emp.line_manager_id) : null;
+          const managerName = manager ? 
+            `${manager.first_name || ''} ${manager.last_name || ''}`.trim() : 
+            'No Manager';
+          
+          // Get appraisal status for this employee
+          const employeeAppraisal = appraisals?.find(a => a.employee_id === emp.id);
+          const appraisalStatus = employeeAppraisal?.status || 'not_started';
           
           return {
             employee_id: emp.id,
@@ -122,7 +131,7 @@ export function useQuestionAssignmentData() {
             department: departmentName,
             line_manager: managerName,
             questions_assigned: empAssignments.filter(a => a.is_active).length,
-            appraisal_status: 'not_started',
+            appraisal_status: appraisalStatus,
             assigned_date: empAssignments[0]?.assigned_at || new Date().toISOString()
           };
         }) || [];
@@ -133,7 +142,7 @@ export function useQuestionAssignmentData() {
       // Update stats
       setStats({
         totalEmployees: allEmployees?.length || 0,
-        employeesWithQuestions: manualAssignments.length,
+        employeesWith Questions: manualAssignments.length,
         totalQuestionsAssigned: allAssignments?.filter(a => a.is_active).length || 0,
         completedAppraisals: appraisals?.filter(a => a.status === 'completed').length || 0
       });

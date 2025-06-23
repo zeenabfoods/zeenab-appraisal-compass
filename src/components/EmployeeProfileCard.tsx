@@ -32,38 +32,64 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
     try {
       console.log('🔄 Refreshing profile data for user:', currentProfile.id);
       
-      const { data: updatedProfile, error } = await supabase
+      // Get the basic profile first
+      const { data: basicProfile, error: profileError } = await supabase
         .from('profiles')
-        .select(`
-          *,
-          department:departments!profiles_department_id_fkey(name),
-          line_manager:profiles!profiles_line_manager_id_fkey(first_name, last_name)
-        `)
+        .select('*')
         .eq('id', currentProfile.id)
         .single();
 
-      if (error) {
-        console.error('Error refreshing profile:', error);
-        throw error;
+      if (profileError) {
+        console.error('Error fetching basic profile:', profileError);
+        throw profileError;
       }
 
-      console.log('✅ Profile refreshed successfully:', updatedProfile);
-      
-      // Transform the data to match our Profile interface
-      const transformedProfile: ExtendedProfile = {
-        ...updatedProfile,
-        department: updatedProfile.department ? { name: updatedProfile.department.name } : undefined,
-        line_manager: updatedProfile.line_manager ? {
-          first_name: updatedProfile.line_manager.first_name,
-          last_name: updatedProfile.line_manager.last_name
-        } : undefined
+      console.log('✅ Basic profile fetched:', basicProfile);
+
+      // Get department info if department_id exists
+      let departmentInfo = null;
+      if (basicProfile.department_id) {
+        const { data: deptData, error: deptError } = await supabase
+          .from('departments')
+          .select('name')
+          .eq('id', basicProfile.department_id)
+          .single();
+
+        if (!deptError && deptData) {
+          departmentInfo = { name: deptData.name };
+        }
+      }
+
+      // Get line manager info if line_manager_id exists
+      let managerInfo = null;
+      if (basicProfile.line_manager_id) {
+        const { data: managerData, error: managerError } = await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', basicProfile.line_manager_id)
+          .single();
+
+        if (!managerError && managerData) {
+          managerInfo = {
+            first_name: managerData.first_name,
+            last_name: managerData.last_name
+          };
+        }
+      }
+
+      // Create the updated profile with additional info
+      const updatedProfile: ExtendedProfile = {
+        ...basicProfile,
+        department: departmentInfo,
+        line_manager: managerInfo
       };
 
-      setCurrentProfile(transformedProfile);
+      console.log('✅ Profile refreshed successfully:', updatedProfile);
+      setCurrentProfile(updatedProfile);
       
       // Notify parent component of the update
       if (onProfileUpdate) {
-        onProfileUpdate(transformedProfile);
+        onProfileUpdate(updatedProfile);
       }
 
       toast({

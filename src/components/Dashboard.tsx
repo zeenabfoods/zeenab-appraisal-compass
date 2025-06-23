@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -70,7 +71,10 @@ export function Dashboard() {
 
   // Update current profile when auth profile changes
   useEffect(() => {
-    setCurrentProfile(profile);
+    if (profile) {
+      console.log('📋 Dashboard received auth profile update:', profile);
+      setCurrentProfile(profile);
+    }
   }, [profile]);
 
   useEffect(() => {
@@ -132,8 +136,19 @@ export function Dashboard() {
   };
 
   const handleProfileUpdate = (updatedProfile: Profile) => {
-    console.log('📋 Dashboard received profile update:', updatedProfile);
+    console.log('📋 Dashboard received profile update from EmployeeProfileCard:', updatedProfile);
     setCurrentProfile(updatedProfile);
+    
+    // If this is a significant update (department or line manager changed), 
+    // we might want to reload other dashboard components
+    if (currentProfile) {
+      const departmentChanged = currentProfile.department_id !== updatedProfile.department_id;
+      const managerChanged = currentProfile.line_manager_id !== updatedProfile.line_manager_id;
+      
+      if (departmentChanged || managerChanged) {
+        console.log('🔄 Significant profile changes detected, considering data reload');
+      }
+    }
   };
 
   const handleAppraisalClick = (cycle: AppraisalCycle) => {
