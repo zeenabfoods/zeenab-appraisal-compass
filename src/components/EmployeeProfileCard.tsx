@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -78,9 +77,20 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
         }
       }
 
-      // Create the updated profile with the fetched data - fixing the type mismatch
+      // Create the updated profile with the fetched data - properly handling the department field
       const updatedProfile: ExtendedProfile = {
-        ...refreshedProfile,
+        id: refreshedProfile.id,
+        email: refreshedProfile.email,
+        first_name: refreshedProfile.first_name,
+        last_name: refreshedProfile.last_name,
+        role: refreshedProfile.role,
+        position: refreshedProfile.position,
+        department_id: refreshedProfile.department_id,
+        line_manager_id: refreshedProfile.line_manager_id,
+        is_active: refreshedProfile.is_active,
+        created_at: refreshedProfile.created_at,
+        department: refreshedProfile.department,
+        last_login: refreshedProfile.last_login,
         department_name: departmentName,
         line_manager_name: managerName
       };
