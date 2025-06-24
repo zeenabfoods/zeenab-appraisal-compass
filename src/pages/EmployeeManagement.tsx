@@ -142,20 +142,37 @@ export default function EmployeeManagement() {
         console.log('🔄 Updating employee with data:', updateData);
         console.log('🆔 Employee ID:', editingEmployee.id);
 
-        // Perform the update with explicit error handling
-        const { data: updatedData, error: updateError } = await supabase
+        // First check if the employee exists
+        const { data: existingEmployee, error: checkError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', editingEmployee.id)
+          .maybeSingle();
+
+        if (checkError) {
+          console.error('❌ Error checking employee existence:', checkError);
+          throw new Error(`Failed to verify employee: ${checkError.message}`);
+        }
+
+        if (!existingEmployee) {
+          console.error('❌ Employee not found with ID:', editingEmployee.id);
+          throw new Error('Employee not found in database');
+        }
+
+        console.log('✅ Employee exists, proceeding with update');
+
+        // Perform the update without expecting a return value
+        const { error: updateError } = await supabase
           .from('profiles')
           .update(updateData)
-          .eq('id', editingEmployee.id)
-          .select('*')
-          .single();
+          .eq('id', editingEmployee.id);
 
         if (updateError) {
           console.error('❌ Update error:', updateError);
           throw new Error(`Failed to update employee: ${updateError.message}`);
         }
 
-        console.log('✅ Employee updated successfully:', updatedData);
+        console.log('✅ Employee updated successfully');
 
         // Verify the update by fetching the record again
         const { data: verificationData, error: verifyError } = await supabase
@@ -166,6 +183,11 @@ export default function EmployeeManagement() {
 
         if (verifyError) {
           console.error('❌ Verification error:', verifyError);
+          toast({
+            title: "Warning",
+            description: "Employee may have been updated but verification failed. Please refresh the page.",
+            variant: "destructive"
+          });
         } else {
           console.log('✅ Verification - Updated record:', verificationData);
         }
