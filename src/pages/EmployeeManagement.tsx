@@ -23,13 +23,8 @@ interface Employee {
   line_manager_id: string | null;
   is_active: boolean;
   created_at: string;
-  department?: {
-    name: string;
-  };
-  line_manager?: {
-    first_name: string;
-    last_name: string;
-  };
+  department_name?: string;
+  line_manager_name?: string;
 }
 
 interface Department {
@@ -63,16 +58,12 @@ export default function EmployeeManagement() {
 
   const loadData = async () => {
     try {
-      console.log('Loading employee data with proper joins...');
+      console.log('Loading employee data with fixed queries...');
       
-      // Load employees with department and manager info using proper joins
+      // Load employees first
       const { data: employeesData, error: employeesError } = await supabase
         .from('profiles')
-        .select(`
-          *,
-          department:departments(name),
-          line_manager:profiles!profiles_line_manager_id_fkey(first_name, last_name)
-        `)
+        .select('*')
         .order('first_name');
 
       if (employeesError) {
@@ -80,7 +71,7 @@ export default function EmployeeManagement() {
         throw employeesError;
       }
       
-      console.log('✅ Employees loaded with department/manager info:', employeesData);
+      console.log('✅ Employees loaded:', employeesData?.length);
 
       // Load departments
       const { data: departmentsData, error: departmentsError } = await supabase
@@ -94,16 +85,28 @@ export default function EmployeeManagement() {
         throw departmentsError;
       }
 
-      console.log('✅ Departments loaded:', departmentsData);
+      console.log('✅ Departments loaded:', departmentsData?.length);
 
-      // Transform employee data - the joins should already provide the needed info
+      // Create department lookup map
+      const departmentMap = new Map<string, string>();
+      departmentsData?.forEach(dept => {
+        departmentMap.set(dept.id, dept.name);
+      });
+
+      // Create manager lookup map
+      const managerMap = new Map<string, string>();
+      employeesData?.forEach(emp => {
+        managerMap.set(emp.id, `${emp.first_name || ''} ${emp.last_name || ''}`.trim());
+      });
+
+      // Transform employee data with proper lookups
       const transformedEmployees = employeesData?.map(employee => ({
         ...employee,
-        department: employee.department,
-        line_manager: employee.line_manager
+        department_name: employee.department_id ? departmentMap.get(employee.department_id) : undefined,
+        line_manager_name: employee.line_manager_id ? managerMap.get(employee.line_manager_id) : undefined
       })) || [];
 
-      console.log('✅ Final transformed employees:', transformedEmployees);
+      console.log('✅ Final transformed employees:', transformedEmployees.length);
       setEmployees(transformedEmployees);
       setDepartments(departmentsData || []);
       
@@ -151,23 +154,6 @@ export default function EmployeeManagement() {
         }
 
         console.log('✅ Employee updated successfully');
-        
-        // Verify the update by fetching the updated record
-        const { data: updatedEmployee, error: fetchError } = await supabase
-          .from('profiles')
-          .select(`
-            *,
-            department:departments(name),
-            line_manager:profiles!profiles_line_manager_id_fkey(first_name, last_name)
-          `)
-          .eq('id', editingEmployee.id)
-          .single();
-
-        if (fetchError) {
-          console.error('❌ Error fetching updated employee:', fetchError);
-        } else {
-          console.log('✅ Verified updated employee:', updatedEmployee);
-        }
 
         toast({ 
           title: "Success", 
@@ -422,7 +408,7 @@ export default function EmployeeManagement() {
                       <SelectItem value="none">No Manager</SelectItem>
                       {employees
                         .filter(emp => emp.role === 'manager' || emp.role === 'hr' || emp.role === 'admin')
-                        .filter(emp => emp.id !== editingEmployee?.id) // Don't let someone be their own manager
+                        .filter(emp => emp.id !== editingEmployee?.id)
                         .map(manager => (
                           <SelectItem key={manager.id} value={manager.id}>
                             {manager.first_name} {manager.last_name}
@@ -515,16 +501,16 @@ export default function EmployeeManagement() {
                 
                 <div className="flex items-center">
                   <Building2 className="h-4 w-4 mr-2" />
-                  <span className={employee.department?.name ? "text-gray-600" : "text-amber-600 italic"}>
-                    {employee.department?.name || "No Department Assigned"}
+                  <span className={employee.department_name ? "text-gray-600" : "text-amber-600 italic"}>
+                    {employee.department_name || "No Department Assigned"}
                   </span>
                 </div>
                 
                 <div className="flex items-center">
                   <Users className="h-4 w-4 mr-2" />
-                  <span className={employee.line_manager ? "text-gray-600" : "text-amber-600 italic"}>
-                    {employee.line_manager ? 
-                      `Reports to: ${employee.line_manager.first_name} ${employee.line_manager.last_name}` : 
+                  <span className={employee.line_manager_name ? "text-gray-600" : "text-amber-600 italic"}>
+                    {employee.line_manager_name ? 
+                      `Reports to: ${employee.line_manager_name}` : 
                       "No Manager Assigned"
                     }
                   </span>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,8 +14,8 @@ interface EmployeeProfileCardProps {
 }
 
 interface ExtendedProfile extends Profile {
-  department?: { name: string };
-  line_manager?: { first_name: string; last_name: string };
+  department_name?: string;
+  line_manager_name?: string;
 }
 
 export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfileCardProps) {
@@ -31,14 +32,10 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
     try {
       console.log('🔄 Refreshing profile data for user:', currentProfile.id);
       
-      // Get the profile with department and manager info using proper joins
+      // Get the basic profile first
       const { data: refreshedProfile, error: profileError } = await supabase
         .from('profiles')
-        .select(`
-          *,
-          department:departments(name),
-          line_manager:profiles!profiles_line_manager_id_fkey(first_name, last_name)
-        `)
+        .select('*')
         .eq('id', currentProfile.id)
         .single();
 
@@ -47,13 +44,45 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
         throw profileError;
       }
 
-      console.log('✅ Fresh profile data with joins:', refreshedProfile);
+      console.log('✅ Fresh profile data:', refreshedProfile);
 
-      // Create the updated profile with the joined data
+      // Get department name if department_id exists
+      let departmentName = 'Not assigned';
+      if (refreshedProfile.department_id) {
+        const { data: department, error: deptError } = await supabase
+          .from('departments')
+          .select('name')
+          .eq('id', refreshedProfile.department_id)
+          .single();
+        
+        if (!deptError && department) {
+          departmentName = department.name;
+        } else {
+          departmentName = 'Assigned (Unknown)';
+        }
+      }
+
+      // Get line manager name if line_manager_id exists
+      let managerName = 'Not assigned';
+      if (refreshedProfile.line_manager_id) {
+        const { data: manager, error: managerError } = await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', refreshedProfile.line_manager_id)
+          .single();
+        
+        if (!managerError && manager) {
+          managerName = `${manager.first_name || ''} ${manager.last_name || ''}`.trim();
+        } else {
+          managerName = 'Assigned (Unknown)';
+        }
+      }
+
+      // Create the updated profile with the fetched data
       const updatedProfile: ExtendedProfile = {
         ...refreshedProfile,
-        department: refreshedProfile.department,
-        line_manager: refreshedProfile.line_manager
+        department_name: departmentName,
+        line_manager_name: managerName
       };
 
       console.log('✅ Complete refreshed profile:', updatedProfile);
@@ -85,8 +114,8 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
   };
 
   const getDepartmentDisplay = () => {
-    if (currentProfile.department?.name) {
-      return currentProfile.department.name;
+    if (currentProfile.department_name) {
+      return currentProfile.department_name;
     }
     if (currentProfile.department_id) {
       return 'Assigned (Refresh to see name)';
@@ -95,8 +124,8 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
   };
 
   const getLineManagerDisplay = () => {
-    if (currentProfile.line_manager) {
-      return `${currentProfile.line_manager.first_name} ${currentProfile.line_manager.last_name}`;
+    if (currentProfile.line_manager_name) {
+      return currentProfile.line_manager_name;
     }
     if (currentProfile.line_manager_id) {
       return 'Assigned (Refresh to see name)';

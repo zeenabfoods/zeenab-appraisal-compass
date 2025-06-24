@@ -35,22 +35,12 @@ export function useQuestionAssignmentData() {
   const fetchAssignmentData = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Starting comprehensive assignment data fetch with proper joins...');
+      console.log('🔄 Starting fixed assignment data fetch...');
 
-      // Get all employees with their department and manager info using proper joins
+      // First, get all active employees with basic info
       const { data: allEmployees, error: employeesError } = await supabase
         .from('profiles')
-        .select(`
-          id, 
-          first_name, 
-          last_name, 
-          email, 
-          department_id, 
-          line_manager_id, 
-          is_active,
-          department:departments(name),
-          line_manager:profiles!profiles_line_manager_id_fkey(first_name, last_name)
-        `)
+        .select('id, first_name, last_name, email, department_id, line_manager_id, is_active')
         .eq('is_active', true);
 
       if (employeesError) {
@@ -58,10 +48,43 @@ export function useQuestionAssignmentData() {
         throw new Error(`Failed to fetch employees: ${employeesError.message}`);
       }
 
-      console.log(`👥 Found ${allEmployees?.length || 0} active employees with department/manager info`);
-      console.log('📊 Sample employee data:', allEmployees?.[0]);
+      console.log(`👥 Found ${allEmployees?.length || 0} active employees`);
 
-      // Get question assignments with proper counting
+      // Get all departments separately
+      const { data: departments, error: deptError } = await supabase
+        .from('departments')
+        .select('id, name');
+
+      if (deptError) {
+        console.error('❌ Error fetching departments:', deptError);
+      }
+
+      // Create department lookup map
+      const departmentMap = new Map<string, string>();
+      departments?.forEach(dept => {
+        departmentMap.set(dept.id, dept.name);
+      });
+
+      // Create manager lookup map by getting all profiles that could be managers
+      const managerIds = Array.from(new Set(allEmployees?.map(emp => emp.line_manager_id).filter(Boolean) || []));
+      const managerMap = new Map<string, string>();
+      
+      if (managerIds.length > 0) {
+        const { data: managers, error: managersError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name')
+          .in('id', managerIds);
+
+        if (managersError) {
+          console.error('❌ Error fetching managers:', managersError);
+        } else {
+          managers?.forEach(manager => {
+            managerMap.set(manager.id, `${manager.first_name || ''} ${manager.last_name || ''}`.trim());
+          });
+        }
+      }
+
+      // Get question assignments
       const { data: allAssignments, error: assignmentsError } = await supabase
         .from('employee_appraisal_questions')
         .select('employee_id, question_id, assigned_at, is_active')
@@ -105,13 +128,11 @@ export function useQuestionAssignmentData() {
       const employeeAssignments = allEmployees
         ?.filter(emp => assignmentCounts.has(emp.id))
         .map(emp => {
-          // Get department name from the joined data
-          const departmentName = emp.department?.name || 'No Department';
+          // Get department name from lookup map
+          const departmentName = emp.department_id ? departmentMap.get(emp.department_id) || 'Unknown Department' : 'No Department';
           
-          // Get line manager name from the joined data
-          const managerName = emp.line_manager ? 
-            `${emp.line_manager.first_name || ''} ${emp.line_manager.last_name || ''}`.trim() : 
-            'No Manager';
+          // Get line manager name from lookup map
+          const managerName = emp.line_manager_id ? managerMap.get(emp.line_manager_id) || 'Unknown Manager' : 'No Manager';
           
           // Get appraisal status
           const employeeAppraisal = appraisals?.find(a => a.employee_id === emp.id);
