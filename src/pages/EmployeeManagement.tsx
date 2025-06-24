@@ -142,22 +142,37 @@ export default function EmployeeManagement() {
         console.log('🔄 Updating employee with data:', updateData);
         console.log('🆔 Employee ID:', editingEmployee.id);
 
-        // Perform the update
-        const { error: updateError } = await supabase
+        // Perform the update with explicit error handling
+        const { data: updatedData, error: updateError } = await supabase
           .from('profiles')
           .update(updateData)
-          .eq('id', editingEmployee.id);
+          .eq('id', editingEmployee.id)
+          .select('*')
+          .single();
 
         if (updateError) {
           console.error('❌ Update error:', updateError);
           throw new Error(`Failed to update employee: ${updateError.message}`);
         }
 
-        console.log('✅ Employee updated successfully');
+        console.log('✅ Employee updated successfully:', updatedData);
+
+        // Verify the update by fetching the record again
+        const { data: verificationData, error: verifyError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', editingEmployee.id)
+          .single();
+
+        if (verifyError) {
+          console.error('❌ Verification error:', verifyError);
+        } else {
+          console.log('✅ Verification - Updated record:', verificationData);
+        }
 
         toast({ 
           title: "Success", 
-          description: `Employee updated successfully. Department: ${updateData.department_id ? 'Assigned' : 'Not assigned'}, Manager: ${updateData.line_manager_id ? 'Assigned' : 'Not assigned'}` 
+          description: `Employee "${updateData.first_name} ${updateData.last_name}" updated successfully. Department: ${updateData.department_id ? 'Assigned' : 'Not assigned'}, Manager: ${updateData.line_manager_id ? 'Assigned' : 'Not assigned'}` 
         });
       } else {
         // For new employee creation, we need proper authentication setup
@@ -172,8 +187,12 @@ export default function EmployeeManagement() {
       setEditingEmployee(null);
       resetForm();
       
-      // Reload data to reflect changes
-      await loadData();
+      // Reload data to reflect changes with a small delay to ensure database consistency
+      setTimeout(async () => {
+        await loadData();
+        console.log('📊 Data reloaded after update');
+      }, 500);
+      
     } catch (error) {
       console.error('❌ Error saving employee:', error);
       toast({

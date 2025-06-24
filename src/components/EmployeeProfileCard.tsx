@@ -23,6 +23,7 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
   const { toast } = useToast();
 
   useEffect(() => {
+    console.log('🔄 Profile prop updated:', profile);
     setCurrentProfile(profile);
   }, [profile]);
 
@@ -31,7 +32,7 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
     try {
       console.log('🔄 Refreshing profile data for user:', currentProfile.id);
       
-      // Get the basic profile first
+      // Get the basic profile first with explicit logging
       const { data: refreshedProfile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -39,16 +40,17 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
         .single();
 
       if (profileError) {
-        console.error('Error fetching refreshed profile:', profileError);
+        console.error('❌ Error fetching refreshed profile:', profileError);
         throw profileError;
       }
 
-      console.log('✅ Fresh profile data:', refreshedProfile);
+      console.log('✅ Fresh profile data from database:', refreshedProfile);
 
       // Get department name if department_id exists
       let departmentName = 'Not assigned';
       let departmentObject = null;
       if (refreshedProfile.department_id) {
+        console.log('🏢 Fetching department for ID:', refreshedProfile.department_id);
         const { data: department, error: deptError } = await supabase
           .from('departments')
           .select('name')
@@ -58,14 +60,19 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
         if (!deptError && department) {
           departmentName = department.name;
           departmentObject = { name: department.name };
+          console.log('✅ Department found:', departmentName);
         } else {
           departmentName = 'Assigned (Unknown)';
+          console.log('⚠️ Department ID exists but name not found');
         }
+      } else {
+        console.log('ℹ️ No department_id assigned');
       }
 
       // Get line manager name if line_manager_id exists
       let managerName = 'Not assigned';
       if (refreshedProfile.line_manager_id) {
+        console.log('👤 Fetching manager for ID:', refreshedProfile.line_manager_id);
         const { data: manager, error: managerError } = await supabase
           .from('profiles')
           .select('first_name, last_name')
@@ -74,12 +81,16 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
         
         if (!managerError && manager) {
           managerName = `${manager.first_name || ''} ${manager.last_name || ''}`.trim();
+          console.log('✅ Manager found:', managerName);
         } else {
           managerName = 'Assigned (Unknown)';
+          console.log('⚠️ Manager ID exists but name not found');
         }
+      } else {
+        console.log('ℹ️ No line_manager_id assigned');
       }
 
-      // Create the updated profile with the fetched data - properly handling the department field
+      // Create the updated profile with the fetched data
       const updatedProfile: ExtendedProfile = {
         id: refreshedProfile.id,
         email: refreshedProfile.email,
@@ -97,10 +108,16 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
         line_manager_name: managerName
       };
 
-      console.log('✅ Complete refreshed profile:', updatedProfile);
+      console.log('✅ Complete refreshed profile with assignments:', {
+        department_id: updatedProfile.department_id,
+        department_name: updatedProfile.department_name,
+        line_manager_id: updatedProfile.line_manager_id,
+        line_manager_name: updatedProfile.line_manager_name
+      });
+      
       setCurrentProfile(updatedProfile);
       
-      // Notify parent component of the update - pass the base profile without extended fields
+      // Notify parent component of the update
       if (onProfileUpdate) {
         const baseProfile: Profile = {
           id: updatedProfile.id,
