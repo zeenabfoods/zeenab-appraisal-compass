@@ -25,7 +25,25 @@ export function useProfileSync(userId: string | undefined) {
       }
 
       console.log('✅ Profile synced:', profileData);
-      setProfile(profileData);
+      
+      // Transform the data to match the Profile type
+      const transformedProfile: Profile = {
+        id: profileData.id,
+        email: profileData.email,
+        first_name: profileData.first_name,
+        last_name: profileData.last_name,
+        role: profileData.role,
+        position: profileData.position,
+        department_id: profileData.department_id,
+        line_manager_id: profileData.line_manager_id,
+        is_active: profileData.is_active,
+        created_at: profileData.created_at,
+        last_login: profileData.last_login,
+        // Transform department string to object format if it exists
+        department: profileData.department ? { name: profileData.department } : undefined
+      };
+      
+      setProfile(transformedProfile);
     } catch (error) {
       console.error('❌ Failed to sync profile:', error);
     } finally {
@@ -54,7 +72,22 @@ export function useProfileSync(userId: string | undefined) {
         (payload) => {
           console.log('🔄 Real-time profile update received:', payload);
           if (payload.new) {
-            setProfile(payload.new as Profile);
+            // Transform the real-time data as well
+            const transformedProfile: Profile = {
+              id: payload.new.id,
+              email: payload.new.email,
+              first_name: payload.new.first_name,
+              last_name: payload.new.last_name,
+              role: payload.new.role,
+              position: payload.new.position,
+              department_id: payload.new.department_id,
+              line_manager_id: payload.new.line_manager_id,
+              is_active: payload.new.is_active,
+              created_at: payload.new.created_at,
+              last_login: payload.new.last_login,
+              department: payload.new.department ? { name: payload.new.department } : undefined
+            };
+            setProfile(transformedProfile);
           }
         }
       )
