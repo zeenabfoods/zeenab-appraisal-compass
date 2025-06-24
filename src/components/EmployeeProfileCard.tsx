@@ -78,7 +78,7 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
         }
       }
 
-      // Create the updated profile with the fetched data
+      // Create the updated profile with the fetched data - fixing the type mismatch
       const updatedProfile: ExtendedProfile = {
         ...refreshedProfile,
         department_name: departmentName,
@@ -88,9 +88,23 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
       console.log('✅ Complete refreshed profile:', updatedProfile);
       setCurrentProfile(updatedProfile);
       
-      // Notify parent component of the update
+      // Notify parent component of the update - pass the base profile without extended fields
       if (onProfileUpdate) {
-        onProfileUpdate(updatedProfile);
+        const baseProfile: Profile = {
+          id: updatedProfile.id,
+          email: updatedProfile.email,
+          first_name: updatedProfile.first_name,
+          last_name: updatedProfile.last_name,
+          role: updatedProfile.role,
+          position: updatedProfile.position,
+          department_id: updatedProfile.department_id,
+          line_manager_id: updatedProfile.line_manager_id,
+          is_active: updatedProfile.is_active,
+          created_at: updatedProfile.created_at,
+          department: updatedProfile.department,
+          last_login: updatedProfile.last_login
+        };
+        onProfileUpdate(baseProfile);
       }
 
       const hasAssignments = updatedProfile.department_id && updatedProfile.line_manager_id;
