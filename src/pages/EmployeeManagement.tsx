@@ -63,12 +63,16 @@ export default function EmployeeManagement() {
 
   const loadData = async () => {
     try {
-      console.log('Loading employee data...');
+      console.log('Loading employee data with proper joins...');
       
-      // Load employees first
+      // Load employees with department and manager info using proper joins
       const { data: employeesData, error: employeesError } = await supabase
         .from('profiles')
-        .select('*')
+        .select(`
+          *,
+          department:departments(name),
+          line_manager:profiles!profiles_line_manager_id_fkey(first_name, last_name)
+        `)
         .order('first_name');
 
       if (employeesError) {
@@ -76,7 +80,7 @@ export default function EmployeeManagement() {
         throw employeesError;
       }
       
-      console.log('Raw employees data:', employeesData);
+      console.log('✅ Employees loaded with department/manager info:', employeesData);
 
       // Load departments
       const { data: departmentsData, error: departmentsError } = await supabase
@@ -90,39 +94,16 @@ export default function EmployeeManagement() {
         throw departmentsError;
       }
 
-      console.log('Departments data:', departmentsData);
+      console.log('✅ Departments loaded:', departmentsData);
 
-      // Transform employee data and add department/manager info
-      const transformedEmployees = await Promise.all(
-        (employeesData || []).map(async (employee) => {
-          let departmentInfo = null;
-          let managerInfo = null;
+      // Transform employee data - the joins should already provide the needed info
+      const transformedEmployees = employeesData?.map(employee => ({
+        ...employee,
+        department: employee.department,
+        line_manager: employee.line_manager
+      })) || [];
 
-          // Get department info if department_id exists
-          if (employee.department_id && departmentsData) {
-            departmentInfo = departmentsData.find(dept => dept.id === employee.department_id);
-          }
-
-          // Get manager info if line_manager_id exists
-          if (employee.line_manager_id && employeesData) {
-            const manager = employeesData.find(emp => emp.id === employee.line_manager_id);
-            if (manager) {
-              managerInfo = {
-                first_name: manager.first_name,
-                last_name: manager.last_name
-              };
-            }
-          }
-
-          return {
-            ...employee,
-            department: departmentInfo ? { name: departmentInfo.name } : undefined,
-            line_manager: managerInfo
-          };
-        })
-      );
-
-      console.log('Transformed employees:', transformedEmployees);
+      console.log('✅ Final transformed employees:', transformedEmployees);
       setEmployees(transformedEmployees);
       setDepartments(departmentsData || []);
       
@@ -155,41 +136,45 @@ export default function EmployeeManagement() {
           line_manager_id: (newEmployee.line_manager_id === 'none' || newEmployee.line_manager_id === '') ? null : newEmployee.line_manager_id
         };
 
-        console.log('Updating employee with data:', updateData);
-        console.log('Employee ID:', editingEmployee.id);
+        console.log('🔄 Updating employee with data:', updateData);
+        console.log('🆔 Employee ID:', editingEmployee.id);
 
-        // First, let's check if the employee exists
-        const { data: existingEmployee, error: checkError } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('id', editingEmployee.id)
-          .maybeSingle();
-
-        if (checkError) {
-          console.error('Error checking employee existence:', checkError);
-          throw new Error(`Failed to verify employee: ${checkError.message}`);
-        }
-
-        if (!existingEmployee) {
-          throw new Error('Employee not found');
-        }
-
-        console.log('Employee exists, proceeding with update...');
-
-        // Perform the update without expecting a return
+        // Perform the update
         const { error: updateError } = await supabase
           .from('profiles')
           .update(updateData)
           .eq('id', editingEmployee.id);
 
         if (updateError) {
-          console.error('Update error:', updateError);
+          console.error('❌ Update error:', updateError);
           throw new Error(`Failed to update employee: ${updateError.message}`);
         }
 
-        console.log('Update successful');
-        toast({ title: "Success", description: "Employee updated successfully" });
+        console.log('✅ Employee updated successfully');
+        
+        // Verify the update by fetching the updated record
+        const { data: updatedEmployee, error: fetchError } = await supabase
+          .from('profiles')
+          .select(`
+            *,
+            department:departments(name),
+            line_manager:profiles!profiles_line_manager_id_fkey(first_name, last_name)
+          `)
+          .eq('id', editingEmployee.id)
+          .single();
+
+        if (fetchError) {
+          console.error('❌ Error fetching updated employee:', fetchError);
+        } else {
+          console.log('✅ Verified updated employee:', updatedEmployee);
+        }
+
+        toast({ 
+          title: "Success", 
+          description: `Employee updated successfully. Department: ${updateData.department_id ? 'Assigned' : 'Not assigned'}, Manager: ${updateData.line_manager_id ? 'Assigned' : 'Not assigned'}` 
+        });
       } else {
+        // For new employee creation, we need proper authentication setup
         toast({ 
           title: "Info", 
           description: "Employee creation requires proper authentication setup",
@@ -201,10 +186,10 @@ export default function EmployeeManagement() {
       setEditingEmployee(null);
       resetForm();
       
-      // Reload data to reflect changes and update the editing employee state
+      // Reload data to reflect changes
       await loadData();
     } catch (error) {
-      console.error('Error saving employee:', error);
+      console.error('❌ Error saving employee:', error);
       toast({
         title: "Error",
         description: `Failed to save employee: ${error.message}`,
@@ -528,19 +513,22 @@ export default function EmployeeManagement() {
                   </div>
                 )}
                 
-                {employee.department && (
-                  <div className="flex items-center text-gray-600">
-                    <Building2 className="h-4 w-4 mr-2" />
-                    {employee.department.name}
-                  </div>
-                )}
+                <div className="flex items-center">
+                  <Building2 className="h-4 w-4 mr-2" />
+                  <span className={employee.department?.name ? "text-gray-600" : "text-amber-600 italic"}>
+                    {employee.department?.name || "No Department Assigned"}
+                  </span>
+                </div>
                 
-                {employee.line_manager && (
-                  <div className="flex items-center text-gray-600">
-                    <Users className="h-4 w-4 mr-2" />
-                    Reports to: {employee.line_manager.first_name} {employee.line_manager.last_name}
-                  </div>
-                )}
+                <div className="flex items-center">
+                  <Users className="h-4 w-4 mr-2" />
+                  <span className={employee.line_manager ? "text-gray-600" : "text-amber-600 italic"}>
+                    {employee.line_manager ? 
+                      `Reports to: ${employee.line_manager.first_name} ${employee.line_manager.last_name}` : 
+                      "No Manager Assigned"
+                    }
+                  </span>
+                </div>
               </div>
               
               <div className="flex items-center justify-between mt-4 pt-3 border-t">

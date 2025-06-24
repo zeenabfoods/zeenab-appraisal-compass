@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -34,12 +35,22 @@ export function useQuestionAssignmentData() {
   const fetchAssignmentData = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Starting comprehensive assignment data fetch...');
+      console.log('🔄 Starting comprehensive assignment data fetch with proper joins...');
 
-      // Get all employees with their basic info
+      // Get all employees with their department and manager info using proper joins
       const { data: allEmployees, error: employeesError } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, email, department_id, line_manager_id, is_active')
+        .select(`
+          id, 
+          first_name, 
+          last_name, 
+          email, 
+          department_id, 
+          line_manager_id, 
+          is_active,
+          department:departments(name),
+          line_manager:profiles!profiles_line_manager_id_fkey(first_name, last_name)
+        `)
         .eq('is_active', true);
 
       if (employeesError) {
@@ -47,29 +58,22 @@ export function useQuestionAssignmentData() {
         throw new Error(`Failed to fetch employees: ${employeesError.message}`);
       }
 
-      console.log(`👥 Found ${allEmployees?.length || 0} active employees`);
+      console.log(`👥 Found ${allEmployees?.length || 0} active employees with department/manager info`);
+      console.log('📊 Sample employee data:', allEmployees?.[0]);
 
-      // Get departments
-      const { data: departments, error: deptError } = await supabase
-        .from('departments')
-        .select('id, name');
-
-      if (deptError) {
-        console.error('❌ Error fetching departments:', deptError);
-      }
-
-      // Get question assignments
+      // Get question assignments with proper counting
       const { data: allAssignments, error: assignmentsError } = await supabase
         .from('employee_appraisal_questions')
-        .select('employee_id, question_id, cycle_id, assigned_at, is_active');
+        .select('employee_id, question_id, assigned_at, is_active')
+        .eq('is_active', true);
 
       if (assignmentsError) {
         console.error('❌ Error fetching assignments:', assignmentsError);
       } else {
-        console.log(`📝 Found ${allAssignments?.length || 0} question assignments`);
+        console.log(`📝 Found ${allAssignments?.length || 0} active question assignments`);
       }
 
-      // Get appraisals
+      // Get appraisals for status tracking
       const { data: appraisals, error: appraisalsError } = await supabase
         .from('appraisals')
         .select('id, employee_id, status');
@@ -80,48 +84,45 @@ export function useQuestionAssignmentData() {
         console.log(`📋 Found ${appraisals?.length || 0} appraisals`);
       }
 
-      // Build department lookup
-      const deptLookup = new Map();
-      departments?.forEach(dept => {
-        deptLookup.set(dept.id, dept.name);
+      // Count assignments per employee
+      const assignmentCounts = new Map<string, number>();
+      allAssignments?.forEach(assignment => {
+        const count = assignmentCounts.get(assignment.employee_id) || 0;
+        assignmentCounts.set(assignment.employee_id, count + 1);
       });
 
-      // Build manager lookup - Create a map of all employees for manager lookups
-      const employeeLookup = new Map();
-      allEmployees?.forEach(emp => {
-        employeeLookup.set(emp.id, emp);
-      });
-
-      // Build assignments with proper department and manager info
-      const assignmentMap = new Map();
+      // Get the earliest assignment date per employee
+      const assignmentDates = new Map<string, string>();
       allAssignments?.forEach(assignment => {
         const employeeId = assignment.employee_id;
-        if (!assignmentMap.has(employeeId)) {
-          assignmentMap.set(employeeId, []);
+        const currentDate = assignmentDates.get(employeeId);
+        if (!currentDate || assignment.assigned_at < currentDate) {
+          assignmentDates.set(employeeId, assignment.assigned_at);
         }
-        assignmentMap.get(employeeId).push(assignment);
       });
 
-      // Create final assignment list with proper lookups
-      const manualAssignments = allEmployees
-        ?.filter(emp => assignmentMap.has(emp.id))
+      // Create assignment records for employees with questions
+      const employeeAssignments = allEmployees
+        ?.filter(emp => assignmentCounts.has(emp.id))
         .map(emp => {
-          const empAssignments = assignmentMap.get(emp.id) || [];
+          // Get department name from the joined data
+          const departmentName = emp.department?.name || 'No Department';
           
-          // Get department name
-          const departmentName = emp.department_id ? 
-            (deptLookup.get(emp.department_id) || 'No Department') : 
-            'No Department';
-          
-          // Get manager name by looking up the manager in the employee lookup
-          const manager = emp.line_manager_id ? employeeLookup.get(emp.line_manager_id) : null;
-          const managerName = manager ? 
-            `${manager.first_name || ''} ${manager.last_name || ''}`.trim() : 
+          // Get line manager name from the joined data
+          const managerName = emp.line_manager ? 
+            `${emp.line_manager.first_name || ''} ${emp.line_manager.last_name || ''}`.trim() : 
             'No Manager';
           
-          // Get appraisal status for this employee
+          // Get appraisal status
           const employeeAppraisal = appraisals?.find(a => a.employee_id === emp.id);
           const appraisalStatus = employeeAppraisal?.status || 'not_started';
+          
+          console.log(`📋 Processing employee ${emp.first_name} ${emp.last_name}:`, {
+            department: departmentName,
+            manager: managerName,
+            questions: assignmentCounts.get(emp.id),
+            status: appraisalStatus
+          });
           
           return {
             employee_id: emp.id,
@@ -129,20 +130,27 @@ export function useQuestionAssignmentData() {
             email: emp.email || 'No email',
             department: departmentName,
             line_manager: managerName,
-            questions_assigned: empAssignments.filter(a => a.is_active).length,
+            questions_assigned: assignmentCounts.get(emp.id) || 0,
             appraisal_status: appraisalStatus,
-            assigned_date: empAssignments[0]?.assigned_at || new Date().toISOString()
+            assigned_date: assignmentDates.get(emp.id) || new Date().toISOString()
           };
         }) || [];
 
-      console.log('🔧 Manual assignments built with proper department/manager info:', manualAssignments);
-      setAssignments(manualAssignments);
+      console.log('✅ Final processed assignments:', employeeAssignments);
+      setAssignments(employeeAssignments);
 
       // Update stats
       setStats({
         totalEmployees: allEmployees?.length || 0,
-        employeesWithQuestions: manualAssignments.length,
-        totalQuestionsAssigned: allAssignments?.filter(a => a.is_active).length || 0,
+        employeesWithQuestions: employeeAssignments.length,
+        totalQuestionsAssigned: allAssignments?.length || 0,
+        completedAppraisals: appraisals?.filter(a => a.status === 'completed').length || 0
+      });
+
+      console.log('📊 Updated stats:', {
+        totalEmployees: allEmployees?.length || 0,
+        employeesWithQuestions: employeeAssignments.length,
+        totalQuestionsAssigned: allAssignments?.length || 0,
         completedAppraisals: appraisals?.filter(a => a.status === 'completed').length || 0
       });
 

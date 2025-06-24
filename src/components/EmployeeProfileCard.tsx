@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -32,64 +31,29 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
     try {
       console.log('🔄 Refreshing profile data for user:', currentProfile.id);
       
-      // Get the basic profile first with fresh data
-      const { data: basicProfile, error: profileError } = await supabase
+      // Get the profile with department and manager info using proper joins
+      const { data: refreshedProfile, error: profileError } = await supabase
         .from('profiles')
-        .select('*')
+        .select(`
+          *,
+          department:departments(name),
+          line_manager:profiles!profiles_line_manager_id_fkey(first_name, last_name)
+        `)
         .eq('id', currentProfile.id)
         .single();
 
       if (profileError) {
-        console.error('Error fetching basic profile:', profileError);
+        console.error('Error fetching refreshed profile:', profileError);
         throw profileError;
       }
 
-      console.log('✅ Fresh profile data:', basicProfile);
+      console.log('✅ Fresh profile data with joins:', refreshedProfile);
 
-      // Get department info if department_id exists
-      let departmentInfo = null;
-      if (basicProfile.department_id) {
-        console.log('🏢 Fetching department for ID:', basicProfile.department_id);
-        const { data: deptData, error: deptError } = await supabase
-          .from('departments')
-          .select('name')
-          .eq('id', basicProfile.department_id)
-          .single();
-
-        if (!deptError && deptData) {
-          departmentInfo = { name: deptData.name };
-          console.log('✅ Department found:', departmentInfo);
-        } else {
-          console.log('⚠️ Department not found or error:', deptError);
-        }
-      }
-
-      // Get line manager info if line_manager_id exists
-      let managerInfo = null;
-      if (basicProfile.line_manager_id) {
-        console.log('👤 Fetching manager for ID:', basicProfile.line_manager_id);
-        const { data: managerData, error: managerError } = await supabase
-          .from('profiles')
-          .select('first_name, last_name')
-          .eq('id', basicProfile.line_manager_id)
-          .single();
-
-        if (!managerError && managerData) {
-          managerInfo = {
-            first_name: managerData.first_name,
-            last_name: managerData.last_name
-          };
-          console.log('✅ Manager found:', managerInfo);
-        } else {
-          console.log('⚠️ Manager not found or error:', managerError);
-        }
-      }
-
-      // Create the updated profile with additional info
+      // Create the updated profile with the joined data
       const updatedProfile: ExtendedProfile = {
-        ...basicProfile,
-        department: departmentInfo,
-        line_manager: managerInfo
+        ...refreshedProfile,
+        department: refreshedProfile.department,
+        line_manager: refreshedProfile.line_manager
       };
 
       console.log('✅ Complete refreshed profile:', updatedProfile);
@@ -100,10 +64,14 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
         onProfileUpdate(updatedProfile);
       }
 
+      const hasAssignments = updatedProfile.department_id && updatedProfile.line_manager_id;
       toast({
         title: "Profile Updated",
-        description: "Your profile information has been refreshed successfully."
+        description: hasAssignments ? 
+          "Your profile information has been refreshed successfully." :
+          "Profile refreshed. Please contact HR to complete your department and manager assignment."
       });
+
     } catch (error) {
       console.error('❌ Error refreshing profile:', error);
       toast({
@@ -120,6 +88,9 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
     if (currentProfile.department?.name) {
       return currentProfile.department.name;
     }
+    if (currentProfile.department_id) {
+      return 'Assigned (Refresh to see name)';
+    }
     return 'Not assigned';
   };
 
@@ -128,8 +99,7 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
       return `${currentProfile.line_manager.first_name} ${currentProfile.line_manager.last_name}`;
     }
     if (currentProfile.line_manager_id) {
-      // If we have line manager ID but no name data, show as assigned
-      return 'Assigned';
+      return 'Assigned (Refresh to see name)';
     }
     return 'Not assigned';
   };
@@ -226,7 +196,7 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
               <div className="text-sm">
                 <p className="font-medium text-amber-800">Profile Setup Pending</p>
                 <p className="text-amber-700 mt-1">
-                  Your department and line manager assignment is pending. Please contact HR to complete your profile setup.
+                  Your department and line manager assignment is pending. Please contact HR to complete your profile setup. Without these assignments, your line manager won't receive notifications when you submit appraisals.
                 </p>
                 <Button
                   variant="outline"
