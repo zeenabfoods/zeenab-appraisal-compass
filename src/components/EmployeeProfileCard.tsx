@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -89,7 +90,7 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
         line_manager_id: refreshedProfile.line_manager_id,
         is_active: refreshedProfile.is_active,
         created_at: refreshedProfile.created_at,
-        department: refreshedProfile.department,
+        department: refreshedProfile.department || null,
         last_login: refreshedProfile.last_login,
         department_name: departmentName,
         line_manager_name: managerName
