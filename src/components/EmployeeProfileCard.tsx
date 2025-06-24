@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -48,6 +47,7 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
 
       // Get department name if department_id exists
       let departmentName = 'Not assigned';
+      let departmentObject = null;
       if (refreshedProfile.department_id) {
         const { data: department, error: deptError } = await supabase
           .from('departments')
@@ -57,6 +57,7 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
         
         if (!deptError && department) {
           departmentName = department.name;
+          departmentObject = { name: department.name };
         } else {
           departmentName = 'Assigned (Unknown)';
         }
@@ -90,7 +91,7 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
         line_manager_id: refreshedProfile.line_manager_id,
         is_active: refreshedProfile.is_active,
         created_at: refreshedProfile.created_at,
-        department: refreshedProfile.department || null,
+        department: departmentObject,
         last_login: refreshedProfile.last_login,
         department_name: departmentName,
         line_manager_name: managerName
@@ -112,7 +113,7 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
           line_manager_id: updatedProfile.line_manager_id,
           is_active: updatedProfile.is_active,
           created_at: updatedProfile.created_at,
-          department: updatedProfile.department,
+          department: departmentObject,
           last_login: updatedProfile.last_login
         };
         onProfileUpdate(baseProfile);
