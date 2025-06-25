@@ -6,7 +6,7 @@ export interface EmployeeUpdateData {
   first_name: string;
   last_name: string;
   email: string;
-  role: string;
+  role: 'staff' | 'manager' | 'hr' | 'admin';
   position?: string;
   department_id?: string | null;
   line_manager_id?: string | null;
@@ -21,12 +21,12 @@ export class EmployeeProfileService {
   static async updateEmployee(employeeId: string, updateData: EmployeeUpdateData): Promise<ExtendedProfile> {
     console.log('🔄 EmployeeProfileService.updateEmployee called with:', { employeeId, updateData });
     
-    // Prepare the data for database update
+    // Prepare the data for database update with proper typing
     const dbUpdateData = {
       first_name: updateData.first_name.trim(),
       last_name: updateData.last_name.trim(),
       email: updateData.email.trim(),
-      role: updateData.role,
+      role: updateData.role as 'staff' | 'manager' | 'hr' | 'admin',
       position: updateData.position?.trim() || null,
       department_id: updateData.department_id === 'none' || updateData.department_id === '' ? null : updateData.department_id,
       line_manager_id: updateData.line_manager_id === 'none' || updateData.line_manager_id === '' ? null : updateData.line_manager_id
@@ -74,9 +74,10 @@ export class EmployeeProfileService {
 
     console.log('📋 Base profile retrieved:', profile);
 
-    // Initialize extended profile
+    // Initialize extended profile with proper department handling
     const extendedProfile: ExtendedProfile = {
       ...profile,
+      department: null, // Reset to ensure consistent structure
       department_name: undefined,
       line_manager_name: undefined
     };
@@ -150,6 +151,7 @@ export class EmployeeProfileService {
     const processedEmployees = employees.map(employee => {
       const extendedEmployee: ExtendedProfile = {
         ...employee,
+        department: null, // Reset to ensure consistent structure
         department_name: undefined,
         line_manager_name: undefined
       };
