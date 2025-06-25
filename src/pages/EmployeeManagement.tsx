@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Edit, Trash2, Users, Search, Filter, UserPlus, Building2 } from 'lucide-react';
-import { EmployeeProfileService, ExtendedProfile } from '@/services/employeeProfileService';
+import { EmployeeProfileService, ExtendedProfile, EmployeeUpdateData } from '@/services/employeeProfileService';
 
 interface Department {
   id: string;
@@ -29,7 +30,7 @@ export default function EmployeeManagement() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<ExtendedProfile | null>(null);
   const [updating, setUpdating] = useState(false);
-  const [newEmployee, setNewEmployee] = useState({
+  const [newEmployee, setNewEmployee] = useState<EmployeeUpdateData>({
     first_name: '',
     last_name: '',
     email: '',
@@ -305,7 +306,12 @@ export default function EmployeeManagement() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="role">Role</Label>
-                  <Select value={newEmployee.role} onValueChange={(value) => setNewEmployee({ ...newEmployee, role: value })}>
+                  <Select 
+                    value={newEmployee.role} 
+                    onValueChange={(value: 'staff' | 'manager' | 'hr' | 'admin') => 
+                      setNewEmployee({ ...newEmployee, role: value })
+                    }
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
