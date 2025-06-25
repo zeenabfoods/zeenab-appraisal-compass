@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,6 +11,7 @@ import { AppraisalHistoryCard } from '@/components/AppraisalHistoryCard';
 import { EmployeeProfileCard } from '@/components/EmployeeProfileCard';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Profile } from '@/hooks/useAuth';
+import { EmployeeProfileService, ExtendedProfile } from '@/services/employeeProfileService';
 import { 
   Users, 
   TrendingUp, 
@@ -57,7 +57,8 @@ const statusData = [
 
 export function Dashboard() {
   const { profile, user, loading, authReady } = useAuth();
-  const [currentProfile, setCurrentProfile] = useState<Profile | null>(profile);
+  const [currentProfile, setCurrentProfile] = useState<ExtendedProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [cycles, setCycles] = useState<AppraisalCycle[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     totalEmployees: 0,
@@ -69,13 +70,31 @@ export function Dashboard() {
   const [showAccessDialog, setShowAccessDialog] = useState(false);
   const [selectedAppraisal, setSelectedAppraisal] = useState<string>('');
 
-  // Update current profile when auth profile changes
+  // Load the enhanced profile when auth profile is available
   useEffect(() => {
-    if (profile) {
-      console.log('📋 Dashboard received auth profile update:', profile);
-      setCurrentProfile(profile);
+    if (profile && authReady) {
+      console.log('📋 Dashboard loading enhanced profile for:', profile.id);
+      loadEnhancedProfile(profile.id);
     }
-  }, [profile]);
+  }, [profile, authReady]);
+
+  const loadEnhancedProfile = async (profileId: string) => {
+    setProfileLoading(true);
+    try {
+      console.log('🔄 Loading enhanced profile for dashboard...');
+      const enhancedProfile = await EmployeeProfileService.getEmployeeProfileWithNames(profileId);
+      console.log('✅ Enhanced profile loaded:', enhancedProfile);
+      setCurrentProfile(enhancedProfile);
+    } catch (error) {
+      console.error('❌ Error loading enhanced profile:', error);
+      // Fallback to basic profile if enhanced loading fails
+      if (profile) {
+        setCurrentProfile(profile as ExtendedProfile);
+      }
+    } finally {
+      setProfileLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Only load dashboard data when auth is ready and user exists
@@ -135,19 +154,18 @@ export function Dashboard() {
     }
   };
 
-  const handleProfileUpdate = (updatedProfile: Profile) => {
-    console.log('📋 Dashboard received profile update from EmployeeProfileCard:', updatedProfile);
-    setCurrentProfile(updatedProfile);
+  const handleProfileUpdate = async (updatedProfile: Profile) => {
+    console.log('📋 Dashboard received profile update request:', updatedProfile);
     
-    // If this is a significant update (department or line manager changed), 
-    // we might want to reload other dashboard components
-    if (currentProfile) {
-      const departmentChanged = currentProfile.department_id !== updatedProfile.department_id;
-      const managerChanged = currentProfile.line_manager_id !== updatedProfile.line_manager_id;
-      
-      if (departmentChanged || managerChanged) {
-        console.log('🔄 Significant profile changes detected, considering data reload');
-      }
+    try {
+      // Reload the enhanced profile from the database to get the latest data
+      const freshProfile = await EmployeeProfileService.getEmployeeProfileWithNames(updatedProfile.id);
+      console.log('✅ Fresh enhanced profile loaded:', freshProfile);
+      setCurrentProfile(freshProfile);
+    } catch (error) {
+      console.error('❌ Error reloading enhanced profile:', error);
+      // Fallback to the provided profile
+      setCurrentProfile(updatedProfile as ExtendedProfile);
     }
   };
 
@@ -178,8 +196,8 @@ export function Dashboard() {
     }
   };
 
-  // Show loading only while auth is not ready
-  if (!authReady || loading) {
+  // Show loading only while auth is not ready or profile is loading
+  if (!authReady || loading || profileLoading) {
     return (
       <div className="flex items-center justify-center min-h-96">
         <div className="text-center">

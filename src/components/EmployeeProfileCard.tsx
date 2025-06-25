@@ -5,27 +5,22 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { User, Building2, Users, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Profile } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { EmployeeProfileService, ExtendedProfile } from '@/services/employeeProfileService';
 
 interface EmployeeProfileCardProps {
-  profile: Profile;
+  profile: Profile | ExtendedProfile;
   onProfileUpdate?: (updatedProfile: Profile) => void;
 }
 
-interface ExtendedProfile extends Profile {
-  department_name?: string;
-  line_manager_name?: string;
-}
-
 export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfileCardProps) {
-  const [currentProfile, setCurrentProfile] = useState<ExtendedProfile>(profile);
+  const [currentProfile, setCurrentProfile] = useState<ExtendedProfile>(profile as ExtendedProfile);
   const [refreshing, setRefreshing] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     console.log('🔄 Profile prop updated in EmployeeProfileCard:', profile);
-    setCurrentProfile(profile);
+    setCurrentProfile(profile as ExtendedProfile);
   }, [profile]);
 
   const refreshProfile = async () => {
@@ -33,106 +28,34 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
     try {
       console.log('🔄 Refreshing profile data for user:', currentProfile.id);
       
-      // Get the fresh profile data
-      const { data: refreshedProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', currentProfile.id)
-        .single();
-
-      if (profileError) {
-        console.error('❌ Error fetching refreshed profile:', profileError);
-        throw profileError;
-      }
-
-      console.log('✅ Fresh profile data from database:', refreshedProfile);
-
-      // Resolve department name
-      let departmentName = undefined;
-      let departmentObject = null;
-      if (refreshedProfile.department_id) {
-        console.log('🏢 Fetching department for ID:', refreshedProfile.department_id);
-        const { data: department, error: deptError } = await supabase
-          .from('departments')
-          .select('name')
-          .eq('id', refreshedProfile.department_id)
-          .single();
-        
-        if (!deptError && department) {
-          departmentName = department.name;
-          departmentObject = { name: department.name };
-          console.log('✅ Department found:', departmentName);
-        } else {
-          console.log('⚠️ Department ID exists but name not found:', deptError);
-        }
-      }
-
-      // Resolve line manager name
-      let managerName = undefined;
-      if (refreshedProfile.line_manager_id) {
-        console.log('👤 Fetching manager for ID:', refreshedProfile.line_manager_id);
-        const { data: manager, error: managerError } = await supabase
-          .from('profiles')
-          .select('first_name, last_name')
-          .eq('id', refreshedProfile.line_manager_id)
-          .single();
-        
-        if (!managerError && manager) {
-          managerName = `${manager.first_name || ''} ${manager.last_name || ''}`.trim();
-          console.log('✅ Manager found:', managerName);
-        } else {
-          console.log('⚠️ Manager ID exists but name not found:', managerError);
-        }
-      }
-
-      // Create the updated profile with the fetched data
-      const updatedProfile: ExtendedProfile = {
-        id: refreshedProfile.id,
-        email: refreshedProfile.email,
-        first_name: refreshedProfile.first_name,
-        last_name: refreshedProfile.last_name,
-        role: refreshedProfile.role,
-        position: refreshedProfile.position,
-        department_id: refreshedProfile.department_id,
-        line_manager_id: refreshedProfile.line_manager_id,
-        is_active: refreshedProfile.is_active,
-        created_at: refreshedProfile.created_at,
-        department: departmentObject,
-        last_login: refreshedProfile.last_login,
-        department_name: departmentName,
-        line_manager_name: managerName
-      };
-
-      console.log('✅ Complete refreshed profile with assignments:', {
-        department_id: updatedProfile.department_id,
-        department_name: updatedProfile.department_name,
-        line_manager_id: updatedProfile.line_manager_id,
-        line_manager_name: updatedProfile.line_manager_name
-      });
+      // Use the service to get fresh profile data with names
+      const refreshedProfile = await EmployeeProfileService.getEmployeeProfileWithNames(currentProfile.id);
       
-      setCurrentProfile(updatedProfile);
+      console.log('✅ Complete refreshed profile received:', refreshedProfile);
+      
+      setCurrentProfile(refreshedProfile);
       
       // Notify parent component of the update
       if (onProfileUpdate) {
         const baseProfile: Profile = {
-          id: updatedProfile.id,
-          email: updatedProfile.email,
-          first_name: updatedProfile.first_name,
-          last_name: updatedProfile.last_name,
-          role: updatedProfile.role,
-          position: updatedProfile.position,
-          department_id: updatedProfile.department_id,
-          line_manager_id: updatedProfile.line_manager_id,
-          is_active: updatedProfile.is_active,
-          created_at: updatedProfile.created_at,
-          department: departmentObject,
-          last_login: updatedProfile.last_login
+          id: refreshedProfile.id,
+          email: refreshedProfile.email,
+          first_name: refreshedProfile.first_name,
+          last_name: refreshedProfile.last_name,
+          role: refreshedProfile.role,
+          position: refreshedProfile.position,
+          department_id: refreshedProfile.department_id,
+          line_manager_id: refreshedProfile.line_manager_id,
+          is_active: refreshedProfile.is_active,
+          created_at: refreshedProfile.created_at,
+          department: refreshedProfile.department,
+          last_login: refreshedProfile.last_login
         };
         onProfileUpdate(baseProfile);
       }
 
-      const hasFullAssignments = updatedProfile.department_id && updatedProfile.line_manager_id;
-      const hasNames = updatedProfile.department_name && updatedProfile.line_manager_name;
+      const hasFullAssignments = refreshedProfile.department_id && refreshedProfile.line_manager_id;
+      const hasNames = refreshedProfile.department_name && refreshedProfile.line_manager_name;
       
       if (hasFullAssignments && hasNames) {
         toast({
@@ -155,7 +78,7 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
       console.error('❌ Error refreshing profile:', error);
       toast({
         title: "Error",
-        description: `Failed to refresh profile information: ${error.message}`,
+        description: `Failed to refresh profile information: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: "destructive"
       });
     } finally {

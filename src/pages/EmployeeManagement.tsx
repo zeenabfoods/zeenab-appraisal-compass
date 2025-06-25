@@ -11,21 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Edit, Trash2, Users, Search, Filter, UserPlus, Building2 } from 'lucide-react';
-
-interface Employee {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  role: string;
-  position: string | null;
-  department_id: string | null;
-  line_manager_id: string | null;
-  is_active: boolean;
-  created_at: string;
-  department_name?: string;
-  line_manager_name?: string;
-}
+import { EmployeeProfileService, ExtendedProfile } from '@/services/employeeProfileService';
 
 interface Department {
   id: string;
@@ -35,13 +21,13 @@ interface Department {
 export default function EmployeeManagement() {
   const { profile } = useAuth();
   const { toast } = useToast();
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employees, setEmployees] = useState<ExtendedProfile[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [editingEmployee, setEditingEmployee] = useState<ExtendedProfile | null>(null);
   const [updating, setUpdating] = useState(false);
   const [newEmployee, setNewEmployee] = useState({
     first_name: '',
@@ -59,22 +45,9 @@ export default function EmployeeManagement() {
 
   const loadData = async () => {
     try {
-      console.log('🔄 Loading employee data...');
+      console.log('🔄 Loading employee management data...');
       
-      // Load employees with proper error handling
-      const { data: employeesData, error: employeesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('first_name');
-
-      if (employeesError) {
-        console.error('❌ Error loading employees:', employeesError);
-        throw employeesError;
-      }
-      
-      console.log('✅ Raw employees loaded:', employeesData?.length);
-
-      // Load departments
+      // Load departments first
       const { data: departmentsData, error: departmentsError } = await supabase
         .from('departments')
         .select('id, name')
@@ -87,45 +60,12 @@ export default function EmployeeManagement() {
       }
 
       console.log('✅ Departments loaded:', departmentsData?.length);
-
-      // Process employees data with proper name resolution
-      const processedEmployees = await Promise.all(
-        (employeesData || []).map(async (employee) => {
-          const processedEmployee: Employee = {
-            ...employee,
-            department_name: undefined,
-            line_manager_name: undefined
-          };
-
-          // Get department name if department_id exists
-          if (employee.department_id) {
-            const department = departmentsData?.find(d => d.id === employee.department_id);
-            if (department) {
-              processedEmployee.department_name = department.name;
-              console.log(`✅ Department resolved for ${employee.first_name}: ${department.name}`);
-            } else {
-              console.log(`⚠️ Department ID ${employee.department_id} not found for ${employee.first_name}`);
-            }
-          }
-
-          // Get line manager name if line_manager_id exists
-          if (employee.line_manager_id) {
-            const manager = employeesData?.find(emp => emp.id === employee.line_manager_id);
-            if (manager) {
-              processedEmployee.line_manager_name = `${manager.first_name || ''} ${manager.last_name || ''}`.trim();
-              console.log(`✅ Manager resolved for ${employee.first_name}: ${processedEmployee.line_manager_name}`);
-            } else {
-              console.log(`⚠️ Manager ID ${employee.line_manager_id} not found for ${employee.first_name}`);
-            }
-          }
-
-          return processedEmployee;
-        })
-      );
-
-      console.log('✅ All employees processed:', processedEmployees.length);
-      setEmployees(processedEmployees);
       setDepartments(departmentsData || []);
+
+      // Load all employees with names using the service
+      const employeesWithNames = await EmployeeProfileService.getAllEmployeesWithNames();
+      setEmployees(employeesWithNames);
+      console.log('✅ Employees loaded with names:', employeesWithNames.length);
       
     } catch (error) {
       console.error('❌ Error in loadData:', error);
@@ -158,79 +98,44 @@ export default function EmployeeManagement() {
       console.log('📝 Form data:', newEmployee);
       console.log('👤 Editing employee:', editingEmployee.id);
       
-      // Prepare the update data with proper null handling
-      const updateData = {
-        first_name: newEmployee.first_name.trim(),
-        last_name: newEmployee.last_name.trim(),
-        email: newEmployee.email.trim(),
-        role: newEmployee.role as any,
-        position: newEmployee.position?.trim() || null,
-        department_id: (newEmployee.department_id === 'none' || newEmployee.department_id === '') ? null : newEmployee.department_id,
-        line_manager_id: (newEmployee.line_manager_id === 'none' || newEmployee.line_manager_id === '') ? null : newEmployee.line_manager_id
-      };
-
-      console.log('📋 Processed update data:', updateData);
-
-      // Perform the update
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('id', editingEmployee.id);
-
-      if (updateError) {
-        console.error('❌ Update error:', updateError);
-        throw new Error(`Failed to update employee: ${updateError.message}`);
-      }
-
-      console.log('✅ Database update successful');
-
-      // Update the local state immediately with the new data
+      // Use the service to update the employee
+      const updatedProfile = await EmployeeProfileService.updateEmployee(editingEmployee.id, newEmployee);
+      
+      // Update the local state with the complete updated profile
       setEmployees(currentEmployees => 
-        currentEmployees.map(emp => {
-          if (emp.id === editingEmployee.id) {
-            // Find department and manager names for immediate display
-            const departmentName = updateData.department_id ? 
-              departments.find(d => d.id === updateData.department_id)?.name : undefined;
-            
-            const managerName = updateData.line_manager_id ? 
-              employees.find(e => e.id === updateData.line_manager_id) ? 
-                `${employees.find(e => e.id === updateData.line_manager_id)?.first_name || ''} ${employees.find(e => e.id === updateData.line_manager_id)?.last_name || ''}`.trim() : undefined : undefined;
-
-            return {
-              ...emp,
-              ...updateData,
-              department_name: departmentName,
-              line_manager_name: managerName
-            };
-          }
-          return emp;
-        })
+        currentEmployees.map(emp => 
+          emp.id === editingEmployee.id ? updatedProfile : emp
+        )
       );
 
-      const successMessage = `Employee "${updateData.first_name} ${updateData.last_name}" updated successfully.`;
-      const departmentStatus = updateData.department_id ? 'Department assigned' : 'No department assigned';
-      const managerStatus = updateData.line_manager_id ? 'Manager assigned' : 'No manager assigned';
+      const successMessage = `Employee "${updatedProfile.first_name} ${updatedProfile.last_name}" updated successfully.`;
+      const departmentStatus = updatedProfile.department_id ? 
+        `Department: ${updatedProfile.department_name || 'Assigned'}` : 'No department assigned';
+      const managerStatus = updatedProfile.line_manager_id ? 
+        `Manager: ${updatedProfile.line_manager_name || 'Assigned'}` : 'No manager assigned';
       
       toast({ 
         title: "Success", 
         description: `${successMessage} ${departmentStatus}, ${managerStatus}.`,
       });
 
+      console.log('✅ Employee update completed successfully');
+      
       setShowAddDialog(false);
       setEditingEmployee(null);
       resetForm();
 
-      // Reload data after a short delay to ensure consistency
+      // Force a fresh reload to ensure consistency
       setTimeout(() => {
         console.log('🔄 Reloading data to ensure consistency...');
         loadData();
-      }, 1000);
+      }, 500);
       
     } catch (error) {
       console.error('❌ Error saving employee:', error);
       toast({
         title: "Error",
-        description: `Failed to save employee: ${error.message}`,
+        description: error instanceof Error ? error.message : 'Failed to save employee',
         variant: "destructive"
       });
     } finally {
@@ -265,7 +170,7 @@ export default function EmployeeManagement() {
     }
   };
 
-  const editEmployee = (employee: Employee) => {
+  const editEmployee = (employee: ExtendedProfile) => {
     console.log('📝 Editing employee:', employee);
     console.log('🏢 Employee department_id:', employee.department_id);
     console.log('👤 Employee line_manager_id:', employee.line_manager_id);
