@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,7 +24,7 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
   const { toast } = useToast();
 
   useEffect(() => {
-    console.log('🔄 Profile prop updated:', profile);
+    console.log('🔄 Profile prop updated in EmployeeProfileCard:', profile);
     setCurrentProfile(profile);
   }, [profile]);
 
@@ -32,7 +33,7 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
     try {
       console.log('🔄 Refreshing profile data for user:', currentProfile.id);
       
-      // Get the basic profile first with explicit logging
+      // Get the fresh profile data
       const { data: refreshedProfile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -46,8 +47,8 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
 
       console.log('✅ Fresh profile data from database:', refreshedProfile);
 
-      // Get department name if department_id exists
-      let departmentName = 'Not assigned';
+      // Resolve department name
+      let departmentName = undefined;
       let departmentObject = null;
       if (refreshedProfile.department_id) {
         console.log('🏢 Fetching department for ID:', refreshedProfile.department_id);
@@ -62,15 +63,12 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
           departmentObject = { name: department.name };
           console.log('✅ Department found:', departmentName);
         } else {
-          departmentName = 'Assigned (Unknown)';
-          console.log('⚠️ Department ID exists but name not found');
+          console.log('⚠️ Department ID exists but name not found:', deptError);
         }
-      } else {
-        console.log('ℹ️ No department_id assigned');
       }
 
-      // Get line manager name if line_manager_id exists
-      let managerName = 'Not assigned';
+      // Resolve line manager name
+      let managerName = undefined;
       if (refreshedProfile.line_manager_id) {
         console.log('👤 Fetching manager for ID:', refreshedProfile.line_manager_id);
         const { data: manager, error: managerError } = await supabase
@@ -83,11 +81,8 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
           managerName = `${manager.first_name || ''} ${manager.last_name || ''}`.trim();
           console.log('✅ Manager found:', managerName);
         } else {
-          managerName = 'Assigned (Unknown)';
-          console.log('⚠️ Manager ID exists but name not found');
+          console.log('⚠️ Manager ID exists but name not found:', managerError);
         }
-      } else {
-        console.log('ℹ️ No line_manager_id assigned');
       }
 
       // Create the updated profile with the fetched data
@@ -136,13 +131,25 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
         onProfileUpdate(baseProfile);
       }
 
-      const hasAssignments = updatedProfile.department_id && updatedProfile.line_manager_id;
-      toast({
-        title: "Profile Updated",
-        description: hasAssignments ? 
-          "Your profile information has been refreshed successfully." :
-          "Profile refreshed. Please contact HR to complete your department and manager assignment."
-      });
+      const hasFullAssignments = updatedProfile.department_id && updatedProfile.line_manager_id;
+      const hasNames = updatedProfile.department_name && updatedProfile.line_manager_name;
+      
+      if (hasFullAssignments && hasNames) {
+        toast({
+          title: "Profile Updated",
+          description: "Your profile information has been refreshed successfully."
+        });
+      } else if (hasFullAssignments && !hasNames) {
+        toast({
+          title: "Profile Partially Updated",
+          description: "Assignments found but names are still being resolved. Please try refreshing again in a moment."
+        });
+      } else {
+        toast({
+          title: "Profile Setup Pending",
+          description: "Please contact HR to complete your department and manager assignment."
+        });
+      }
 
     } catch (error) {
       console.error('❌ Error refreshing profile:', error);
@@ -161,7 +168,7 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
       return currentProfile.department_name;
     }
     if (currentProfile.department_id) {
-      return 'Assigned (Refresh to see name)';
+      return 'Assigned (Click refresh to see name)';
     }
     return 'Not assigned';
   };
@@ -171,12 +178,14 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
       return currentProfile.line_manager_name;
     }
     if (currentProfile.line_manager_id) {
-      return 'Assigned (Refresh to see name)';
+      return 'Assigned (Click refresh to see name)';
     }
     return 'Not assigned';
   };
 
   const isProfileIncomplete = !currentProfile.department_id || !currentProfile.line_manager_id;
+  const hasUnresolvedNames = (currentProfile.department_id && !currentProfile.department_name) || 
+                            (currentProfile.line_manager_id && !currentProfile.line_manager_name);
 
   return (
     <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg">
@@ -191,6 +200,12 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
               <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">
                 <AlertTriangle className="h-3 w-3 mr-1" />
                 Pending Setup
+              </Badge>
+            )}
+            {hasUnresolvedNames && (
+              <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50">
+                <RefreshCw className="h-3 w-3 mr-1" />
+                Refresh Needed
               </Badge>
             )}
             <Button
@@ -235,7 +250,8 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
               <Building2 className="h-4 w-4" />
               Department
             </div>
-            <p className={`${!currentProfile.department_id ? 'text-amber-600 italic' : 'text-gray-900'}`}>
+            <p className={`${!currentProfile.department_id ? 'text-amber-600 italic' : 
+                          (currentProfile.department_name ? 'text-gray-900' : 'text-blue-600 italic')}`}>
               {getDepartmentDisplay()}
             </p>
           </div>
@@ -245,7 +261,8 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
               <Users className="h-4 w-4" />
               Line Manager
             </div>
-            <p className={`${!currentProfile.line_manager_id ? 'text-amber-600 italic' : 'text-gray-900'}`}>
+            <p className={`${!currentProfile.line_manager_id ? 'text-amber-600 italic' : 
+                          (currentProfile.line_manager_name ? 'text-gray-900' : 'text-blue-600 italic')}`}>
               {getLineManagerDisplay()}
             </p>
           </div>
@@ -261,15 +278,27 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
           )}
         </div>
 
-        {isProfileIncomplete && (
+        {(isProfileIncomplete || hasUnresolvedNames) && (
           <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
             <div className="flex items-start gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5" />
               <div className="text-sm">
-                <p className="font-medium text-amber-800">Profile Setup Pending</p>
-                <p className="text-amber-700 mt-1">
-                  Your department and line manager assignment is pending. Please contact HR to complete your profile setup. Without these assignments, your line manager won't receive notifications when you submit appraisals.
-                </p>
+                {isProfileIncomplete && (
+                  <>
+                    <p className="font-medium text-amber-800">Profile Setup Pending</p>
+                    <p className="text-amber-700 mt-1">
+                      Your department and line manager assignment is pending. Please contact HR to complete your profile setup.
+                    </p>
+                  </>
+                )}
+                {hasUnresolvedNames && !isProfileIncomplete && (
+                  <>
+                    <p className="font-medium text-blue-800">Names Need Refresh</p>
+                    <p className="text-blue-700 mt-1">
+                      Your assignments are in place but names haven't loaded yet. Click the refresh button to load them.
+                    </p>
+                  </>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
@@ -278,7 +307,7 @@ export function EmployeeProfileCard({ profile, onProfileUpdate }: EmployeeProfil
                   className="mt-2"
                 >
                   <RefreshCw className={`h-3 w-3 mr-1 ${refreshing ? 'animate-spin' : ''}`} />
-                  Check for Updates
+                  {refreshing ? 'Refreshing...' : 'Refresh Profile'}
                 </Button>
               </div>
             </div>

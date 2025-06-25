@@ -42,6 +42,7 @@ export default function EmployeeManagement() {
   const [filterRole, setFilterRole] = useState('all');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [updating, setUpdating] = useState(false);
   const [newEmployee, setNewEmployee] = useState({
     first_name: '',
     last_name: '',
@@ -58,20 +59,20 @@ export default function EmployeeManagement() {
 
   const loadData = async () => {
     try {
-      console.log('Loading employee data with fixed queries...');
+      console.log('🔄 Loading employee data...');
       
-      // Load employees first
+      // Load employees with proper error handling
       const { data: employeesData, error: employeesError } = await supabase
         .from('profiles')
         .select('*')
         .order('first_name');
 
       if (employeesError) {
-        console.error('Error loading employees:', employeesError);
+        console.error('❌ Error loading employees:', employeesError);
         throw employeesError;
       }
       
-      console.log('✅ Employees loaded:', employeesData?.length);
+      console.log('✅ Raw employees loaded:', employeesData?.length);
 
       // Load departments
       const { data: departmentsData, error: departmentsError } = await supabase
@@ -81,37 +82,53 @@ export default function EmployeeManagement() {
         .order('name');
 
       if (departmentsError) {
-        console.error('Error loading departments:', departmentsError);
+        console.error('❌ Error loading departments:', departmentsError);
         throw departmentsError;
       }
 
       console.log('✅ Departments loaded:', departmentsData?.length);
 
-      // Create department lookup map
-      const departmentMap = new Map<string, string>();
-      departmentsData?.forEach(dept => {
-        departmentMap.set(dept.id, dept.name);
-      });
+      // Process employees data with proper name resolution
+      const processedEmployees = await Promise.all(
+        (employeesData || []).map(async (employee) => {
+          const processedEmployee: Employee = {
+            ...employee,
+            department_name: undefined,
+            line_manager_name: undefined
+          };
 
-      // Create manager lookup map
-      const managerMap = new Map<string, string>();
-      employeesData?.forEach(emp => {
-        managerMap.set(emp.id, `${emp.first_name || ''} ${emp.last_name || ''}`.trim());
-      });
+          // Get department name if department_id exists
+          if (employee.department_id) {
+            const department = departmentsData?.find(d => d.id === employee.department_id);
+            if (department) {
+              processedEmployee.department_name = department.name;
+              console.log(`✅ Department resolved for ${employee.first_name}: ${department.name}`);
+            } else {
+              console.log(`⚠️ Department ID ${employee.department_id} not found for ${employee.first_name}`);
+            }
+          }
 
-      // Transform employee data with proper lookups
-      const transformedEmployees = employeesData?.map(employee => ({
-        ...employee,
-        department_name: employee.department_id ? departmentMap.get(employee.department_id) : undefined,
-        line_manager_name: employee.line_manager_id ? managerMap.get(employee.line_manager_id) : undefined
-      })) || [];
+          // Get line manager name if line_manager_id exists
+          if (employee.line_manager_id) {
+            const manager = employeesData?.find(emp => emp.id === employee.line_manager_id);
+            if (manager) {
+              processedEmployee.line_manager_name = `${manager.first_name || ''} ${manager.last_name || ''}`.trim();
+              console.log(`✅ Manager resolved for ${employee.first_name}: ${processedEmployee.line_manager_name}`);
+            } else {
+              console.log(`⚠️ Manager ID ${employee.line_manager_id} not found for ${employee.first_name}`);
+            }
+          }
 
-      console.log('✅ Final transformed employees:', transformedEmployees.length);
-      setEmployees(transformedEmployees);
+          return processedEmployee;
+        })
+      );
+
+      console.log('✅ All employees processed:', processedEmployees.length);
+      setEmployees(processedEmployees);
       setDepartments(departmentsData || []);
       
     } catch (error) {
-      console.error('Error in loadData:', error);
+      console.error('❌ Error in loadData:', error);
       toast({
         title: "Error",
         description: "Failed to load employee data. Please check the console for details.",
@@ -124,96 +141,90 @@ export default function EmployeeManagement() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!editingEmployee) {
+      toast({ 
+        title: "Info", 
+        description: "Employee creation requires proper authentication setup",
+        variant: "default"
+      });
+      return;
+    }
+
+    setUpdating(true);
+    
     try {
-      console.log('Submitting employee data:', newEmployee);
+      console.log('🔄 Starting employee update process...');
+      console.log('📝 Form data:', newEmployee);
+      console.log('👤 Editing employee:', editingEmployee.id);
       
-      if (editingEmployee) {
-        // Prepare the update data - convert empty strings and 'none' to null
-        const updateData = {
-          first_name: newEmployee.first_name.trim(),
-          last_name: newEmployee.last_name.trim(),
-          email: newEmployee.email.trim(),
-          role: newEmployee.role as any,
-          position: newEmployee.position?.trim() || null,
-          department_id: (newEmployee.department_id === 'none' || newEmployee.department_id === '') ? null : newEmployee.department_id,
-          line_manager_id: (newEmployee.line_manager_id === 'none' || newEmployee.line_manager_id === '') ? null : newEmployee.line_manager_id
-        };
+      // Prepare the update data with proper null handling
+      const updateData = {
+        first_name: newEmployee.first_name.trim(),
+        last_name: newEmployee.last_name.trim(),
+        email: newEmployee.email.trim(),
+        role: newEmployee.role as any,
+        position: newEmployee.position?.trim() || null,
+        department_id: (newEmployee.department_id === 'none' || newEmployee.department_id === '') ? null : newEmployee.department_id,
+        line_manager_id: (newEmployee.line_manager_id === 'none' || newEmployee.line_manager_id === '') ? null : newEmployee.line_manager_id
+      };
 
-        console.log('🔄 Updating employee with data:', updateData);
-        console.log('🆔 Employee ID:', editingEmployee.id);
+      console.log('📋 Processed update data:', updateData);
 
-        // First check if the employee exists
-        const { data: existingEmployee, error: checkError } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('id', editingEmployee.id)
-          .maybeSingle();
+      // Perform the update
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('id', editingEmployee.id);
 
-        if (checkError) {
-          console.error('❌ Error checking employee existence:', checkError);
-          throw new Error(`Failed to verify employee: ${checkError.message}`);
-        }
-
-        if (!existingEmployee) {
-          console.error('❌ Employee not found with ID:', editingEmployee.id);
-          throw new Error('Employee not found in database');
-        }
-
-        console.log('✅ Employee exists, proceeding with update');
-
-        // Perform the update without expecting a return value
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update(updateData)
-          .eq('id', editingEmployee.id);
-
-        if (updateError) {
-          console.error('❌ Update error:', updateError);
-          throw new Error(`Failed to update employee: ${updateError.message}`);
-        }
-
-        console.log('✅ Employee updated successfully');
-
-        // Verify the update by fetching the record again
-        const { data: verificationData, error: verifyError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', editingEmployee.id)
-          .single();
-
-        if (verifyError) {
-          console.error('❌ Verification error:', verifyError);
-          toast({
-            title: "Warning",
-            description: "Employee may have been updated but verification failed. Please refresh the page.",
-            variant: "destructive"
-          });
-        } else {
-          console.log('✅ Verification - Updated record:', verificationData);
-        }
-
-        toast({ 
-          title: "Success", 
-          description: `Employee "${updateData.first_name} ${updateData.last_name}" updated successfully. Department: ${updateData.department_id ? 'Assigned' : 'Not assigned'}, Manager: ${updateData.line_manager_id ? 'Assigned' : 'Not assigned'}` 
-        });
-      } else {
-        // For new employee creation, we need proper authentication setup
-        toast({ 
-          title: "Info", 
-          description: "Employee creation requires proper authentication setup",
-          variant: "default"
-        });
+      if (updateError) {
+        console.error('❌ Update error:', updateError);
+        throw new Error(`Failed to update employee: ${updateError.message}`);
       }
+
+      console.log('✅ Database update successful');
+
+      // Update the local state immediately with the new data
+      setEmployees(currentEmployees => 
+        currentEmployees.map(emp => {
+          if (emp.id === editingEmployee.id) {
+            // Find department and manager names for immediate display
+            const departmentName = updateData.department_id ? 
+              departments.find(d => d.id === updateData.department_id)?.name : undefined;
+            
+            const managerName = updateData.line_manager_id ? 
+              employees.find(e => e.id === updateData.line_manager_id) ? 
+                `${employees.find(e => e.id === updateData.line_manager_id)?.first_name || ''} ${employees.find(e => e.id === updateData.line_manager_id)?.last_name || ''}`.trim() : undefined : undefined;
+
+            return {
+              ...emp,
+              ...updateData,
+              department_name: departmentName,
+              line_manager_name: managerName
+            };
+          }
+          return emp;
+        })
+      );
+
+      const successMessage = `Employee "${updateData.first_name} ${updateData.last_name}" updated successfully.`;
+      const departmentStatus = updateData.department_id ? 'Department assigned' : 'No department assigned';
+      const managerStatus = updateData.line_manager_id ? 'Manager assigned' : 'No manager assigned';
+      
+      toast({ 
+        title: "Success", 
+        description: `${successMessage} ${departmentStatus}, ${managerStatus}.`,
+      });
 
       setShowAddDialog(false);
       setEditingEmployee(null);
       resetForm();
-      
-      // Reload data to reflect changes with a small delay to ensure database consistency
-      setTimeout(async () => {
-        await loadData();
-        console.log('📊 Data reloaded after update');
-      }, 500);
+
+      // Reload data after a short delay to ensure consistency
+      setTimeout(() => {
+        console.log('🔄 Reloading data to ensure consistency...');
+        loadData();
+      }, 1000);
       
     } catch (error) {
       console.error('❌ Error saving employee:', error);
@@ -222,6 +233,8 @@ export default function EmployeeManagement() {
         description: `Failed to save employee: ${error.message}`,
         variant: "destructive"
       });
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -253,9 +266,9 @@ export default function EmployeeManagement() {
   };
 
   const editEmployee = (employee: Employee) => {
-    console.log('Editing employee:', employee);
-    console.log('Employee department_id:', employee.department_id);
-    console.log('Employee line_manager_id:', employee.line_manager_id);
+    console.log('📝 Editing employee:', employee);
+    console.log('🏢 Employee department_id:', employee.department_id);
+    console.log('👤 Employee line_manager_id:', employee.line_manager_id);
     
     setEditingEmployee(employee);
     setNewEmployee({
@@ -268,7 +281,7 @@ export default function EmployeeManagement() {
       line_manager_id: employee.line_manager_id || 'none'
     });
     
-    console.log('Form state set to:', {
+    console.log('📋 Form state set to:', {
       first_name: employee.first_name,
       last_name: employee.last_name,
       email: employee.email,
@@ -417,7 +430,7 @@ export default function EmployeeManagement() {
                   <Select 
                     value={newEmployee.department_id} 
                     onValueChange={(value) => {
-                      console.log('Department changed to:', value);
+                      console.log('🏢 Department changed to:', value);
                       setNewEmployee({ ...newEmployee, department_id: value });
                     }}
                   >
@@ -438,7 +451,7 @@ export default function EmployeeManagement() {
                   <Select 
                     value={newEmployee.line_manager_id} 
                     onValueChange={(value) => {
-                      console.log('Line manager changed to:', value);
+                      console.log('👤 Line manager changed to:', value);
                       setNewEmployee({ ...newEmployee, line_manager_id: value });
                     }}
                   >
@@ -463,14 +476,16 @@ export default function EmployeeManagement() {
               <div className="flex gap-2 pt-4">
                 <Button 
                   type="submit" 
+                  disabled={updating}
                   className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
                 >
-                  {editingEmployee ? 'Update' : 'Add'} Employee
+                  {updating ? 'Updating...' : (editingEmployee ? 'Update' : 'Add')} Employee
                 </Button>
                 <Button 
                   type="button" 
                   variant="outline" 
                   onClick={() => setShowAddDialog(false)}
+                  disabled={updating}
                 >
                   Cancel
                 </Button>
