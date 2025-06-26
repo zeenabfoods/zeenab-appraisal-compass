@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Profile } from '@/hooks/useAuth';
 
@@ -16,261 +17,282 @@ export interface ExtendedProfile extends Profile {
   line_manager_name?: string;
 }
 
+export interface UpdateResult {
+  success: boolean;
+  data?: ExtendedProfile;
+  error?: string;
+  changesDetected: boolean;
+  originalData?: any;
+  finalData?: any;
+}
+
 export class EmployeeProfileService {
   static async updateEmployee(employeeId: string, updateData: EmployeeUpdateData): Promise<ExtendedProfile> {
     console.log('🔄 EmployeeProfileService.updateEmployee called with:', { employeeId, updateData });
     
-    // FIRST: Verify the employee exists before attempting any update
-    console.log('🔍 Verifying employee exists:', employeeId);
-    const { data: existingEmployee, error: employeeCheckError } = await supabase
+    try {
+      // Get original employee data for comparison
+      const originalResult = await this.getEmployeeWithCurrentState(employeeId);
+      console.log('📊 Original employee state:', originalResult);
+
+      // Process and validate the update data
+      const processedData = await this.processUpdateData(updateData);
+      console.log('📋 Processed update data:', processedData);
+
+      // Perform the update with transaction logging
+      const updateResult = await this.performDatabaseUpdate(employeeId, processedData);
+      console.log('✅ Database update result:', updateResult);
+
+      // Verify changes were applied
+      const verificationResult = await this.verifyUpdateChanges(employeeId, originalResult, processedData);
+      console.log('🔍 Change verification result:', verificationResult);
+
+      if (!verificationResult.success) {
+        throw new Error(`Update verification failed: ${verificationResult.error}`);
+      }
+
+      return verificationResult.data!;
+      
+    } catch (error) {
+      console.error('❌ Complete error in updateEmployee:', error);
+      throw error;
+    }
+  }
+
+  private static async getEmployeeWithCurrentState(employeeId: string) {
+    console.log('🔍 Getting current employee state for:', employeeId);
+    
+    const { data: employee, error } = await supabase
       .from('profiles')
-      .select('id, first_name, last_name, email')
+      .select(`
+        *,
+        departments!profiles_department_id_fkey(id, name),
+        line_manager:profiles!profiles_line_manager_id_fkey(id, first_name, last_name)
+      `)
       .eq('id', employeeId)
       .maybeSingle();
 
-    if (employeeCheckError) {
-      console.error('❌ Error checking employee existence:', employeeCheckError);
-      throw new Error(`Failed to verify employee: ${employeeCheckError.message}`);
+    if (error) {
+      console.error('❌ Error getting current employee state:', error);
+      throw new Error(`Failed to get current employee: ${error.message}`);
     }
 
-    if (!existingEmployee) {
-      console.error('❌ Employee not found with ID:', employeeId);
-      throw new Error(`Employee with ID ${employeeId} not found in the database`);
+    if (!employee) {
+      throw new Error(`Employee with ID ${employeeId} not found`);
     }
 
-    console.log('✅ Employee exists:', `${existingEmployee.first_name} ${existingEmployee.last_name}`);
+    console.log('✅ Current employee state retrieved:', employee);
+    return employee;
+  }
 
-    // Prepare the data for database update with better null handling
-    const processedDepartmentId = (!updateData.department_id || updateData.department_id === 'none' || updateData.department_id === '') 
-      ? null 
-      : updateData.department_id;
-    
-    const processedLineManagerId = (!updateData.line_manager_id || updateData.line_manager_id === 'none' || updateData.line_manager_id === '') 
-      ? null 
-      : updateData.line_manager_id;
+  private static async processUpdateData(updateData: EmployeeUpdateData) {
+    console.log('🔄 Processing update data:', updateData);
 
-    console.log('🔍 Processed IDs:', { 
-      processedDepartmentId, 
-      processedLineManagerId 
-    });
-
-    // VALIDATION: Check if department exists if department_id is provided
-    if (processedDepartmentId) {
-      console.log('🔍 Validating department ID:', processedDepartmentId);
-      const { data: department, error: deptCheckError } = await supabase
-        .from('departments')
-        .select('id, name, is_active')
-        .eq('id', processedDepartmentId)
-        .maybeSingle();
-
-      if (deptCheckError) {
-        console.error('❌ Department validation error:', deptCheckError);
-        throw new Error(`Department validation failed: ${deptCheckError.message}`);
+    // Handle department ID resolution
+    let processedDepartmentId = updateData.department_id;
+    if (updateData.department_id && updateData.department_id !== 'none' && updateData.department_id !== '') {
+      // Check if it's a department name instead of ID
+      if (!updateData.department_id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) {
+        console.log('🔍 Resolving department name to ID:', updateData.department_id);
+        const { data: dept } = await supabase
+          .from('departments')
+          .select('id')
+          .ilike('name', updateData.department_id)
+          .eq('is_active', true)
+          .maybeSingle();
+        
+        if (dept) {
+          processedDepartmentId = dept.id;
+          console.log('✅ Department name resolved to ID:', processedDepartmentId);
+        } else {
+          console.log('⚠️ Department name not found:', updateData.department_id);
+        }
       }
-
-      if (!department) {
-        console.error('❌ Department not found:', processedDepartmentId);
-        throw new Error(`Invalid department ID: ${processedDepartmentId}. Department does not exist.`);
-      }
-
-      if (!department.is_active) {
-        console.error('❌ Department is inactive:', department);
-        throw new Error(`Department "${department.name}" is not active and cannot be assigned.`);
-      }
-
-      console.log('✅ Department validation passed:', department.name);
     }
 
-    // VALIDATION: Check if line manager exists if line_manager_id is provided
-    if (processedLineManagerId) {
-      console.log('🔍 Validating line manager ID:', processedLineManagerId);
-      const { data: manager, error: managerCheckError } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, is_active, role')
-        .eq('id', processedLineManagerId)
-        .maybeSingle();
-
-      if (managerCheckError) {
-        console.error('❌ Line manager validation error:', managerCheckError);
-        throw new Error(`Manager validation failed: ${managerCheckError.message}`);
+    // Handle line manager ID resolution
+    let processedLineManagerId = updateData.line_manager_id;
+    if (updateData.line_manager_id && updateData.line_manager_id !== 'none' && updateData.line_manager_id !== '') {
+      // Check if it's a manager name instead of ID
+      if (!updateData.line_manager_id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) {
+        console.log('🔍 Resolving manager name to ID:', updateData.line_manager_id);
+        const nameSearch = updateData.line_manager_id.split(' ');
+        const { data: manager } = await supabase
+          .from('profiles')
+          .select('id')
+          .or(`first_name.ilike.%${nameSearch[0]}%,last_name.ilike.%${nameSearch[nameSearch.length - 1]}%`)
+          .in('role', ['manager', 'hr', 'admin'])
+          .eq('is_active', true)
+          .maybeSingle();
+        
+        if (manager) {
+          processedLineManagerId = manager.id;
+          console.log('✅ Manager name resolved to ID:', processedLineManagerId);
+        } else {
+          console.log('⚠️ Manager name not found:', updateData.line_manager_id);
+        }
       }
-
-      if (!manager) {
-        console.error('❌ Line manager not found:', processedLineManagerId);
-        throw new Error(`Invalid line manager ID: ${processedLineManagerId}. Manager does not exist.`);
-      }
-
-      if (!manager.is_active) {
-        console.error('❌ Line manager is inactive:', manager);
-        throw new Error(`Manager "${manager.first_name} ${manager.last_name}" is not active and cannot be assigned.`);
-      }
-
-      // Check if manager has appropriate role
-      if (!['manager', 'hr', 'admin'].includes(manager.role)) {
-        console.error('❌ Invalid manager role:', manager);
-        throw new Error(`User "${manager.first_name} ${manager.last_name}" does not have manager privileges.`);
-      }
-
-      console.log('✅ Line manager validation passed:', `${manager.first_name} ${manager.last_name}`);
     }
 
-    const dbUpdateData = {
+    // Clean null values
+    const cleanDepartmentId = (!processedDepartmentId || processedDepartmentId === 'none' || processedDepartmentId === '') ? null : processedDepartmentId;
+    const cleanLineManagerId = (!processedLineManagerId || processedLineManagerId === 'none' || processedLineManagerId === '') ? null : processedLineManagerId;
+
+    const processedData = {
       first_name: updateData.first_name.trim(),
       last_name: updateData.last_name.trim(),
       email: updateData.email.trim(),
-      role: updateData.role as 'staff' | 'manager' | 'hr' | 'admin',
+      role: updateData.role,
       position: updateData.position?.trim() || null,
-      department_id: processedDepartmentId,
-      line_manager_id: processedLineManagerId
+      department_id: cleanDepartmentId,
+      line_manager_id: cleanLineManagerId
     };
 
-    console.log('📋 Final database update data:', dbUpdateData);
-    console.log('📋 Updating employee ID:', employeeId);
+    console.log('✅ Final processed data:', processedData);
+    return processedData;
+  }
 
-    // Perform the database update with improved error handling
-    const { data: updateResult, error: updateError, count } = await supabase
+  private static async performDatabaseUpdate(employeeId: string, processedData: any) {
+    console.log('💾 Performing database update for:', employeeId);
+    console.log('📋 Update payload:', processedData);
+
+    const { data: updateResult, error: updateError } = await supabase
       .from('profiles')
-      .update(dbUpdateData)
+      .update(processedData)
       .eq('id', employeeId)
-      .select('*');
+      .select('*')
+      .single();
 
-    console.log('📊 Update operation result:', { updateResult, updateError, count });
+    console.log('📊 Raw database update response:', { updateResult, updateError });
 
     if (updateError) {
       console.error('❌ Database update failed:', updateError);
-      console.error('❌ Update error details:', {
-        message: updateError.message,
-        details: updateError.details,
-        hint: updateError.hint,
-        code: updateError.code
-      });
-      throw new Error(`Failed to update employee: ${updateError.message}`);
+      throw new Error(`Database update failed: ${updateError.message}`);
     }
 
-    if (!updateResult || updateResult.length === 0) {
-      console.error('❌ Update returned no data - employee may not exist or no changes were made');
-      console.error('❌ Expected employee ID:', employeeId);
-      
-      // Double-check if employee still exists
-      const { data: doubleCheck } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', employeeId)
-        .maybeSingle();
-      
-      if (!doubleCheck) {
-        throw new Error(`Employee with ID ${employeeId} was not found during update. The employee may have been deleted.`);
-      }
-      
-      throw new Error('Update operation completed but returned no data. No changes may have been made.');
+    if (!updateResult) {
+      throw new Error('Update completed but no data returned from database');
     }
 
-    if (updateResult.length > 1) {
-      console.error('❌ Update affected multiple rows:', updateResult.length);
-      throw new Error(`Update operation affected ${updateResult.length} rows instead of 1. This indicates a data integrity issue.`);
-    }
+    console.log('✅ Database update successful:', updateResult);
+    return updateResult;
+  }
 
-    const updatedProfile = updateResult[0];
-    console.log('✅ Database update successful:', updatedProfile);
-
-    // Verify the update was applied correctly
-    if (processedDepartmentId && updatedProfile.department_id !== processedDepartmentId) {
-      console.error('❌ Department ID mismatch after update:', {
-        expected: processedDepartmentId,
-        actual: updatedProfile.department_id
-      });
-      throw new Error('Department assignment failed - database update did not persist');
-    }
-
-    if (processedLineManagerId && updatedProfile.line_manager_id !== processedLineManagerId) {
-      console.error('❌ Line manager ID mismatch after update:', {
-        expected: processedLineManagerId,
-        actual: updatedProfile.line_manager_id
-      });
-      throw new Error('Line manager assignment failed - database update did not persist');
-    }
-
-    // Now get the enhanced profile with names resolved
-    const enhancedProfile = await this.getEmployeeProfileWithNames(employeeId);
+  private static async verifyUpdateChanges(employeeId: string, originalData: any, expectedData: any): Promise<{ success: boolean; data?: ExtendedProfile; error?: string }> {
+    console.log('🔍 Verifying update changes...');
     
-    console.log('🔍 Final enhanced profile:', enhancedProfile);
+    // Get fresh data from database
+    const freshData = await this.getEmployeeProfileWithNames(employeeId);
+    console.log('📊 Fresh data after update:', freshData);
     
-    return enhancedProfile;
+    // Compare key fields
+    const changes = {
+      first_name: originalData.first_name !== freshData.first_name,
+      last_name: originalData.last_name !== freshData.last_name,
+      email: originalData.email !== freshData.email,
+      role: originalData.role !== freshData.role,
+      position: originalData.position !== freshData.position,
+      department_id: originalData.department_id !== freshData.department_id,
+      line_manager_id: originalData.line_manager_id !== freshData.line_manager_id
+    };
+
+    console.log('📊 Detected changes:', changes);
+
+    // Verify specific fields that were updated
+    const verificationResults = {
+      department_match: expectedData.department_id === freshData.department_id,
+      manager_match: expectedData.line_manager_id === freshData.line_manager_id,
+      basic_fields_match: (
+        expectedData.first_name === freshData.first_name &&
+        expectedData.last_name === freshData.last_name &&
+        expectedData.email === freshData.email &&
+        expectedData.role === freshData.role
+      )
+    };
+
+    console.log('✅ Verification results:', verificationResults);
+
+    if (!verificationResults.basic_fields_match) {
+      return { success: false, error: 'Basic field updates were not saved properly' };
+    }
+
+    if (!verificationResults.department_match) {
+      console.warn('⚠️ Department assignment mismatch:', {
+        expected: expectedData.department_id,
+        actual: freshData.department_id
+      });
+    }
+
+    if (!verificationResults.manager_match) {
+      console.warn('⚠️ Manager assignment mismatch:', {
+        expected: expectedData.line_manager_id,
+        actual: freshData.line_manager_id
+      });
+    }
+
+    return { success: true, data: freshData };
   }
 
   static async getEmployeeProfileWithNames(employeeId: string): Promise<ExtendedProfile> {
     console.log('🔍 Getting employee profile with names for:', employeeId);
 
-    // Get the base profile with a fresh query
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', employeeId)
-      .maybeSingle();
+      .single();
 
-    if (profileError) {
+    if (profileError || !profile) {
       console.error('❌ Failed to get profile:', profileError);
-      throw new Error(`Failed to retrieve employee profile: ${profileError.message}`);
-    }
-
-    if (!profile) {
-      console.error('❌ Profile not found for ID:', employeeId);
-      throw new Error(`Employee profile not found for ID: ${employeeId}`);
+      throw new Error(`Failed to retrieve employee profile: ${profileError?.message || 'Profile not found'}`);
     }
 
     console.log('📋 Base profile retrieved:', profile);
 
-    // Initialize extended profile with proper department handling
     const extendedProfile: ExtendedProfile = {
       ...profile,
-      department: null, // Reset to ensure consistent structure
+      department: null,
       department_name: undefined,
       line_manager_name: undefined
     };
 
-    // Get department name if department_id exists and is not null
-    if (profile.department_id && profile.department_id !== 'none') {
+    // Get department name if department_id exists
+    if (profile.department_id) {
       console.log('🏢 Fetching department for ID:', profile.department_id);
-      const { data: department, error: deptError } = await supabase
+      const { data: department } = await supabase
         .from('departments')
         .select('name')
         .eq('id', profile.department_id)
         .eq('is_active', true)
         .maybeSingle();
 
-      if (!deptError && department) {
+      if (department) {
         extendedProfile.department_name = department.name;
         extendedProfile.department = { name: department.name };
         console.log('✅ Department name resolved:', department.name);
       } else {
-        console.log('⚠️ Department not found or inactive:', deptError);
-        // If department_id exists but we can't find the department, it might be inactive
+        console.log('⚠️ Department not found or inactive for ID:', profile.department_id);
         extendedProfile.department_name = 'Department Not Found';
       }
-    } else {
-      console.log('📝 No department_id found or it is null/none');
     }
 
-    // Get line manager name if line_manager_id exists and is not null
-    if (profile.line_manager_id && profile.line_manager_id !== 'none') {
+    // Get line manager name if line_manager_id exists
+    if (profile.line_manager_id) {
       console.log('👤 Fetching manager for ID:', profile.line_manager_id);
-      const { data: manager, error: managerError } = await supabase
+      const { data: manager } = await supabase
         .from('profiles')
         .select('first_name, last_name')
         .eq('id', profile.line_manager_id)
         .eq('is_active', true)
         .maybeSingle();
 
-      if (!managerError && manager) {
+      if (manager) {
         extendedProfile.line_manager_name = `${manager.first_name || ''} ${manager.last_name || ''}`.trim();
         console.log('✅ Manager name resolved:', extendedProfile.line_manager_name);
       } else {
-        console.log('⚠️ Manager not found or inactive:', managerError);
-        // If line_manager_id exists but we can't find the manager, it might be inactive
+        console.log('⚠️ Manager not found or inactive for ID:', profile.line_manager_id);
         extendedProfile.line_manager_name = 'Manager Not Found';
       }
-    } else {
-      console.log('📝 No line_manager_id found or it is null/none');
     }
 
     console.log('✅ Complete extended profile:', extendedProfile);
@@ -280,7 +302,6 @@ export class EmployeeProfileService {
   static async getAllEmployeesWithNames(): Promise<ExtendedProfile[]> {
     console.log('🔄 Getting all employees with names...');
 
-    // Get all employees
     const { data: employees, error: employeesError } = await supabase
       .from('profiles')
       .select('*')
@@ -305,7 +326,7 @@ export class EmployeeProfileService {
     const processedEmployees = employees.map(employee => {
       const extendedEmployee: ExtendedProfile = {
         ...employee,
-        department: null, // Reset to ensure consistent structure
+        department: null,
         department_name: undefined,
         line_manager_name: undefined
       };

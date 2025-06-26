@@ -115,10 +115,11 @@ export default function EmployeeDialog({
             <div className="space-y-2">
               <Label htmlFor="department">Department</Label>
               <Select 
-                value={newEmployee.department_id} 
+                value={newEmployee.department_id || 'none'} 
                 onValueChange={(value) => {
-                  console.log('🏢 Department changed to:', value);
-                  setNewEmployee({ ...newEmployee, department_id: value });
+                  console.log('🏢 Department selection changed to:', value);
+                  console.log('🏢 Available departments:', departments.map(d => ({ id: d.id, name: d.name })));
+                  setNewEmployee({ ...newEmployee, department_id: value === 'none' ? null : value });
                 }}
               >
                 <SelectTrigger>
@@ -136,10 +137,12 @@ export default function EmployeeDialog({
             <div className="space-y-2">
               <Label htmlFor="line_manager">Line Manager</Label>
               <Select 
-                value={newEmployee.line_manager_id} 
+                value={newEmployee.line_manager_id || 'none'} 
                 onValueChange={(value) => {
-                  console.log('👤 Line manager changed to:', value);
-                  setNewEmployee({ ...newEmployee, line_manager_id: value });
+                  console.log('👤 Line manager selection changed to:', value);
+                  const selectedManager = employees.find(emp => emp.id === value);
+                  console.log('👤 Selected manager details:', selectedManager);
+                  setNewEmployee({ ...newEmployee, line_manager_id: value === 'none' ? null : value });
                 }}
               >
                 <SelectTrigger>

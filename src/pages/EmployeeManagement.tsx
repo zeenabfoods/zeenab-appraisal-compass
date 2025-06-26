@@ -94,11 +94,19 @@ export default function EmployeeManagement() {
     
     try {
       console.log('🔄 Starting employee update process...');
-      console.log('📝 Form data:', newEmployee);
-      console.log('👤 Editing employee:', editingEmployee.id);
+      console.log('📝 Form data being submitted:', {
+        ...newEmployee,
+        employee_id: editingEmployee.id
+      });
       
-      // Use the service to update the employee
+      // Capture original state for comparison
+      const originalEmployee = { ...editingEmployee };
+      console.log('📊 Original employee state:', originalEmployee);
+      
+      // Use the service to update the employee with enhanced tracking
       const updatedProfile = await EmployeeProfileService.updateEmployee(editingEmployee.id, newEmployee);
+      
+      console.log('✅ Service returned updated profile:', updatedProfile);
       
       // Update the local state with the complete updated profile
       setEmployees(currentEmployees => 
@@ -107,15 +115,28 @@ export default function EmployeeManagement() {
         )
       );
 
-      const successMessage = `Employee "${updatedProfile.first_name} ${updatedProfile.last_name}" updated successfully.`;
+      // Create detailed success message with verification info
       const departmentStatus = updatedProfile.department_id ? 
-        `Department: ${updatedProfile.department_name || 'Assigned'}` : 'No department assigned';
+        `Department: "${updatedProfile.department_name || 'Assigned but name pending'}"` : 
+        'No department assigned';
+      
       const managerStatus = updatedProfile.line_manager_id ? 
-        `Manager: ${updatedProfile.line_manager_name || 'Assigned'}` : 'No manager assigned';
+        `Manager: "${updatedProfile.line_manager_name || 'Assigned but name pending'}"` : 
+        'No manager assigned';
+
+      const successMessage = `Employee "${updatedProfile.first_name} ${updatedProfile.last_name}" updated successfully.`;
+      
+      console.log('📋 Success details:', {
+        employee: `${updatedProfile.first_name} ${updatedProfile.last_name}`,
+        departmentId: updatedProfile.department_id,
+        departmentName: updatedProfile.department_name,
+        managerId: updatedProfile.line_manager_id,
+        managerName: updatedProfile.line_manager_name
+      });
       
       toast({ 
-        title: "Success", 
-        description: `${successMessage} ${departmentStatus}, ${managerStatus}.`,
+        title: "Update Successful", 
+        description: `${successMessage} ${departmentStatus}. ${managerStatus}.`,
       });
 
       console.log('✅ Employee update completed successfully');
@@ -124,17 +145,40 @@ export default function EmployeeManagement() {
       setEditingEmployee(null);
       resetForm();
 
-      // Force a fresh reload to ensure consistency
+      // Force a fresh reload after a short delay to ensure UI consistency
       setTimeout(() => {
-        console.log('🔄 Reloading data to ensure consistency...');
+        console.log('🔄 Reloading data to ensure UI consistency...');
         loadData();
-      }, 500);
+      }, 1000);
       
     } catch (error) {
-      console.error('❌ Error saving employee:', error);
+      console.error('❌ Complete error during update:', {
+        error: error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        employeeId: editingEmployee.id,
+        formData: newEmployee
+      });
+      
+      let errorMessage = 'Failed to save employee';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Provide specific guidance for common issues
+        if (error.message.includes('Department')) {
+          errorMessage += '. Please verify the department selection is valid.';
+        }
+        if (error.message.includes('Manager')) {
+          errorMessage += '. Please verify the manager selection is valid.';
+        }
+        if (error.message.includes('verification failed')) {
+          errorMessage += '. The update may have been partially applied. Please refresh and try again.';
+        }
+      }
+      
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : 'Failed to save employee',
+        title: "Update Failed",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -181,6 +225,7 @@ export default function EmployeeManagement() {
       email: employee.email,
       role: employee.role,
       position: employee.position || '',
+      // Use the actual IDs, not the display names
       department_id: employee.department_id || 'none',
       line_manager_id: employee.line_manager_id || 'none'
     });
