@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Profile } from '@/hooks/useAuth';
 
@@ -21,15 +20,21 @@ export class EmployeeProfileService {
   static async updateEmployee(employeeId: string, updateData: EmployeeUpdateData): Promise<ExtendedProfile> {
     console.log('🔄 EmployeeProfileService.updateEmployee called with:', { employeeId, updateData });
     
-    // Prepare the data for database update with proper typing
+    // Prepare the data for database update with better null handling
     const dbUpdateData = {
       first_name: updateData.first_name.trim(),
       last_name: updateData.last_name.trim(),
       email: updateData.email.trim(),
       role: updateData.role as 'staff' | 'manager' | 'hr' | 'admin',
       position: updateData.position?.trim() || null,
-      department_id: updateData.department_id === 'none' || updateData.department_id === '' ? null : updateData.department_id,
-      line_manager_id: updateData.line_manager_id === 'none' || updateData.line_manager_id === '' ? null : updateData.line_manager_id
+      // Fix: Handle department_id properly - convert 'none' to null, keep valid UUIDs
+      department_id: (!updateData.department_id || updateData.department_id === 'none' || updateData.department_id === '') 
+        ? null 
+        : updateData.department_id,
+      // Fix: Handle line_manager_id properly - convert 'none' to null, keep valid UUIDs  
+      line_manager_id: (!updateData.line_manager_id || updateData.line_manager_id === 'none' || updateData.line_manager_id === '') 
+        ? null 
+        : updateData.line_manager_id
     };
 
     console.log('📋 Processed database update data:', dbUpdateData);
@@ -46,7 +51,7 @@ export class EmployeeProfileService {
       throw new Error(`Employee with ID ${employeeId} not found`);
     }
 
-    // Perform the database update without .single() to avoid the error
+    // Perform the database update and verify it worked
     const { error: updateError } = await supabase
       .from('profiles')
       .update(dbUpdateData)
@@ -59,14 +64,21 @@ export class EmployeeProfileService {
 
     console.log('✅ Database update successful');
 
+    // Add a small delay to ensure the database write is complete
+    await new Promise(resolve => setTimeout(resolve, 100));
+
     // Now get the enhanced profile with names resolved
-    return await this.getEmployeeProfileWithNames(employeeId);
+    const updatedProfile = await this.getEmployeeProfileWithNames(employeeId);
+    
+    console.log('🔍 Final updated profile with names:', updatedProfile);
+    
+    return updatedProfile;
   }
 
   static async getEmployeeProfileWithNames(employeeId: string): Promise<ExtendedProfile> {
     console.log('🔍 Getting employee profile with names for:', employeeId);
 
-    // Get the base profile
+    // Get the base profile with a fresh query
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
@@ -88,8 +100,8 @@ export class EmployeeProfileService {
       line_manager_name: undefined
     };
 
-    // Get department name if department_id exists
-    if (profile.department_id) {
+    // Get department name if department_id exists and is not null
+    if (profile.department_id && profile.department_id !== 'none') {
       console.log('🏢 Fetching department for ID:', profile.department_id);
       const { data: department, error: deptError } = await supabase
         .from('departments')
@@ -104,11 +116,15 @@ export class EmployeeProfileService {
         console.log('✅ Department name resolved:', department.name);
       } else {
         console.log('⚠️ Department not found or inactive:', deptError);
+        // If department_id exists but we can't find the department, it might be inactive
+        extendedProfile.department_name = 'Department Not Found';
       }
+    } else {
+      console.log('📝 No department_id found or it is null/none');
     }
 
-    // Get line manager name if line_manager_id exists
-    if (profile.line_manager_id) {
+    // Get line manager name if line_manager_id exists and is not null
+    if (profile.line_manager_id && profile.line_manager_id !== 'none') {
       console.log('👤 Fetching manager for ID:', profile.line_manager_id);
       const { data: manager, error: managerError } = await supabase
         .from('profiles')
@@ -122,7 +138,11 @@ export class EmployeeProfileService {
         console.log('✅ Manager name resolved:', extendedProfile.line_manager_name);
       } else {
         console.log('⚠️ Manager not found or inactive:', managerError);
+        // If line_manager_id exists but we can't find the manager, it might be inactive
+        extendedProfile.line_manager_name = 'Manager Not Found';
       }
+    } else {
+      console.log('📝 No line_manager_id found or it is null/none');
     }
 
     console.log('✅ Complete extended profile:', extendedProfile);
