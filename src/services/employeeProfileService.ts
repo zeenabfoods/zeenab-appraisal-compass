@@ -34,24 +34,30 @@ export class EmployeeProfileService {
 
     console.log('📋 Processed database update data:', dbUpdateData);
 
-    // Perform the database update
-    const { data: updatedProfile, error: updateError } = await supabase
+    // First, verify the employee exists
+    const { data: existingProfile, error: checkError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', employeeId)
+      .single();
+
+    if (checkError || !existingProfile) {
+      console.error('❌ Employee not found:', checkError);
+      throw new Error(`Employee with ID ${employeeId} not found`);
+    }
+
+    // Perform the database update without .single() to avoid the error
+    const { error: updateError } = await supabase
       .from('profiles')
       .update(dbUpdateData)
-      .eq('id', employeeId)
-      .select('*')
-      .single();
+      .eq('id', employeeId);
 
     if (updateError) {
       console.error('❌ Database update failed:', updateError);
       throw new Error(`Failed to update employee: ${updateError.message}`);
     }
 
-    if (!updatedProfile) {
-      throw new Error('Update succeeded but no profile returned');
-    }
-
-    console.log('✅ Database update successful:', updatedProfile);
+    console.log('✅ Database update successful');
 
     // Now get the enhanced profile with names resolved
     return await this.getEmployeeProfileWithNames(employeeId);
