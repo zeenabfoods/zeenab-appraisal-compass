@@ -20,6 +20,26 @@ export class EmployeeProfileService {
   static async updateEmployee(employeeId: string, updateData: EmployeeUpdateData): Promise<ExtendedProfile> {
     console.log('🔄 EmployeeProfileService.updateEmployee called with:', { employeeId, updateData });
     
+    // FIRST: Verify the employee exists before attempting any update
+    console.log('🔍 Verifying employee exists:', employeeId);
+    const { data: existingEmployee, error: employeeCheckError } = await supabase
+      .from('profiles')
+      .select('id, first_name, last_name, email')
+      .eq('id', employeeId)
+      .maybeSingle();
+
+    if (employeeCheckError) {
+      console.error('❌ Error checking employee existence:', employeeCheckError);
+      throw new Error(`Failed to verify employee: ${employeeCheckError.message}`);
+    }
+
+    if (!existingEmployee) {
+      console.error('❌ Employee not found with ID:', employeeId);
+      throw new Error(`Employee with ID ${employeeId} not found in the database`);
+    }
+
+    console.log('✅ Employee exists:', `${existingEmployee.first_name} ${existingEmployee.last_name}`);
+
     // Prepare the data for database update with better null handling
     const processedDepartmentId = (!updateData.department_id || updateData.department_id === 'none' || updateData.department_id === '') 
       ? null 
@@ -41,10 +61,15 @@ export class EmployeeProfileService {
         .from('departments')
         .select('id, name, is_active')
         .eq('id', processedDepartmentId)
-        .single();
+        .maybeSingle();
 
-      if (deptCheckError || !department) {
-        console.error('❌ Department validation failed:', deptCheckError);
+      if (deptCheckError) {
+        console.error('❌ Department validation error:', deptCheckError);
+        throw new Error(`Department validation failed: ${deptCheckError.message}`);
+      }
+
+      if (!department) {
+        console.error('❌ Department not found:', processedDepartmentId);
         throw new Error(`Invalid department ID: ${processedDepartmentId}. Department does not exist.`);
       }
 
@@ -63,10 +88,15 @@ export class EmployeeProfileService {
         .from('profiles')
         .select('id, first_name, last_name, is_active, role')
         .eq('id', processedLineManagerId)
-        .single();
+        .maybeSingle();
 
-      if (managerCheckError || !manager) {
-        console.error('❌ Line manager validation failed:', managerCheckError);
+      if (managerCheckError) {
+        console.error('❌ Line manager validation error:', managerCheckError);
+        throw new Error(`Manager validation failed: ${managerCheckError.message}`);
+      }
+
+      if (!manager) {
+        console.error('❌ Line manager not found:', processedLineManagerId);
         throw new Error(`Invalid line manager ID: ${processedLineManagerId}. Manager does not exist.`);
       }
 
@@ -95,28 +125,16 @@ export class EmployeeProfileService {
     };
 
     console.log('📋 Final database update data:', dbUpdateData);
+    console.log('📋 Updating employee ID:', employeeId);
 
-    // First, verify the employee exists
-    const { data: existingProfile, error: checkError } = await supabase
-      .from('profiles')
-      .select('id, first_name, last_name')
-      .eq('id', employeeId)
-      .single();
-
-    if (checkError || !existingProfile) {
-      console.error('❌ Employee not found:', checkError);
-      throw new Error(`Employee with ID ${employeeId} not found`);
-    }
-
-    console.log('📋 Updating employee:', `${existingProfile.first_name} ${existingProfile.last_name}`);
-
-    // Perform the database update with detailed error handling
-    const { data: updateResult, error: updateError } = await supabase
+    // Perform the database update with improved error handling
+    const { data: updateResult, error: updateError, count } = await supabase
       .from('profiles')
       .update(dbUpdateData)
       .eq('id', employeeId)
-      .select('*')
-      .single();
+      .select('*');
+
+    console.log('📊 Update operation result:', { updateResult, updateError, count });
 
     if (updateError) {
       console.error('❌ Database update failed:', updateError);
@@ -129,39 +147,55 @@ export class EmployeeProfileService {
       throw new Error(`Failed to update employee: ${updateError.message}`);
     }
 
-    if (!updateResult) {
-      console.error('❌ Update returned no data');
-      throw new Error('Update operation returned no data - employee may not exist');
+    if (!updateResult || updateResult.length === 0) {
+      console.error('❌ Update returned no data - employee may not exist or no changes were made');
+      console.error('❌ Expected employee ID:', employeeId);
+      
+      // Double-check if employee still exists
+      const { data: doubleCheck } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', employeeId)
+        .maybeSingle();
+      
+      if (!doubleCheck) {
+        throw new Error(`Employee with ID ${employeeId} was not found during update. The employee may have been deleted.`);
+      }
+      
+      throw new Error('Update operation completed but returned no data. No changes may have been made.');
     }
 
-    console.log('✅ Database update successful, returned data:', updateResult);
+    if (updateResult.length > 1) {
+      console.error('❌ Update affected multiple rows:', updateResult.length);
+      throw new Error(`Update operation affected ${updateResult.length} rows instead of 1. This indicates a data integrity issue.`);
+    }
+
+    const updatedProfile = updateResult[0];
+    console.log('✅ Database update successful:', updatedProfile);
 
     // Verify the update was applied correctly
-    if (processedDepartmentId && updateResult.department_id !== processedDepartmentId) {
+    if (processedDepartmentId && updatedProfile.department_id !== processedDepartmentId) {
       console.error('❌ Department ID mismatch after update:', {
         expected: processedDepartmentId,
-        actual: updateResult.department_id
+        actual: updatedProfile.department_id
       });
       throw new Error('Department assignment failed - database update did not persist');
     }
 
-    if (processedLineManagerId && updateResult.line_manager_id !== processedLineManagerId) {
+    if (processedLineManagerId && updatedProfile.line_manager_id !== processedLineManagerId) {
       console.error('❌ Line manager ID mismatch after update:', {
         expected: processedLineManagerId,
-        actual: updateResult.line_manager_id
+        actual: updatedProfile.line_manager_id
       });
       throw new Error('Line manager assignment failed - database update did not persist');
     }
 
-    // Add a small delay to ensure the database write is complete
-    await new Promise(resolve => setTimeout(resolve, 100));
-
     // Now get the enhanced profile with names resolved
-    const updatedProfile = await this.getEmployeeProfileWithNames(employeeId);
+    const enhancedProfile = await this.getEmployeeProfileWithNames(employeeId);
     
-    console.log('🔍 Final updated profile with names:', updatedProfile);
+    console.log('🔍 Final enhanced profile:', enhancedProfile);
     
-    return updatedProfile;
+    return enhancedProfile;
   }
 
   static async getEmployeeProfileWithNames(employeeId: string): Promise<ExtendedProfile> {
@@ -172,11 +206,16 @@ export class EmployeeProfileService {
       .from('profiles')
       .select('*')
       .eq('id', employeeId)
-      .single();
+      .maybeSingle();
 
-    if (profileError || !profile) {
+    if (profileError) {
       console.error('❌ Failed to get profile:', profileError);
-      throw new Error('Failed to retrieve employee profile');
+      throw new Error(`Failed to retrieve employee profile: ${profileError.message}`);
+    }
+
+    if (!profile) {
+      console.error('❌ Profile not found for ID:', employeeId);
+      throw new Error(`Employee profile not found for ID: ${employeeId}`);
     }
 
     console.log('📋 Base profile retrieved:', profile);
@@ -197,7 +236,7 @@ export class EmployeeProfileService {
         .select('name')
         .eq('id', profile.department_id)
         .eq('is_active', true)
-        .single();
+        .maybeSingle();
 
       if (!deptError && department) {
         extendedProfile.department_name = department.name;
@@ -220,7 +259,7 @@ export class EmployeeProfileService {
         .select('first_name, last_name')
         .eq('id', profile.line_manager_id)
         .eq('is_active', true)
-        .single();
+        .maybeSingle();
 
       if (!managerError && manager) {
         extendedProfile.line_manager_name = `${manager.first_name || ''} ${manager.last_name || ''}`.trim();
