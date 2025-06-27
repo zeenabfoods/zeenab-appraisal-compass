@@ -73,7 +73,7 @@ export class EmployeeProfileService {
       .from('profiles')
       .select('*')
       .eq('id', employeeId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('❌ Error getting basic employee data:', error);
@@ -159,12 +159,12 @@ export class EmployeeProfileService {
     console.log('💾 Performing database update for:', employeeId);
     console.log('📋 Update payload:', processedData);
 
+    // Use update without .single() to avoid the "multiple rows" error
     const { data: updateResult, error: updateError } = await supabase
       .from('profiles')
       .update(processedData)
       .eq('id', employeeId)
-      .select('*')
-      .single();
+      .select('*');
 
     console.log('📊 Raw database update response:', { updateResult, updateError });
 
@@ -173,12 +173,18 @@ export class EmployeeProfileService {
       throw new Error(`Database update failed: ${updateError.message}`);
     }
 
-    if (!updateResult) {
+    // Check if we got exactly one result back
+    if (!updateResult || updateResult.length === 0) {
       throw new Error('Update completed but no data returned from database');
     }
 
-    console.log('✅ Database update successful:', updateResult);
-    return updateResult;
+    if (updateResult.length > 1) {
+      console.warn('⚠️ Multiple rows returned from update, using first one:', updateResult);
+    }
+
+    const singleResult = updateResult[0];
+    console.log('✅ Database update successful:', singleResult);
+    return singleResult;
   }
 
   private static async verifyUpdateChanges(employeeId: string, originalData: any, expectedData: any): Promise<{ success: boolean; data?: ExtendedProfile; error?: string }> {
@@ -249,7 +255,7 @@ export class EmployeeProfileService {
       .from('profiles')
       .select('*')
       .eq('id', employeeId)
-      .single();
+      .maybeSingle();
 
     if (profileError || !profile) {
       console.error('❌ Failed to get profile:', profileError);
