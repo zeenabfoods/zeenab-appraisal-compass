@@ -116,12 +116,12 @@ export default function EmployeeManagement() {
       );
 
       // Create detailed success message with verification info
-      const departmentStatus = updatedProfile.department_id ? 
-        `Department: "${updatedProfile.department_name || 'Assigned but name pending'}"` : 
+      const departmentStatus = updatedProfile.department_name ? 
+        `Department: "${updatedProfile.department_name}"` : 
         'No department assigned';
       
-      const managerStatus = updatedProfile.line_manager_id ? 
-        `Manager: "${updatedProfile.line_manager_name || 'Assigned but name pending'}"` : 
+      const managerStatus = updatedProfile.line_manager_name ? 
+        `Manager: "${updatedProfile.line_manager_name}"` : 
         'No manager assigned';
 
       const successMessage = `Employee "${updatedProfile.first_name} ${updatedProfile.last_name}" updated successfully.`;
@@ -165,13 +165,13 @@ export default function EmployeeManagement() {
         errorMessage = error.message;
         
         // Provide specific guidance for common issues
-        if (error.message.includes('Department')) {
+        if (error.message.includes('schema')) {
+          errorMessage = 'Database relationship error detected. Please refresh the page and try again. If the issue persists, contact support.';
+        } else if (error.message.includes('Department')) {
           errorMessage += '. Please verify the department selection is valid.';
-        }
-        if (error.message.includes('Manager')) {
+        } else if (error.message.includes('Manager')) {
           errorMessage += '. Please verify the manager selection is valid.';
-        }
-        if (error.message.includes('verification failed')) {
+        } else if (error.message.includes('verification failed')) {
           errorMessage += '. The update may have been partially applied. Please refresh and try again.';
         }
       }

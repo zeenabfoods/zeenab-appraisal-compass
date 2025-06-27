@@ -31,8 +31,8 @@ export class EmployeeProfileService {
     console.log('🔄 EmployeeProfileService.updateEmployee called with:', { employeeId, updateData });
     
     try {
-      // Get original employee data for comparison
-      const originalResult = await this.getEmployeeWithCurrentState(employeeId);
+      // Get original employee data for comparison using simplified query
+      const originalResult = await this.getEmployeeBasicData(employeeId);
       console.log('📊 Original employee state:', originalResult);
 
       // Process and validate the update data
@@ -43,7 +43,7 @@ export class EmployeeProfileService {
       const updateResult = await this.performDatabaseUpdate(employeeId, processedData);
       console.log('✅ Database update result:', updateResult);
 
-      // Verify changes were applied
+      // Verify changes were applied using separate queries
       const verificationResult = await this.verifyUpdateChanges(employeeId, originalResult, processedData);
       console.log('🔍 Change verification result:', verificationResult);
 
@@ -55,25 +55,28 @@ export class EmployeeProfileService {
       
     } catch (error) {
       console.error('❌ Complete error in updateEmployee:', error);
+      
+      // Provide specific error context for schema cache issues
+      if (error instanceof Error && error.message.includes('schema cache')) {
+        throw new Error('Database schema relationship error. This may be due to complex self-referencing queries. Please try refreshing the page and attempting the update again.');
+      }
+      
       throw error;
     }
   }
 
-  private static async getEmployeeWithCurrentState(employeeId: string) {
-    console.log('🔍 Getting current employee state for:', employeeId);
+  private static async getEmployeeBasicData(employeeId: string) {
+    console.log('🔍 Getting basic employee data for:', employeeId);
     
+    // Use simple query without complex joins to avoid schema cache issues
     const { data: employee, error } = await supabase
       .from('profiles')
-      .select(`
-        *,
-        departments!profiles_department_id_fkey(id, name),
-        line_manager:profiles!profiles_line_manager_id_fkey(id, first_name, last_name)
-      `)
+      .select('*')
       .eq('id', employeeId)
-      .maybeSingle();
+      .single();
 
     if (error) {
-      console.error('❌ Error getting current employee state:', error);
+      console.error('❌ Error getting basic employee data:', error);
       throw new Error(`Failed to get current employee: ${error.message}`);
     }
 
@@ -81,7 +84,7 @@ export class EmployeeProfileService {
       throw new Error(`Employee with ID ${employeeId} not found`);
     }
 
-    console.log('✅ Current employee state retrieved:', employee);
+    console.log('✅ Basic employee data retrieved:', employee);
     return employee;
   }
 
@@ -181,61 +184,67 @@ export class EmployeeProfileService {
   private static async verifyUpdateChanges(employeeId: string, originalData: any, expectedData: any): Promise<{ success: boolean; data?: ExtendedProfile; error?: string }> {
     console.log('🔍 Verifying update changes...');
     
-    // Get fresh data from database
-    const freshData = await this.getEmployeeProfileWithNames(employeeId);
-    console.log('📊 Fresh data after update:', freshData);
-    
-    // Compare key fields
-    const changes = {
-      first_name: originalData.first_name !== freshData.first_name,
-      last_name: originalData.last_name !== freshData.last_name,
-      email: originalData.email !== freshData.email,
-      role: originalData.role !== freshData.role,
-      position: originalData.position !== freshData.position,
-      department_id: originalData.department_id !== freshData.department_id,
-      line_manager_id: originalData.line_manager_id !== freshData.line_manager_id
-    };
+    try {
+      // Get fresh data from database using separate queries to avoid relationship issues
+      const freshData = await this.getEmployeeProfileWithNames(employeeId);
+      console.log('📊 Fresh data after update:', freshData);
+      
+      // Compare key fields
+      const changes = {
+        first_name: originalData.first_name !== freshData.first_name,
+        last_name: originalData.last_name !== freshData.last_name,
+        email: originalData.email !== freshData.email,
+        role: originalData.role !== freshData.role,
+        position: originalData.position !== freshData.position,
+        department_id: originalData.department_id !== freshData.department_id,
+        line_manager_id: originalData.line_manager_id !== freshData.line_manager_id
+      };
 
-    console.log('📊 Detected changes:', changes);
+      console.log('📊 Detected changes:', changes);
 
-    // Verify specific fields that were updated
-    const verificationResults = {
-      department_match: expectedData.department_id === freshData.department_id,
-      manager_match: expectedData.line_manager_id === freshData.line_manager_id,
-      basic_fields_match: (
-        expectedData.first_name === freshData.first_name &&
-        expectedData.last_name === freshData.last_name &&
-        expectedData.email === freshData.email &&
-        expectedData.role === freshData.role
-      )
-    };
+      // Verify specific fields that were updated
+      const verificationResults = {
+        department_match: expectedData.department_id === freshData.department_id,
+        manager_match: expectedData.line_manager_id === freshData.line_manager_id,
+        basic_fields_match: (
+          expectedData.first_name === freshData.first_name &&
+          expectedData.last_name === freshData.last_name &&
+          expectedData.email === freshData.email &&
+          expectedData.role === freshData.role
+        )
+      };
 
-    console.log('✅ Verification results:', verificationResults);
+      console.log('✅ Verification results:', verificationResults);
 
-    if (!verificationResults.basic_fields_match) {
-      return { success: false, error: 'Basic field updates were not saved properly' };
+      if (!verificationResults.basic_fields_match) {
+        return { success: false, error: 'Basic field updates were not saved properly' };
+      }
+
+      if (!verificationResults.department_match) {
+        console.warn('⚠️ Department assignment mismatch:', {
+          expected: expectedData.department_id,
+          actual: freshData.department_id
+        });
+      }
+
+      if (!verificationResults.manager_match) {
+        console.warn('⚠️ Manager assignment mismatch:', {
+          expected: expectedData.line_manager_id,
+          actual: freshData.line_manager_id
+        });
+      }
+
+      return { success: true, data: freshData };
+    } catch (error) {
+      console.error('❌ Error during verification:', error);
+      return { success: false, error: `Verification failed: ${error instanceof Error ? error.message : 'Unknown error'}` };
     }
-
-    if (!verificationResults.department_match) {
-      console.warn('⚠️ Department assignment mismatch:', {
-        expected: expectedData.department_id,
-        actual: freshData.department_id
-      });
-    }
-
-    if (!verificationResults.manager_match) {
-      console.warn('⚠️ Manager assignment mismatch:', {
-        expected: expectedData.line_manager_id,
-        actual: freshData.line_manager_id
-      });
-    }
-
-    return { success: true, data: freshData };
   }
 
   static async getEmployeeProfileWithNames(employeeId: string): Promise<ExtendedProfile> {
     console.log('🔍 Getting employee profile with names for:', employeeId);
 
+    // Step 1: Get the base profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
@@ -256,42 +265,52 @@ export class EmployeeProfileService {
       line_manager_name: undefined
     };
 
-    // Get department name if department_id exists
+    // Step 2: Get department name if department_id exists (separate query)
     if (profile.department_id) {
       console.log('🏢 Fetching department for ID:', profile.department_id);
-      const { data: department } = await supabase
-        .from('departments')
-        .select('name')
-        .eq('id', profile.department_id)
-        .eq('is_active', true)
-        .maybeSingle();
+      try {
+        const { data: department } = await supabase
+          .from('departments')
+          .select('name')
+          .eq('id', profile.department_id)
+          .eq('is_active', true)
+          .maybeSingle();
 
-      if (department) {
-        extendedProfile.department_name = department.name;
-        extendedProfile.department = { name: department.name };
-        console.log('✅ Department name resolved:', department.name);
-      } else {
-        console.log('⚠️ Department not found or inactive for ID:', profile.department_id);
-        extendedProfile.department_name = 'Department Not Found';
+        if (department) {
+          extendedProfile.department_name = department.name;
+          extendedProfile.department = { name: department.name };
+          console.log('✅ Department name resolved:', department.name);
+        } else {
+          console.log('⚠️ Department not found or inactive for ID:', profile.department_id);
+          extendedProfile.department_name = 'Department Not Found';
+        }
+      } catch (deptError) {
+        console.error('❌ Error fetching department:', deptError);
+        extendedProfile.department_name = 'Error Loading Department';
       }
     }
 
-    // Get line manager name if line_manager_id exists
+    // Step 3: Get line manager name if line_manager_id exists (separate query)
     if (profile.line_manager_id) {
       console.log('👤 Fetching manager for ID:', profile.line_manager_id);
-      const { data: manager } = await supabase
-        .from('profiles')
-        .select('first_name, last_name')
-        .eq('id', profile.line_manager_id)
-        .eq('is_active', true)
-        .maybeSingle();
+      try {
+        const { data: manager } = await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', profile.line_manager_id)
+          .eq('is_active', true)
+          .maybeSingle();
 
-      if (manager) {
-        extendedProfile.line_manager_name = `${manager.first_name || ''} ${manager.last_name || ''}`.trim();
-        console.log('✅ Manager name resolved:', extendedProfile.line_manager_name);
-      } else {
-        console.log('⚠️ Manager not found or inactive for ID:', profile.line_manager_id);
-        extendedProfile.line_manager_name = 'Manager Not Found';
+        if (manager) {
+          extendedProfile.line_manager_name = `${manager.first_name || ''} ${manager.last_name || ''}`.trim();
+          console.log('✅ Manager name resolved:', extendedProfile.line_manager_name);
+        } else {
+          console.log('⚠️ Manager not found or inactive for ID:', profile.line_manager_id);
+          extendedProfile.line_manager_name = 'Manager Not Found';
+        }
+      } catch (managerError) {
+        console.error('❌ Error fetching manager:', managerError);
+        extendedProfile.line_manager_name = 'Error Loading Manager';
       }
     }
 
@@ -302,6 +321,7 @@ export class EmployeeProfileService {
   static async getAllEmployeesWithNames(): Promise<ExtendedProfile[]> {
     console.log('🔄 Getting all employees with names...');
 
+    // Step 1: Get all employees
     const { data: employees, error: employeesError } = await supabase
       .from('profiles')
       .select('*')
@@ -316,13 +336,13 @@ export class EmployeeProfileService {
       return [];
     }
 
-    // Get all departments for name resolution
+    // Step 2: Get all departments for name resolution (separate query)
     const { data: departments } = await supabase
       .from('departments')
       .select('id, name')
       .eq('is_active', true);
 
-    // Process each employee to add names
+    // Step 3: Process each employee to add names
     const processedEmployees = employees.map(employee => {
       const extendedEmployee: ExtendedProfile = {
         ...employee,
@@ -340,7 +360,7 @@ export class EmployeeProfileService {
         }
       }
 
-      // Resolve manager name
+      // Resolve manager name (from the same employees array to avoid circular queries)
       if (employee.line_manager_id) {
         const manager = employees.find(emp => emp.id === employee.line_manager_id);
         if (manager) {
