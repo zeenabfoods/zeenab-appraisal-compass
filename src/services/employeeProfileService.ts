@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Profile } from '@/hooks/useAuth';
 
@@ -159,32 +158,72 @@ export class EmployeeProfileService {
     console.log('💾 Performing database update for:', employeeId);
     console.log('📋 Update payload:', processedData);
 
-    // Use update without .single() to avoid the "multiple rows" error
-    const { data: updateResult, error: updateError } = await supabase
-      .from('profiles')
-      .update(processedData)
-      .eq('id', employeeId)
-      .select('*');
+    try {
+      // First, let's try a direct update and see what we get back
+      const { data: updateResult, error: updateError, count } = await supabase
+        .from('profiles')
+        .update(processedData)
+        .eq('id', employeeId)
+        .select('*');
 
-    console.log('📊 Raw database update response:', { updateResult, updateError });
+      console.log('📊 Raw database update response:', { 
+        updateResult, 
+        updateError, 
+        count,
+        resultType: typeof updateResult,
+        resultLength: Array.isArray(updateResult) ? updateResult.length : 'not array'
+      });
 
-    if (updateError) {
-      console.error('❌ Database update failed:', updateError);
-      throw new Error(`Database update failed: ${updateError.message}`);
+      if (updateError) {
+        console.error('❌ Database update failed:', updateError);
+        throw new Error(`Database update failed: ${updateError.message}`);
+      }
+
+      // Handle different possible response formats
+      if (!updateResult) {
+        console.error('❌ No data returned from update operation');
+        // Try to fetch the record to verify it exists and was updated
+        const { data: fetchedRecord, error: fetchError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', employeeId)
+          .maybeSingle();
+        
+        if (fetchError) {
+          throw new Error(`Update may have failed, and cannot verify: ${fetchError.message}`);
+        }
+        
+        if (!fetchedRecord) {
+          throw new Error(`Employee record not found after update attempt`);
+        }
+        
+        console.log('✅ Retrieved record after update:', fetchedRecord);
+        return fetchedRecord;
+      }
+
+      // Handle array response
+      if (Array.isArray(updateResult)) {
+        if (updateResult.length === 0) {
+          throw new Error('Update operation returned empty array - no records were updated');
+        }
+        
+        if (updateResult.length > 1) {
+          console.warn('⚠️ Multiple rows returned from update, using first one:', updateResult);
+        }
+        
+        const singleResult = updateResult[0];
+        console.log('✅ Database update successful (from array):', singleResult);
+        return singleResult;
+      }
+
+      // Handle single object response
+      console.log('✅ Database update successful (single object):', updateResult);
+      return updateResult;
+      
+    } catch (error) {
+      console.error('❌ Error in performDatabaseUpdate:', error);
+      throw error;
     }
-
-    // Check if we got exactly one result back
-    if (!updateResult || updateResult.length === 0) {
-      throw new Error('Update completed but no data returned from database');
-    }
-
-    if (updateResult.length > 1) {
-      console.warn('⚠️ Multiple rows returned from update, using first one:', updateResult);
-    }
-
-    const singleResult = updateResult[0];
-    console.log('✅ Database update successful:', singleResult);
-    return singleResult;
   }
 
   private static async verifyUpdateChanges(employeeId: string, originalData: any, expectedData: any): Promise<{ success: boolean; data?: ExtendedProfile; error?: string }> {
