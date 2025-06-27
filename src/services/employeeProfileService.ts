@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Profile } from '@/hooks/useAuth';
 
@@ -30,6 +31,14 @@ export class EmployeeProfileService {
     console.log('🔄 EmployeeProfileService.updateEmployee called with:', { employeeId, updateData });
     
     try {
+      // Check authentication status first
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      console.log('👤 Current authenticated user:', { user: user?.id, email: user?.email, authError });
+      
+      if (!user) {
+        throw new Error('User not authenticated - required for profile updates');
+      }
+
       // Get original employee data for comparison using simplified query
       const originalResult = await this.getEmployeeBasicData(employeeId);
       console.log('📊 Original employee state:', originalResult);
@@ -159,7 +168,12 @@ export class EmployeeProfileService {
     console.log('📋 Update payload:', processedData);
 
     try {
-      // First, let's try a direct update and see what we get back
+      // Add RLS context logging
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('🔐 RLS Context - User ID for update:', user?.id);
+      console.log('🎯 Target employee ID:', employeeId);
+
+      // Perform the update with enhanced logging
       const { data: updateResult, error: updateError, count } = await supabase
         .from('profiles')
         .update(processedData)
@@ -204,7 +218,7 @@ export class EmployeeProfileService {
       // Handle array response
       if (Array.isArray(updateResult)) {
         if (updateResult.length === 0) {
-          throw new Error('Update operation returned empty array - no records were updated');
+          throw new Error('Update operation returned empty array - no records were updated. This may indicate an RLS policy issue.');
         }
         
         if (updateResult.length > 1) {
