@@ -48,9 +48,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         
         <div className="flex-1 flex flex-col">
           {/* Header */}
-          <header className="backdrop-blur-md bg-white/60 shadow-lg border-b border-white/30 h-16 flex items-center justify-between px-6">
+          <header className="backdrop-blur-md bg-white/60 shadow-lg border-b border-white/30 h-16 flex items-center justify-between px-4 md:px-6 relative z-40">
             <div className="flex items-center space-x-4">
-              <SidebarTrigger className="lg:hidden" />
+              {/* Mobile menu trigger - always visible on mobile */}
+              <SidebarTrigger className="md:hidden flex items-center justify-center w-10 h-10 rounded-lg hover:bg-white/50 transition-colors" />
+              
+              {/* Desktop menu trigger - only visible on desktop when needed */}
+              <SidebarTrigger className="hidden md:block" />
+              
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 rounded-lg overflow-hidden shadow-md">
                   <img 
@@ -59,30 +64,30 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     className="w-full h-full object-contain"
                   />
                 </div>
-                <h1 className="text-xl font-semibold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+                <h1 className="text-lg md:text-xl font-semibold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
                   Appraisal Dashboard
                 </h1>
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
-              {/* Search */}
-              <div className="relative">
+            <div className="flex items-center space-x-2 md:space-x-4">
+              {/* Search - hidden on small mobile screens */}
+              <div className="relative hidden sm:block">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input 
                   placeholder="Search appraisals..." 
-                  className="pl-10 w-80 backdrop-blur-sm bg-white/70 border-white/40"
+                  className="pl-10 w-64 md:w-80 backdrop-blur-sm bg-white/70 border-white/40"
                 />
               </div>
               
-              {/* Notification Bell with enhanced effects */}
+              {/* Notification Bell */}
               <NotificationBell onClick={handleNotificationClick} />
               
               {/* User profile */}
-              <div className="flex items-center space-x-3 border-l pl-4 border-white/30">
+              <div className="flex items-center space-x-3 border-l pl-3 md:pl-4 border-white/30">
                 <div className="flex items-center space-x-2">
                   <User className="h-5 w-5 text-gray-400" />
-                  <div className="text-sm">
+                  <div className="text-sm hidden sm:block">
                     <span className="font-medium text-gray-700">
                       {profile.first_name} {profile.last_name}
                     </span>
@@ -99,7 +104,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </header>
 
           {/* Main Content */}
-          <main className="flex-1 p-6">
+          <main className="flex-1 p-4 md:p-6">
             {children}
           </main>
         </div>

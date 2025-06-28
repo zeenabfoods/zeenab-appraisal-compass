@@ -29,6 +29,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar"
 import {
   DropdownMenu,
@@ -37,17 +38,27 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useAuthContext } from "@/components/AuthProvider"
-import { Link, useNavigate } from "react-router-dom"
+import { Link, useNavigate, useLocation } from "react-router-dom"
 import { NotificationBell } from "@/components/NotificationBell"
+import { useEffect } from "react"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { profile, signOut } = useAuthContext()
   const navigate = useNavigate()
+  const location = useLocation()
+  const { setOpenMobile, isMobile } = useSidebar()
 
   const handleSignOut = async () => {
     await signOut()
     navigate("/auth")
   }
+
+  // Auto-close mobile sidebar when navigating to a new route
+  useEffect(() => {
+    if (isMobile) {
+      setOpenMobile(false)
+    }
+  }, [location.pathname, isMobile, setOpenMobile])
 
   // Define navigation items based on user role
   const getNavigationItems = () => {
@@ -125,47 +136,78 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     return items
   }
 
+  const isCurrentPath = (path: string) => {
+    return location.pathname === path
+  }
+
   return (
-    <Sidebar collapsible="icon" {...props}>
+    <Sidebar 
+      collapsible="icon" 
+      className="border-r border-white/30 bg-white/80 backdrop-blur-md"
+      {...props}
+    >
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link to="/">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md">
                   <ClipboardList className="size-4" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">Appraisal System</span>
-                  <span className="truncate text-xs">Performance Management</span>
+                  <span className="truncate font-semibold text-gray-900">Appraisal System</span>
+                  <span className="truncate text-xs text-gray-600">Performance Management</span>
                 </div>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
+      
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-gray-700 font-medium">Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {getNavigationItems().map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <Link to={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
+                  <SidebarMenuButton 
+                    asChild 
+                    isActive={isCurrentPath(item.url)}
+                    className="group"
+                  >
+                    <Link 
+                      to={item.url}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 ${
+                        isCurrentPath(item.url)
+                          ? 'bg-gradient-to-r from-orange-100 to-red-100 text-orange-800 border border-orange-200 shadow-sm'
+                          : 'text-gray-700 hover:bg-white/50 hover:text-orange-700'
+                      }`}
+                    >
+                      <item.icon className={`h-4 w-4 ${isCurrentPath(item.url) ? 'text-orange-600' : ''}`} />
+                      <span className="font-medium">{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
               <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <Link to="/notifications">
+                <SidebarMenuButton 
+                  asChild 
+                  isActive={isCurrentPath('/notifications')}
+                  className="group"
+                >
+                  <Link 
+                    to="/notifications"
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 ${
+                      isCurrentPath('/notifications')
+                        ? 'bg-gradient-to-r from-orange-100 to-red-100 text-orange-800 border border-orange-200 shadow-sm'
+                        : 'text-gray-700 hover:bg-white/50 hover:text-orange-700'
+                    }`}
+                  >
                     <div className="flex items-center">
-                      <Bell className="h-4 w-4" />
+                      <Bell className={`h-4 w-4 ${isCurrentPath('/notifications') ? 'text-orange-600' : ''}`} />
                     </div>
-                    <span>Notifications</span>
+                    <span className="font-medium">Notifications</span>
                     <NotificationBell />
                   </Link>
                 </SidebarMenuButton>
@@ -174,6 +216,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -181,26 +224,31 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton
                   size="lg"
-                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                  className="data-[state=open]:bg-white/50 data-[state=open]:text-orange-700 hover:bg-white/50"
                 >
-                  <User2 className="h-8 w-8 rounded-lg" />
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-orange-400 to-red-400 flex items-center justify-center text-white font-semibold shadow-md">
+                    {profile?.first_name?.[0]}{profile?.last_name?.[0]}
+                  </div>
                   <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-semibold">
+                    <span className="truncate font-semibold text-gray-900">
                       {profile?.first_name} {profile?.last_name}
                     </span>
-                    <span className="truncate text-xs">{profile?.email}</span>
+                    <span className="truncate text-xs text-gray-600">{profile?.email}</span>
                   </div>
-                  <ChevronUp className="ml-auto size-4" />
+                  <ChevronUp className="ml-auto size-4 text-gray-600" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent
-                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg bg-white/95 backdrop-blur-md border border-white/40 shadow-xl"
                 side="bottom"
                 align="end"
                 sideOffset={4}
               >
-                <DropdownMenuItem onClick={handleSignOut}>
-                  <Send />
+                <DropdownMenuItem 
+                  onClick={handleSignOut}
+                  className="text-gray-700 hover:bg-red-50 hover:text-red-700 cursor-pointer"
+                >
+                  <Send className="mr-2 h-4 w-4" />
                   Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>
