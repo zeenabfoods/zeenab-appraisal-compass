@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { Plus, X } from 'lucide-react';
 
 interface Question {
   id: string;
@@ -21,6 +22,7 @@ interface Question {
   is_active: boolean;
   sort_order: number;
   cycle_id?: string;
+  multiple_choice_options?: string[];
 }
 
 interface Section {
@@ -40,7 +42,7 @@ interface QuestionDialogProps {
   sections: Section[];
   selectedStaff: string;
   onSave: () => void;
-  isTemplateMode?: boolean; // New prop to distinguish between template and employee modes
+  isTemplateMode?: boolean;
 }
 
 export function QuestionDialog({
@@ -61,6 +63,7 @@ export function QuestionDialog({
     weight: 1.0,
     is_required: true,
     sort_order: 0,
+    multiple_choice_options: [''] as string[],
   });
   const [saving, setSaving] = useState(false);
 
@@ -73,6 +76,7 @@ export function QuestionDialog({
         weight: question.weight,
         is_required: question.is_required,
         sort_order: question.sort_order,
+        multiple_choice_options: question.multiple_choice_options || [''],
       });
     } else {
       setFormData({
@@ -82,45 +86,102 @@ export function QuestionDialog({
         weight: 1.0,
         is_required: true,
         sort_order: 0,
+        multiple_choice_options: [''],
       });
     }
   }, [question, open]);
 
-  const handleSave = async () => {
+  const handleQuestionTypeChange = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      question_type: value,
+      weight: value === 'rating' ? 1.0 : 0, // Non-scoring questions have 0 weight
+      multiple_choice_options: value === 'multiple_choice' ? ['', ''] : [''],
+    }));
+  };
+
+  const addMultipleChoiceOption = () => {
+    setFormData(prev => ({
+      ...prev,
+      multiple_choice_options: [...prev.multiple_choice_options, '']
+    }));
+  };
+
+  const removeMultipleChoiceOption = (index: number) => {
+    if (formData.multiple_choice_options.length > 2) {
+      setFormData(prev => ({
+        ...prev,
+        multiple_choice_options: prev.multiple_choice_options.filter((_, i) => i !== index)
+      }));
+    }
+  };
+
+  const updateMultipleChoiceOption = (index: number, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      multiple_choice_options: prev.multiple_choice_options.map((option, i) => 
+        i === index ? value : option
+      )
+    }));
+  };
+
+  const validateForm = () => {
     if (!formData.question_text || !formData.section_id) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
         variant: "destructive"
       });
-      return;
+      return false;
     }
 
-    // Only require employee selection if not in template mode
+    if (formData.question_type === 'multiple_choice') {
+      const validOptions = formData.multiple_choice_options.filter(option => option.trim() !== '');
+      if (validOptions.length < 2) {
+        toast({
+          title: "Error",
+          description: "Multiple choice questions must have at least 2 options",
+          variant: "destructive"
+        });
+        return false;
+      }
+    }
+
     if (!isTemplateMode && !selectedStaff) {
       toast({
         title: "Error",
         description: "Please select an employee first",
         variant: "destructive"
       });
-      return;
+      return false;
     }
+
+    return true;
+  };
+
+  const handleSave = async () => {
+    if (!validateForm()) return;
 
     setSaving(true);
 
     try {
+      const questionData = {
+        question_text: formData.question_text,
+        section_id: formData.section_id,
+        question_type: formData.question_type,
+        weight: formData.weight,
+        is_required: formData.is_required,
+        sort_order: formData.sort_order,
+        ...(formData.question_type === 'multiple_choice' && {
+          multiple_choice_options: formData.multiple_choice_options.filter(option => option.trim() !== '')
+        })
+      };
+
       if (question) {
         // Update existing question
         const { error: updateError } = await supabase
           .from('appraisal_questions')
-          .update({
-            question_text: formData.question_text,
-            section_id: formData.section_id,
-            question_type: formData.question_type,
-            weight: formData.weight,
-            is_required: formData.is_required,
-            sort_order: formData.sort_order,
-          })
+          .update(questionData)
           .eq('id', question.id);
 
         if (updateError) throw updateError;
@@ -134,13 +195,8 @@ export function QuestionDialog({
         const { data: newQuestion, error: createError } = await supabase
           .from('appraisal_questions')
           .insert({
-            question_text: formData.question_text,
-            section_id: formData.section_id,
-            question_type: formData.question_type,
-            weight: formData.weight,
-            is_required: formData.is_required,
+            ...questionData,
             is_active: true,
-            sort_order: formData.sort_order,
           })
           .select()
           .single();
@@ -154,7 +210,7 @@ export function QuestionDialog({
             .insert({
               employee_id: selectedStaff,
               question_id: newQuestion.id,
-              cycle_id: '00000000-0000-0000-0000-000000000000', // Default cycle
+              cycle_id: '00000000-0000-0000-0000-000000000000',
               assigned_by: profile?.id
             });
 
@@ -186,9 +242,11 @@ export function QuestionDialog({
     }
   };
 
+  const isNonScoringType = ['text', 'yes_no', 'multiple_choice'].includes(formData.question_type);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {question ? 'Edit' : 'Create'} {isTemplateMode ? 'Question Template' : 'Question'}
@@ -228,7 +286,7 @@ export function QuestionDialog({
             
             <div>
               <Label htmlFor="question-type">Question Type</Label>
-              <Select value={formData.question_type} onValueChange={(value) => setFormData({ ...formData, question_type: value })}>
+              <Select value={formData.question_type} onValueChange={handleQuestionTypeChange}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -241,22 +299,63 @@ export function QuestionDialog({
               </Select>
             </div>
           </div>
+
+          {/* Multiple Choice Options */}
+          {formData.question_type === 'multiple_choice' && (
+            <div>
+              <Label>Multiple Choice Options</Label>
+              <div className="space-y-2 mt-2">
+                {formData.multiple_choice_options.map((option, index) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    <Input
+                      value={option}
+                      onChange={(e) => updateMultipleChoiceOption(index, e.target.value)}
+                      placeholder={`Option ${index + 1}`}
+                      className="flex-1"
+                    />
+                    {formData.multiple_choice_options.length > 2 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeMultipleChoiceOption(index)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addMultipleChoiceOption}
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Option
+                </Button>
+              </div>
+            </div>
+          )}
           
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="weight">Weight</Label>
-              <Input
-                id="weight"
-                type="number"
-                step="0.1"
-                min="0.1"
-                max="5"
-                value={formData.weight}
-                onChange={(e) => setFormData({ ...formData, weight: parseFloat(e.target.value) })}
-              />
-            </div>
+            {!isNonScoringType && (
+              <div>
+                <Label htmlFor="weight">Weight</Label>
+                <Input
+                  id="weight"
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  max="5"
+                  value={formData.weight}
+                  onChange={(e) => setFormData({ ...formData, weight: parseFloat(e.target.value) })}
+                />
+              </div>
+            )}
             
-            <div>
+            <div className={isNonScoringType ? "col-span-2" : ""}>
               <Label htmlFor="sort-order">Sort Order</Label>
               <Input
                 id="sort-order"
@@ -267,6 +366,14 @@ export function QuestionDialog({
               />
             </div>
           </div>
+
+          {isNonScoringType && (
+            <div className="bg-blue-50 p-3 rounded-lg">
+              <p className="text-sm text-blue-700">
+                <strong>Note:</strong> This question type doesn't contribute to scoring and is used for collecting additional information.
+              </p>
+            </div>
+          )}
           
           <div className="flex items-center space-x-2">
             <Switch
