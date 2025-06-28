@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { NotificationBell } from '@/components/NotificationBell';
-import { LogOut, User, Search, Mail, Plus } from 'lucide-react';
+import { LogOut, User, Search, Menu } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
 
@@ -42,19 +42,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={true}>
       <div className="min-h-screen flex w-full bg-gradient-to-br from-orange-50/50 via-white to-red-50/50">
         <AppSidebar />
         
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
-          <header className="backdrop-blur-md bg-white/60 shadow-lg border-b border-white/30 h-16 flex items-center justify-between px-4 md:px-6 relative z-40">
+          <header className="backdrop-blur-md bg-white/60 shadow-lg border-b border-white/30 h-16 flex items-center justify-between px-4 md:px-6 relative z-40 shrink-0">
             <div className="flex items-center space-x-4">
-              {/* Mobile menu trigger - always visible on mobile */}
-              <SidebarTrigger className="md:hidden flex items-center justify-center w-10 h-10 rounded-lg hover:bg-white/50 transition-colors" />
-              
-              {/* Desktop menu trigger - only visible on desktop when needed */}
-              <SidebarTrigger className="hidden md:block" />
+              {/* Sidebar trigger - always visible */}
+              <SidebarTrigger className="flex items-center justify-center w-10 h-10 rounded-lg hover:bg-white/50 transition-colors">
+                <Menu className="h-5 w-5" />
+              </SidebarTrigger>
               
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 rounded-lg overflow-hidden shadow-md">
@@ -104,7 +103,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </header>
 
           {/* Main Content */}
-          <main className="flex-1 p-4 md:p-6">
+          <main className="flex-1 p-4 md:p-6 overflow-auto">
             {children}
           </main>
         </div>
