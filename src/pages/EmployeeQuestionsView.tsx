@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, User, MessageSquare, Star, Award, AlertTriangle, CheckCircle } from 'lucide-react';
-import { AppraisalQuestionRenderer } from '@/components/AppraisalQuestionRenderer';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -20,7 +18,6 @@ interface QuestionResponse {
   employee_score?: number;
   manager_response?: any;
   manager_score?: number;
-  multiple_choice_options?: string[];
 }
 
 interface EmployeeInfo {
@@ -82,7 +79,7 @@ export default function EmployeeQuestionsView() {
     try {
       setLoading(true);
       
-      // Get assigned questions with responses
+      // Get assigned questions with responses - removing multiple_choice_options since it doesn't exist
       const { data: assignedQuestions, error: questionsError } = await supabase
         .from('employee_appraisal_questions')
         .select(`
@@ -92,7 +89,6 @@ export default function EmployeeQuestionsView() {
             question_text,
             question_type,
             is_required,
-            multiple_choice_options,
             appraisal_question_sections (
               name
             )
@@ -121,7 +117,6 @@ export default function EmployeeQuestionsView() {
           question_text: question.question_text,
           question_type: question.question_type,
           is_required: question.is_required,
-          multiple_choice_options: question.multiple_choice_options,
           section_name: question.appraisal_question_sections?.name || 'General',
           employee_response: employeeResponse?.emp_comment || employeeResponse?.emp_rating,
           employee_score: employeeResponse?.emp_rating,

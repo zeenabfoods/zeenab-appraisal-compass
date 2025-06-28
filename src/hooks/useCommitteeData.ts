@@ -150,6 +150,24 @@ export function useCommitteeData() {
     }
   }, [toast]);
 
+  const calculatePerformanceScore = (responses: any[]) => {
+    if (!responses || responses.length === 0) return null;
+
+    // Filter responses with manager ratings
+    const ratedResponses = responses.filter(r => r.mgr_rating && r.mgr_rating > 0);
+    
+    if (ratedResponses.length === 0) return null;
+
+    // Calculate weighted average score
+    const totalScore = ratedResponses.reduce((sum, response) => {
+      // Convert 1-5 rating to percentage (20, 40, 60, 80, 100)
+      const percentage = (response.mgr_rating / 5) * 100;
+      return sum + percentage;
+    }, 0);
+
+    return Math.round(totalScore / ratedResponses.length);
+  };
+
   const fetchEmployeeAnalytics = useCallback(async (employeeId: string) => {
     try {
       setLoadingAnalytics(true);
@@ -205,7 +223,7 @@ export function useCommitteeData() {
         line_manager
       };
 
-      // Get appraisal history with manager who reviewed
+      // Get appraisal history
       const { data: appraisals, error: appraisalsError } = await supabase
         .from('appraisals')
         .select(`
@@ -222,6 +240,16 @@ export function useCommitteeData() {
         .order('created_at', { ascending: false });
 
       if (appraisalsError) throw appraisalsError;
+
+      // Get appraisal responses for score calculation
+      const { data: responses, error: responsesError } = await supabase
+        .from('appraisal_responses')
+        .select('*')
+        .eq('employee_id', employeeId);
+
+      if (responsesError) {
+        console.error('Error fetching responses:', responsesError);
+      }
 
       // Get cycle names for appraisals
       const cycleIds = appraisals?.map(app => app.cycle_id).filter(Boolean) || [];
@@ -270,15 +298,22 @@ export function useCommitteeData() {
         }
       }
 
-      // Transform appraisal data
+      // Transform appraisal data and calculate scores
       const transformedAppraisals = (appraisals || []).map(appraisal => {
         const cycle = cyclesData.find(c => c.id === appraisal.cycle_id);
         const manager = managersData.find(m => m.id === appraisal.manager_reviewed_by);
         const managerDept = manager ? managerDepartments.find(d => d.id === manager.department_id) : null;
         
+        // Calculate score from responses if overall_score is null
+        let calculatedScore = appraisal.overall_score;
+        if (!calculatedScore && responses) {
+          const appraisalResponses = responses.filter(r => r.appraisal_id === appraisal.id);
+          calculatedScore = calculatePerformanceScore(appraisalResponses);
+        }
+        
         return {
           id: appraisal.id,
-          overall_score: appraisal.overall_score,
+          overall_score: calculatedScore,
           performance_band: appraisal.performance_band,
           status: appraisal.status,
           cycle_name: cycle?.name || 'Unknown Cycle',
@@ -294,7 +329,7 @@ export function useCommitteeData() {
 
       // Calculate analytics
       const completedAppraisals = transformedAppraisals.filter(a => a.status === 'completed');
-      const scoresWithValues = completedAppraisals.filter(a => a.overall_score !== null);
+      const scoresWithValues = transformedAppraisals.filter(a => a.overall_score !== null);
       const averageScore = scoresWithValues.length > 0 
         ? scoresWithValues.reduce((sum, a) => sum + (a.overall_score || 0), 0) / scoresWithValues.length 
         : null;
