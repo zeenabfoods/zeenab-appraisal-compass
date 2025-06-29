@@ -143,8 +143,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar 
       collapsible="icon" 
-      className="border-r border-white/30 bg-white/80 backdrop-blur-md z-50"
-      variant="sidebar"
+      className="border-r border-white/30 bg-white/80 backdrop-blur-md"
       {...props}
     >
       <SidebarHeader>
