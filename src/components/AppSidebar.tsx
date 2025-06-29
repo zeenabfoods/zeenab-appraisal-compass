@@ -3,10 +3,8 @@ import {
   Calendar,
   ChevronUp,
   Home,
-  LifeBuoy,
   Send,
   Settings2,
-  User2,
   Users,
   Building2,
   ClipboardList,
@@ -143,7 +141,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar 
       collapsible="icon" 
-      className="border-r border-white/30 bg-white/80 backdrop-blur-md"
+      className="border-r border-white/30 bg-white/90 backdrop-blur-md shadow-lg"
       {...props}
     >
       <SidebarHeader>
@@ -239,7 +237,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent
-                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg bg-white/95 backdrop-blur-md border border-white/40 shadow-xl"
+                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg bg-white backdrop-blur-md border border-white/40 shadow-xl z-50"
                 side="bottom"
                 align="end"
                 sideOffset={4}
