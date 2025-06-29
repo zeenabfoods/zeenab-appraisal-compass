@@ -50,7 +50,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           {/* Header */}
           <header className="backdrop-blur-md bg-white/60 shadow-lg border-b border-white/30 h-16 flex items-center justify-between px-4 md:px-6 relative z-10 shrink-0">
             <div className="flex items-center space-x-4">
-              <SidebarTrigger className="md:hidden" />
+              <SidebarTrigger />
               
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 rounded-lg overflow-hidden shadow-md">
