@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { NotificationBell } from '@/components/NotificationBell';
-import { LogOut, User, Search } from 'lucide-react';
+import { LogOut, User, Search, Menu } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
 
@@ -43,14 +43,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="min-h-screen flex w-full bg-gradient-to-br from-orange-50/50 via-white to-red-50/50">
+      <div className="min-h-screen flex w-full">
         <AppSidebar />
         
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 bg-gradient-to-br from-orange-50/50 via-white to-red-50/50">
           {/* Header */}
-          <header className="backdrop-blur-md bg-white/60 shadow-lg border-b border-white/30 h-16 flex items-center justify-between px-4 md:px-6 relative z-10 shrink-0">
+          <header className="backdrop-blur-md bg-white/80 shadow-sm border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-6 relative z-10 shrink-0">
             <div className="flex items-center space-x-4">
-              <SidebarTrigger className="shrink-0" />
+              <SidebarTrigger className="shrink-0 p-2 hover:bg-gray-100 rounded-md transition-colors" />
               
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 rounded-lg overflow-hidden shadow-md">
@@ -80,7 +80,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <NotificationBell onClick={handleNotificationClick} />
               
               {/* User profile */}
-              <div className="flex items-center space-x-3 border-l pl-3 md:pl-4 border-white/30">
+              <div className="flex items-center space-x-3 border-l pl-3 md:pl-4 border-gray-200">
                 <div className="flex items-center space-x-2">
                   <User className="h-5 w-5 text-gray-400" />
                   <div className="text-sm hidden sm:block">
@@ -92,7 +92,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     </Badge>
                   </div>
                 </div>
-                <Button variant="ghost" size="sm" onClick={signOut} className="hover:bg-white/50">
+                <Button variant="ghost" size="sm" onClick={signOut} className="hover:bg-gray-100">
                   <LogOut className="h-4 w-4" />
                 </Button>
               </div>

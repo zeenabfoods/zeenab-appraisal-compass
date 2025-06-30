@@ -140,8 +140,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar 
-      collapsible="offcanvas" 
-      className="border-r border-white/30 bg-white/90 backdrop-blur-md shadow-lg"
+      collapsible="icon" 
+      className="border-r border-gray-200 bg-white shadow-sm"
       variant="sidebar"
       side="left"
       {...props}
@@ -181,7 +181,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 ${
                         isCurrentPath(item.url)
                           ? 'bg-gradient-to-r from-orange-100 to-red-100 text-orange-800 border border-orange-200 shadow-sm'
-                          : 'text-gray-700 hover:bg-white/50 hover:text-orange-700'
+                          : 'text-gray-700 hover:bg-gray-50 hover:text-orange-700'
                       }`}
                     >
                       <item.icon className={`h-4 w-4 ${isCurrentPath(item.url) ? 'text-orange-600' : ''}`} />
@@ -201,7 +201,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 ${
                       isCurrentPath('/notifications')
                         ? 'bg-gradient-to-r from-orange-100 to-red-100 text-orange-800 border border-orange-200 shadow-sm'
-                        : 'text-gray-700 hover:bg-white/50 hover:text-orange-700'
+                        : 'text-gray-700 hover:bg-gray-50 hover:text-orange-700'
                     }`}
                   >
                     <div className="flex items-center">
@@ -224,7 +224,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton
                   size="lg"
-                  className="data-[state=open]:bg-white/50 data-[state=open]:text-orange-700 hover:bg-white/50"
+                  className="data-[state=open]:bg-gray-50 data-[state=open]:text-orange-700 hover:bg-gray-50"
                 >
                   <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-orange-400 to-red-400 flex items-center justify-center text-white font-semibold shadow-md">
                     {profile?.first_name?.[0]}{profile?.last_name?.[0]}
@@ -239,7 +239,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent
-                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg bg-white backdrop-blur-md border border-white/40 shadow-xl z-50"
+                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg bg-white backdrop-blur-md border border-gray-200 shadow-xl z-50"
                 side="bottom"
                 align="end"
                 sideOffset={4}
