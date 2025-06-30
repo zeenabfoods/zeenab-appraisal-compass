@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -110,45 +111,76 @@ export function Dashboard() {
   const loadDashboardData = async () => {
     try {
       console.log('Loading dashboard data...');
+      setDashboardLoading(true);
       
-      // Always set some default data to prevent blank screens
-      setStats({
-        totalEmployees: 12,
-        completedAppraisals: 8,
-        pendingAppraisals: 4,
-        averageScore: 87.5
-      });
-
-      // Try to load real data, but don't block the UI if it fails
-      try {
-        const { data: cyclesData } = await supabase
-          .from('appraisal_cycles')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (cyclesData) {
-          console.log('Loaded cycles:', cyclesData.length);
-          setCycles(cyclesData);
-        }
-
-        const { data: profilesData } = await supabase
+      // Load real data from database
+      const [
+        { data: profilesData, error: profilesError },
+        { data: appraisalsData, error: appraisalsError },
+        { data: cyclesData, error: cyclesError }
+      ] = await Promise.all([
+        supabase
           .from('profiles')
           .select('id, is_active')
-          .eq('is_active', true);
+          .eq('is_active', true),
+        supabase
+          .from('appraisals')
+          .select('id, status, overall_score'),
+        supabase
+          .from('appraisal_cycles')
+          .select('*')
+          .order('created_at', { ascending: false })
+      ]);
 
-        if (profilesData) {
-          console.log('Loaded profiles:', profilesData.length);
-          setStats(prev => ({
-            ...prev,
-            totalEmployees: profilesData.length
-          }));
-        }
-      } catch (error) {
-        console.log('Error loading some dashboard data, using defaults:', error);
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+      }
+      if (appraisalsError) {
+        console.error('Error fetching appraisals:', appraisalsError);
+      }
+      if (cyclesError) {
+        console.error('Error fetching cycles:', cyclesError);
+      }
+
+      // Calculate actual stats
+      const totalEmployees = profilesData?.length || 0;
+      const completedAppraisals = appraisalsData?.filter(a => a.status === 'completed').length || 0;
+      const pendingAppraisals = appraisalsData?.filter(a => a.status === 'submitted' || a.status === 'manager_review').length || 0;
+      
+      // Calculate average score from completed appraisals
+      const completedWithScores = appraisalsData?.filter(a => a.status === 'completed' && a.overall_score) || [];
+      const averageScore = completedWithScores.length > 0 
+        ? completedWithScores.reduce((sum, a) => sum + (a.overall_score || 0), 0) / completedWithScores.length
+        : 0;
+
+      console.log('📊 Dashboard stats calculated:', {
+        totalEmployees,
+        completedAppraisals,
+        pendingAppraisals,
+        averageScore: averageScore.toFixed(1)
+      });
+
+      setStats({
+        totalEmployees,
+        completedAppraisals,
+        pendingAppraisals,
+        averageScore: parseFloat(averageScore.toFixed(1))
+      });
+
+      if (cyclesData) {
+        console.log('Loaded cycles:', cyclesData.length);
+        setCycles(cyclesData);
       }
 
     } catch (error) {
       console.error('Error loading dashboard data:', error);
+      // Set fallback values if real data fails
+      setStats({
+        totalEmployees: 0,
+        completedAppraisals: 0,
+        pendingAppraisals: 0,
+        averageScore: 0
+      });
     } finally {
       setDashboardLoading(false);
     }
@@ -242,6 +274,12 @@ export function Dashboard() {
         <p className="text-gray-600">
           {dashboardLoading ? 'Loading your dashboard...' : 'Here\'s your performance dashboard overview'}
         </p>
+        {dashboardLoading && (
+          <div className="flex items-center mt-4">
+            <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+            <span className="text-sm text-gray-500">Fetching latest data...</span>
+          </div>
+        )}
       </div>
 
       {/* Employee Profile Card - Show for all users with updated profile */}
@@ -257,7 +295,7 @@ export function Dashboard() {
         <EmployeeAssignedQuestions employeeId={currentProfile.id} />
       )}
 
-      {/* Stats Grid - Always show with default or loaded data */}
+      {/* Stats Grid - Show real data from database */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -265,7 +303,7 @@ export function Dashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalEmployees}</div>
+            <div className="text-2xl font-bold">{dashboardLoading ? '...' : stats.totalEmployees}</div>
             <p className="text-xs text-muted-foreground">
               Active team members
             </p>
@@ -278,9 +316,9 @@ export function Dashboard() {
             <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.completedAppraisals}</div>
+            <div className="text-2xl font-bold">{dashboardLoading ? '...' : stats.completedAppraisals}</div>
             <p className="text-xs text-muted-foreground">
-              This quarter
+              Finalized appraisals
             </p>
           </CardContent>
         </Card>
@@ -291,7 +329,7 @@ export function Dashboard() {
             <Clock className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.pendingAppraisals}</div>
+            <div className="text-2xl font-bold">{dashboardLoading ? '...' : stats.pendingAppraisals}</div>
             <p className="text-xs text-muted-foreground">
               Awaiting completion
             </p>
@@ -304,9 +342,11 @@ export function Dashboard() {
             <Star className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.averageScore}%</div>
+            <div className="text-2xl font-bold">
+              {dashboardLoading ? '...' : stats.averageScore > 0 ? `${stats.averageScore}%` : 'N/A'}
+            </div>
             <p className="text-xs text-muted-foreground">
-              Team performance
+              {stats.averageScore > 0 ? 'Team performance' : 'No completed appraisals'}
             </p>
           </CardContent>
         </Card>
