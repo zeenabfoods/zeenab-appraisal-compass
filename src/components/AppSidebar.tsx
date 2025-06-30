@@ -1,10 +1,7 @@
 
 import {
   Calendar,
-  ChevronUp,
   Home,
-  Send,
-  Settings2,
   Users,
   Building2,
   ClipboardList,
@@ -13,50 +10,20 @@ import {
   Bell,
   UserCheck,
   Scale,
+  Settings2,
 } from "lucide-react"
 
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarRail,
-  useSidebar,
-} from "@/components/ui/sidebar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { useAuthContext } from "@/components/AuthProvider"
-import { Link, useNavigate, useLocation } from "react-router-dom"
+import { Link, useLocation } from "react-router-dom"
 import { NotificationBell } from "@/components/NotificationBell"
-import { useEffect } from "react"
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { profile, signOut } = useAuthContext()
-  const navigate = useNavigate()
+interface AppSidebarProps {
+  isCollapsed: boolean;
+}
+
+export function AppSidebar({ isCollapsed }: AppSidebarProps) {
+  const { profile } = useAuthContext()
   const location = useLocation()
-  const { setOpenMobile, isMobile } = useSidebar()
-
-  const handleSignOut = async () => {
-    await signOut()
-    navigate("/auth")
-  }
-
-  // Auto-close mobile sidebar when navigating to a new route
-  useEffect(() => {
-    if (isMobile) {
-      setOpenMobile(false)
-    }
-  }, [location.pathname, isMobile, setOpenMobile])
 
   // Define navigation items based on user role
   const getNavigationItems = () => {
@@ -139,124 +106,81 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   }
 
   return (
-    <Sidebar 
-      collapsible="icon" 
-      className="border-r border-gray-200 bg-white shadow-sm"
-      variant="sidebar"
-      side="left"
-      {...props}
-    >
-      <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <Link to="/">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md">
-                  <ClipboardList className="size-4" />
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold text-gray-900">Appraisal System</span>
-                  <span className="truncate text-xs text-gray-600">Performance Management</span>
-                </div>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarHeader>
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="p-4 border-b border-gray-200">
+        <Link to="/" className="flex items-center space-x-3">
+          <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md">
+            <ClipboardList className="size-4" />
+          </div>
+          {!isCollapsed && (
+            <div className="grid flex-1 text-left text-sm leading-tight">
+              <span className="truncate font-semibold text-gray-900">Appraisal System</span>
+              <span className="truncate text-xs text-gray-600">Performance Management</span>
+            </div>
+          )}
+        </Link>
+      </div>
       
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-gray-700 font-medium">Navigation</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {getNavigationItems().map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    asChild 
-                    isActive={isCurrentPath(item.url)}
-                    className="group"
-                  >
-                    <Link 
-                      to={item.url}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 ${
-                        isCurrentPath(item.url)
-                          ? 'bg-gradient-to-r from-orange-100 to-red-100 text-orange-800 border border-orange-200 shadow-sm'
-                          : 'text-gray-700 hover:bg-gray-50 hover:text-orange-700'
-                      }`}
-                    >
-                      <item.icon className={`h-4 w-4 ${isCurrentPath(item.url) ? 'text-orange-600' : ''}`} />
-                      <span className="font-medium">{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  asChild 
-                  isActive={isCurrentPath('/notifications')}
-                  className="group"
-                >
-                  <Link 
-                    to="/notifications"
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 ${
-                      isCurrentPath('/notifications')
-                        ? 'bg-gradient-to-r from-orange-100 to-red-100 text-orange-800 border border-orange-200 shadow-sm'
-                        : 'text-gray-700 hover:bg-gray-50 hover:text-orange-700'
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      <Bell className={`h-4 w-4 ${isCurrentPath('/notifications') ? 'text-orange-600' : ''}`} />
-                    </div>
-                    <span className="font-medium">Notifications</span>
-                    <NotificationBell />
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
+      {/* Navigation */}
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="space-y-2">
+          <div className={`text-xs font-medium text-gray-500 uppercase tracking-wider ${isCollapsed ? 'text-center' : 'mb-2'}`}>
+            {!isCollapsed && 'Navigation'}
+          </div>
+          {getNavigationItems().map((item) => (
+            <Link
+              key={item.title}
+              to={item.url}
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 ${
+                isCurrentPath(item.url)
+                  ? 'bg-gradient-to-r from-orange-100 to-red-100 text-orange-800 border border-orange-200 shadow-sm'
+                  : 'text-gray-700 hover:bg-gray-50 hover:text-orange-700'
+              } ${isCollapsed ? 'justify-center' : ''}`}
+              title={isCollapsed ? item.title : undefined}
+            >
+              <item.icon className={`h-4 w-4 ${isCurrentPath(item.url) ? 'text-orange-600' : ''} flex-shrink-0`} />
+              {!isCollapsed && <span className="font-medium">{item.title}</span>}
+            </Link>
+          ))}
+          
+          {/* Notifications */}
+          <Link
+            to="/notifications"
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 ${
+              isCurrentPath('/notifications')
+                ? 'bg-gradient-to-r from-orange-100 to-red-100 text-orange-800 border border-orange-200 shadow-sm'
+                : 'text-gray-700 hover:bg-gray-50 hover:text-orange-700'
+            } ${isCollapsed ? 'justify-center' : ''}`}
+            title={isCollapsed ? 'Notifications' : undefined}
+          >
+            <Bell className={`h-4 w-4 ${isCurrentPath('/notifications') ? 'text-orange-600' : ''} flex-shrink-0`} />
+            {!isCollapsed && (
+              <>
+                <span className="font-medium">Notifications</span>
+                <NotificationBell />
+              </>
+            )}
+          </Link>
+        </div>
+      </div>
       
-      <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <SidebarMenuButton
-                  size="lg"
-                  className="data-[state=open]:bg-gray-50 data-[state=open]:text-orange-700 hover:bg-gray-50"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-orange-400 to-red-400 flex items-center justify-center text-white font-semibold shadow-md">
-                    {profile?.first_name?.[0]}{profile?.last_name?.[0]}
-                  </div>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-semibold text-gray-900">
-                      {profile?.first_name} {profile?.last_name}
-                    </span>
-                    <span className="truncate text-xs text-gray-600">{profile?.email}</span>
-                  </div>
-                  <ChevronUp className="ml-auto size-4 text-gray-600" />
-                </SidebarMenuButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg bg-white backdrop-blur-md border border-gray-200 shadow-xl z-50"
-                side="bottom"
-                align="end"
-                sideOffset={4}
-              >
-                <DropdownMenuItem 
-                  onClick={handleSignOut}
-                  className="text-gray-700 hover:bg-red-50 hover:text-red-700 cursor-pointer"
-                >
-                  <Send className="mr-2 h-4 w-4" />
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
-      <SidebarRail />
-    </Sidebar>
+      {/* Footer */}
+      {!isCollapsed && (
+        <div className="p-4 border-t border-gray-200">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-orange-400 to-red-400 flex items-center justify-center text-white font-semibold shadow-md">
+              {profile?.first_name?.[0]}{profile?.last_name?.[0]}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold text-gray-900 truncate">
+                {profile?.first_name} {profile?.last_name}
+              </div>
+              <div className="text-xs text-gray-600 truncate">{profile?.email}</div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

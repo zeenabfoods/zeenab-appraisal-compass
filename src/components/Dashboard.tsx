@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,6 +12,7 @@ import { EmployeeProfileCard } from '@/components/EmployeeProfileCard';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Profile } from '@/hooks/useAuth';
 import { EmployeeProfileService, ExtendedProfile } from '@/services/employeeProfileService';
+import { useNavigate } from 'react-router-dom';
 import { 
   Users, 
   TrendingUp, 
@@ -58,6 +58,7 @@ const statusData = [
 
 export function Dashboard() {
   const { profile, user, loading, authReady } = useAuth();
+  const navigate = useNavigate();
   const [currentProfile, setCurrentProfile] = useState<ExtendedProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [cycles, setCycles] = useState<AppraisalCycle[]>([]);
@@ -225,6 +226,23 @@ export function Dashboard() {
       case 'completed': return <CheckCircle className="h-4 w-4" />;
       case 'archived': return <Award className="h-4 w-4" />;
       default: return <AlertTriangle className="h-4 w-4" />;
+    }
+  };
+
+  // Quick Actions handlers
+  const handleQuickAction = (action: string) => {
+    switch (action) {
+      case 'review-team':
+        navigate('/manager-appraisals');
+        break;
+      case 'view-analytics':
+        navigate('/company-reports');
+        break;
+      case 'manage-cycles':
+        navigate('/appraisal-cycles');
+        break;
+      default:
+        console.log('Unknown action:', action);
     }
   };
 
@@ -418,15 +436,27 @@ export function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => handleQuickAction('review-team')}
+                >
                   <Users className="h-4 w-4 mr-2" />
                   Review Team Appraisals
                 </Button>
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => handleQuickAction('view-analytics')}
+                >
                   <TrendingUp className="h-4 w-4 mr-2" />
                   View Analytics
                 </Button>
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => handleQuickAction('manage-cycles')}
+                >
                   <Calendar className="h-4 w-4 mr-2" />
                   Manage Cycles
                 </Button>
