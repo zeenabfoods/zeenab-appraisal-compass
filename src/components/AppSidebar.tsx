@@ -15,18 +15,6 @@ import {
 
 import { useAuthContext } from "@/components/AuthProvider"
 import { Link, useLocation } from "react-router-dom"
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar"
 
 export function AppSidebar() {
   const { profile } = useAuthContext()
@@ -115,66 +103,72 @@ export function AppSidebar() {
   const navigationItems = getNavigationItems()
 
   return (
-    <Sidebar variant="sidebar" className="border-r">
-      <SidebarHeader>
-        <div className="flex items-center space-x-2 p-2">
-          <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md">
-            <ClipboardList className="size-4" />
+    <div className="h-full flex flex-col bg-white">
+      {/* Header */}
+      <div className="flex items-center space-x-2 p-4 border-b">
+        <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md">
+          <ClipboardList className="size-4" />
+        </div>
+        <div className="grid flex-1 text-left text-sm leading-tight">
+          <span className="truncate font-semibold text-gray-900">Appraisal System</span>
+          <span className="truncate text-xs text-gray-600">Performance Management</span>
+        </div>
+      </div>
+      
+      {/* Navigation */}
+      <div className="flex-1 overflow-auto">
+        <div className="p-4">
+          <h3 className="mb-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            Navigation
+          </h3>
+          <nav className="space-y-1">
+            {navigationItems.map((item) => {
+              const isActive = isCurrentPath(item.url)
+              return (
+                <Link
+                  key={item.title}
+                  to={item.url}
+                  className={`flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
+                    isActive
+                      ? 'bg-orange-100 text-orange-900 border-r-2 border-orange-500'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  <item.icon className="mr-3 h-5 w-5" />
+                  {item.title}
+                </Link>
+              )
+            })}
+            
+            <Link
+              to="/notifications"
+              className={`flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
+                isCurrentPath('/notifications')
+                  ? 'bg-orange-100 text-orange-900 border-r-2 border-orange-500'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+              }`}
+            >
+              <Bell className="mr-3 h-5 w-5" />
+              Notifications
+            </Link>
+          </nav>
+        </div>
+      </div>
+      
+      {/* Footer */}
+      {profile && (
+        <div className="flex items-center space-x-3 p-4 border-t">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-orange-400 to-red-400 flex items-center justify-center text-white font-semibold shadow-md">
+            {profile?.first_name?.[0]}{profile?.last_name?.[0]}
           </div>
-          <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-semibold text-gray-900">Appraisal System</span>
-            <span className="truncate text-xs text-gray-600">Performance Management</span>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold text-gray-900 truncate">
+              {profile?.first_name} {profile?.last_name}
+            </div>
+            <div className="text-xs text-gray-600 truncate">{profile?.email}</div>
           </div>
         </div>
-      </SidebarHeader>
-      
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navigationItems.map((item) => {
-                const isActive = isCurrentPath(item.url)
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={isActive}>
-                      <Link to={item.url}>
-                        <item.icon />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )
-              })}
-              
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isCurrentPath('/notifications')}>
-                  <Link to="/notifications">
-                    <Bell />
-                    <span>Notifications</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-      
-      <SidebarFooter>
-        {profile && (
-          <div className="flex items-center space-x-3 p-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-orange-400 to-red-400 flex items-center justify-center text-white font-semibold shadow-md">
-              {profile?.first_name?.[0]}{profile?.last_name?.[0]}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-gray-900 truncate">
-                {profile?.first_name} {profile?.last_name}
-              </div>
-              <div className="text-xs text-gray-600 truncate">{profile?.email}</div>
-            </div>
-          </div>
-        )}
-      </SidebarFooter>
-    </Sidebar>
+      )}
+    </div>
   )
 }
