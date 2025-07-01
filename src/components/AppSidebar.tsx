@@ -33,6 +33,7 @@ export function AppSidebar() {
     const sidebarElement = document.querySelector('[data-sidebar="app-sidebar"]');
     if (sidebarElement) {
       const styles = window.getComputedStyle(sidebarElement);
+      const htmlElement = sidebarElement as HTMLElement;
       console.log('AppSidebar: DOM element found', {
         display: styles.display,
         visibility: styles.visibility,
@@ -41,7 +42,7 @@ export function AppSidebar() {
         width: styles.width,
         height: styles.height,
         zIndex: styles.zIndex,
-        offsetParent: sidebarElement.offsetParent !== null,
+        offsetParent: htmlElement.offsetParent !== null,
         boundingRect: sidebarElement.getBoundingClientRect()
       });
     } else {
@@ -137,9 +138,9 @@ export function AppSidebar() {
       data-sidebar="app-sidebar"
       style={{ 
         // Force visibility for debugging
-        display: 'flex !important',
-        visibility: 'visible !important',
-        opacity: '1 !important',
+        display: 'flex',
+        visibility: 'visible',
+        opacity: '1',
         zIndex: 1000,
         minWidth: '256px'
       }}
