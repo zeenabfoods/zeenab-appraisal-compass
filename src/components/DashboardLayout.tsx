@@ -4,10 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AppSidebar } from '@/components/AppSidebar';
 import { NotificationBell } from '@/components/NotificationBell';
-import { LogOut, User, Search, Menu } from 'lucide-react';
+import { LogOut, User, Search, Menu, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -17,6 +17,35 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { profile, signOut } = useAuthContext();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Debug logging for sidebar state
+  useEffect(() => {
+    console.log('DashboardLayout: Sidebar state changed', {
+      sidebarOpen,
+      timestamp: new Date().toISOString(),
+      screenWidth: window.innerWidth,
+      isMobile: window.innerWidth < 1024
+    });
+  }, [sidebarOpen]);
+
+  // Debug logging for profile
+  useEffect(() => {
+    console.log('DashboardLayout: Profile state', {
+      hasProfile: !!profile,
+      role: profile?.role,
+      timestamp: new Date().toISOString()
+    });
+  }, [profile]);
+
+  const handleSidebarToggle = () => {
+    console.log('DashboardLayout: Sidebar toggle clicked', { currentState: sidebarOpen });
+    setSidebarOpen(!sidebarOpen);
+  };
+
+  const handleOverlayClick = () => {
+    console.log('DashboardLayout: Overlay clicked, closing sidebar');
+    setSidebarOpen(false);
+  };
 
   if (!profile) {
     return (
@@ -44,31 +73,44 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <div className="min-h-screen flex w-full bg-gradient-to-br from-orange-50/50 via-white to-red-50/50">
-      {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
+      {/* Desktop Sidebar - Always visible on desktop */}
+      <div className="hidden lg:block w-64 flex-shrink-0">
         <AppSidebar />
       </div>
 
-      {/* Overlay for mobile */}
+      {/* Mobile Sidebar */}
+      <div 
+        className={`fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out lg:hidden ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+        style={{ zIndex: 1000 }}
+      >
+        <AppSidebar />
+      </div>
+
+      {/* Mobile Overlay */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" 
-          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden transition-opacity duration-300" 
+          onClick={handleOverlayClick}
+          style={{ zIndex: 999 }}
         />
       )}
       
       {/* Main content */}
-      <div className="flex-1 flex flex-col lg:ml-0">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <header className="sticky top-0 backdrop-blur-md bg-white/80 shadow-sm border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-6 relative z-10 shrink-0">
           <div className="flex items-center space-x-4">
+            {/* Mobile menu button */}
             <Button
               variant="ghost"
               size="sm"
-              className="lg:hidden"
-              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden hover:bg-gray-100"
+              onClick={handleSidebarToggle}
             >
-              <Menu className="h-5 w-5" />
+              {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              <span className="sr-only">Toggle sidebar</span>
             </Button>
             
             <div className="flex items-center space-x-3">

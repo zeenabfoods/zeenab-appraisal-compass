@@ -15,10 +15,39 @@ import {
 
 import { useAuthContext } from "@/components/AuthProvider"
 import { Link, useLocation } from "react-router-dom"
+import { useEffect } from "react"
 
 export function AppSidebar() {
   const { profile } = useAuthContext()
   const location = useLocation()
+
+  // Debug logging
+  useEffect(() => {
+    console.log('AppSidebar: Component rendered', {
+      profile: profile ? 'loaded' : 'null',
+      location: location.pathname,
+      timestamp: new Date().toISOString()
+    });
+
+    // Check if sidebar is in DOM and visible
+    const sidebarElement = document.querySelector('[data-sidebar="app-sidebar"]');
+    if (sidebarElement) {
+      const styles = window.getComputedStyle(sidebarElement);
+      console.log('AppSidebar: DOM element found', {
+        display: styles.display,
+        visibility: styles.visibility,
+        opacity: styles.opacity,
+        transform: styles.transform,
+        width: styles.width,
+        height: styles.height,
+        zIndex: styles.zIndex,
+        offsetParent: sidebarElement.offsetParent !== null,
+        boundingRect: sidebarElement.getBoundingClientRect()
+      });
+    } else {
+      console.log('AppSidebar: DOM element NOT found');
+    }
+  }, [profile, location]);
 
   // Define navigation items based on user role
   const getNavigationItems = () => {
@@ -103,9 +132,20 @@ export function AppSidebar() {
   const navigationItems = getNavigationItems()
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div 
+      className="h-full flex flex-col bg-white shadow-lg border-r border-gray-200"
+      data-sidebar="app-sidebar"
+      style={{ 
+        // Force visibility for debugging
+        display: 'flex !important',
+        visibility: 'visible !important',
+        opacity: '1 !important',
+        zIndex: 1000,
+        minWidth: '256px'
+      }}
+    >
       {/* Header */}
-      <div className="flex items-center space-x-2 p-4 border-b">
+      <div className="flex items-center space-x-2 p-4 border-b border-gray-200">
         <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md">
           <ClipboardList className="size-4" />
         </div>
@@ -128,28 +168,30 @@ export function AppSidebar() {
                 <Link
                   key={item.title}
                   to={item.url}
-                  className={`flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
+                  className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                     isActive
                       ? 'bg-orange-100 text-orange-900 border-r-2 border-orange-500'
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }`}
+                  onClick={() => console.log('Navigation clicked:', item.title)}
                 >
-                  <item.icon className="mr-3 h-5 w-5" />
-                  {item.title}
+                  <item.icon className="mr-3 h-5 w-5 flex-shrink-0" />
+                  <span className="truncate">{item.title}</span>
                 </Link>
               )
             })}
             
             <Link
               to="/notifications"
-              className={`flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
+              className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                 isCurrentPath('/notifications')
                   ? 'bg-orange-100 text-orange-900 border-r-2 border-orange-500'
                   : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
               }`}
+              onClick={() => console.log('Notifications clicked')}
             >
-              <Bell className="mr-3 h-5 w-5" />
-              Notifications
+              <Bell className="mr-3 h-5 w-5 flex-shrink-0" />
+              <span className="truncate">Notifications</span>
             </Link>
           </nav>
         </div>
@@ -157,7 +199,7 @@ export function AppSidebar() {
       
       {/* Footer */}
       {profile && (
-        <div className="flex items-center space-x-3 p-4 border-t">
+        <div className="flex items-center space-x-3 p-4 border-t border-gray-200">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-orange-400 to-red-400 flex items-center justify-center text-white font-semibold shadow-md">
             {profile?.first_name?.[0]}{profile?.last_name?.[0]}
           </div>
