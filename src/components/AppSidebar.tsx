@@ -115,9 +115,9 @@ export function AppSidebar() {
   const navigationItems = getNavigationItems()
 
   return (
-    <Sidebar variant="inset">
+    <Sidebar variant="sidebar" className="border-r">
       <SidebarHeader>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 p-2">
           <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md">
             <ClipboardList className="size-4" />
           </div>

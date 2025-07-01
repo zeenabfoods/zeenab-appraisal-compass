@@ -42,15 +42,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={true}>
       <div className="min-h-screen flex w-full bg-gradient-to-br from-orange-50/50 via-white to-red-50/50">
         <AppSidebar />
         
-        <SidebarInset>
+        <SidebarInset className="flex-1">
           {/* Header */}
-          <header className="backdrop-blur-md bg-white/80 shadow-sm border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-6 relative z-10 shrink-0">
+          <header className="sticky top-0 backdrop-blur-md bg-white/80 shadow-sm border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-6 relative z-10 shrink-0">
             <div className="flex items-center space-x-4">
-              <SidebarTrigger />
+              <SidebarTrigger className="lg:hidden" />
               
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 rounded-lg overflow-hidden shadow-md">
