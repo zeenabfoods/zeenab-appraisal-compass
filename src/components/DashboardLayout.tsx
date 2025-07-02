@@ -7,7 +7,7 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { LogOut, User, Search, Menu, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -18,32 +18,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Debug logging for sidebar state
-  useEffect(() => {
-    console.log('DashboardLayout: Sidebar state changed', {
-      sidebarOpen,
-      timestamp: new Date().toISOString(),
-      screenWidth: window.innerWidth,
-      isMobile: window.innerWidth < 1024
-    });
-  }, [sidebarOpen]);
-
-  // Debug logging for profile
-  useEffect(() => {
-    console.log('DashboardLayout: Profile state', {
-      hasProfile: !!profile,
-      role: profile?.role,
-      timestamp: new Date().toISOString()
-    });
-  }, [profile]);
-
   const handleSidebarToggle = () => {
-    console.log('DashboardLayout: Sidebar toggle clicked', { currentState: sidebarOpen });
     setSidebarOpen(!sidebarOpen);
   };
 
   const handleOverlayClick = () => {
-    console.log('DashboardLayout: Overlay clicked, closing sidebar');
     setSidebarOpen(false);
   };
 
@@ -74,27 +53,21 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="min-h-screen flex w-full bg-gradient-to-br from-orange-50/50 via-white to-red-50/50">
       {/* Desktop Sidebar - Always visible on desktop */}
-      <div className="hidden lg:block w-64 flex-shrink-0">
+      <div className="hidden lg:flex lg:flex-shrink-0">
         <AppSidebar />
       </div>
 
       {/* Mobile Sidebar */}
-      <div 
-        className={`fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out lg:hidden ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-        style={{ zIndex: 1000 }}
-      >
-        <AppSidebar />
-      </div>
-
-      {/* Mobile Overlay */}
       {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden transition-opacity duration-300" 
-          onClick={handleOverlayClick}
-          style={{ zIndex: 999 }}
-        />
+        <>
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" 
+            onClick={handleOverlayClick}
+          />
+          <div className="fixed inset-y-0 left-0 z-50 lg:hidden">
+            <AppSidebar />
+          </div>
+        </>
       )}
       
       {/* Main content */}
