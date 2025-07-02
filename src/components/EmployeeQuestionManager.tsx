@@ -278,7 +278,6 @@ export function EmployeeQuestionManager() {
           
           {selectedStaff && selectedEmployee && (
             <PerformanceScoreCalculator
-              employeeName={`${selectedEmployee.first_name} ${selectedEmployee.last_name}`}
               employeeId={selectedStaff}
             />
           )}
