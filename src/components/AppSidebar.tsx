@@ -20,6 +20,8 @@ export function AppSidebar() {
   const { profile } = useAuthContext()
   const location = useLocation()
 
+  console.log('AppSidebar: Rendering with profile:', profile)
+
   // Define navigation items based on user role
   const getNavigationItems = () => {
     const baseItems = [
@@ -102,8 +104,13 @@ export function AppSidebar() {
 
   const navigationItems = getNavigationItems()
 
+  console.log('AppSidebar: Navigation items:', navigationItems)
+
   return (
-    <div className="h-full w-64 bg-white shadow-lg border-r border-gray-200 flex flex-col">
+    <div 
+      className="h-full w-64 bg-white shadow-lg border-r border-gray-200 flex flex-col" 
+      style={{ minHeight: '100vh', backgroundColor: 'white', zIndex: 10 }}
+    >
       {/* Header */}
       <div className="flex items-center space-x-2 p-4 border-b border-gray-200">
         <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md">
