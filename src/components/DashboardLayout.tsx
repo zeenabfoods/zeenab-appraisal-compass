@@ -26,6 +26,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     setSidebarOpen(false);
   };
 
+  // Don't close sidebar on navigation for desktop
+  const handleNavigation = () => {
+    // Only close sidebar on mobile
+    if (window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
+  };
+
   if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-white to-red-50">
@@ -54,7 +62,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     <div className="min-h-screen flex w-full bg-gradient-to-br from-orange-50/50 via-white to-red-50/50">
       {/* Desktop Sidebar - Always visible on desktop */}
       <div className="hidden lg:flex lg:flex-shrink-0">
-        <AppSidebar />
+        <AppSidebar onNavigate={handleNavigation} />
       </div>
 
       {/* Mobile Sidebar */}
@@ -65,7 +73,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             onClick={handleOverlayClick}
           />
           <div className="fixed inset-y-0 left-0 z-50 lg:hidden">
-            <AppSidebar />
+            <AppSidebar onNavigate={handleNavigation} />
           </div>
         </>
       )}
@@ -113,17 +121,29 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             {/* Notification Bell */}
             <NotificationBell onClick={handleNotificationClick} />
             
-            {/* User profile */}
+            {/* User profile with line manager and department info */}
             <div className="flex items-center space-x-3 border-l pl-3 md:pl-4 border-gray-200">
               <div className="flex items-center space-x-2">
                 <User className="h-5 w-5 text-gray-400" />
                 <div className="text-sm hidden sm:block">
-                  <span className="font-medium text-gray-700">
-                    {profile.first_name} {profile.last_name}
-                  </span>
-                  <Badge className={`ml-2 ${getRoleBadgeColor(profile.role)}`}>
-                    {profile.role.toUpperCase()}
-                  </Badge>
+                  <div className="flex items-center space-x-2">
+                    <span className="font-medium text-gray-700">
+                      {profile.first_name} {profile.last_name}
+                    </span>
+                    <Badge className={`${getRoleBadgeColor(profile.role)}`}>
+                      {profile.role.toUpperCase()}
+                    </Badge>
+                  </div>
+                  {profile.department && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      Department: {profile.department.name}
+                    </div>
+                  )}
+                  {profile.position && (
+                    <div className="text-xs text-gray-500">
+                      Position: {profile.position}
+                    </div>
+                  )}
                 </div>
               </div>
               <Button variant="ghost" size="sm" onClick={signOut} className="hover:bg-gray-100">

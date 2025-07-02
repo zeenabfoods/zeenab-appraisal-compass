@@ -16,7 +16,11 @@ import {
 import { useAuthContext } from "@/components/AuthProvider"
 import { Link, useLocation } from "react-router-dom"
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  onNavigate?: () => void;
+}
+
+export function AppSidebar({ onNavigate }: AppSidebarProps) {
   const { profile } = useAuthContext()
   const location = useLocation()
 
@@ -102,6 +106,12 @@ export function AppSidebar() {
     return location.pathname === path
   }
 
+  const handleLinkClick = () => {
+    if (onNavigate) {
+      onNavigate();
+    }
+  }
+
   const navigationItems = getNavigationItems()
 
   console.log('AppSidebar: Navigation items:', navigationItems)
@@ -135,6 +145,7 @@ export function AppSidebar() {
                 <Link
                   key={item.title}
                   to={item.url}
+                  onClick={handleLinkClick}
                   className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                     isActive
                       ? 'bg-orange-100 text-orange-900 border-r-2 border-orange-500'
@@ -149,6 +160,7 @@ export function AppSidebar() {
             
             <Link
               to="/notifications"
+              onClick={handleLinkClick}
               className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                 isCurrentPath('/notifications')
                   ? 'bg-orange-100 text-orange-900 border-r-2 border-orange-500'
@@ -162,18 +174,32 @@ export function AppSidebar() {
         </div>
       </div>
       
-      {/* Footer */}
+      {/* Footer with line manager info */}
       {profile && (
-        <div className="flex items-center space-x-3 p-4 border-t border-gray-200">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-orange-400 to-red-400 flex items-center justify-center text-white font-semibold shadow-md">
-            {profile?.first_name?.[0]}{profile?.last_name?.[0]}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold text-gray-900 truncate">
-              {profile?.first_name} {profile?.last_name}
+        <div className="p-4 border-t border-gray-200 space-y-3">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-orange-400 to-red-400 flex items-center justify-center text-white font-semibold shadow-md">
+              {profile?.first_name?.[0]}{profile?.last_name?.[0]}
             </div>
-            <div className="text-xs text-gray-600 truncate">{profile?.email}</div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold text-gray-900 truncate">
+                {profile?.first_name} {profile?.last_name}
+              </div>
+              <div className="text-xs text-gray-600 truncate">{profile?.email}</div>
+            </div>
           </div>
+          
+          {/* Department and Position info */}
+          {(profile.department || profile.position) && (
+            <div className="text-xs text-gray-500 space-y-1">
+              {profile.department && (
+                <div>Dept: {profile.department.name}</div>
+              )}
+              {profile.position && (
+                <div>Role: {profile.position}</div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

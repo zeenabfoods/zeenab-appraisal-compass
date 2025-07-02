@@ -26,12 +26,15 @@ export function PerformanceScoreCalculator({ employeeName, employeeId }: Perform
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchAppraisalScores();
+    if (employeeId) {
+      fetchAppraisalScores();
+    }
   }, [employeeId]);
 
   const fetchAppraisalScores = async () => {
     try {
       setLoading(true);
+      console.log('Fetching scores for employee:', employeeId, employeeName);
 
       // Get the active cycle
       const { data: activeCycle, error: cycleError } = await supabase
@@ -42,69 +45,138 @@ export function PerformanceScoreCalculator({ employeeName, employeeId }: Perform
 
       if (cycleError) {
         console.error('No active cycle found:', cycleError);
+        // Try to get the most recent cycle if no active one exists
+        const { data: recentCycle, error: recentError } = await supabase
+          .from('appraisal_cycles')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (recentError) {
+          console.error('No cycles found:', recentError);
+          setScores([]);
+          return;
+        }
+        
+        console.log('Using most recent cycle:', recentCycle);
+      }
+
+      const cycleToUse = activeCycle || recentCycle;
+
+      // Get sections with their assigned questions for this specific employee
+      const { data: employeeQuestions, error: questionsError } = await supabase
+        .from('employee_appraisal_questions')
+        .select(`
+          question_id,
+          appraisal_questions!inner (
+            id,
+            section_id,
+            appraisal_question_sections!inner (
+              id,
+              name,
+              weight,
+              max_score
+            )
+          )
+        `)
+        .eq('employee_id', employeeId)
+        .eq('is_active', true);
+
+      if (questionsError) {
+        console.error('Error fetching employee questions:', questionsError);
+        throw questionsError;
+      }
+
+      console.log('Employee questions found:', employeeQuestions);
+
+      if (!employeeQuestions || employeeQuestions.length === 0) {
+        console.log('No questions assigned to this employee');
         setScores([]);
         return;
       }
 
-      // Get sections and their responses for this employee
-      const { data: sectionsData, error: sectionsError } = await supabase
-        .from('appraisal_question_sections')
-        .select(`
-          id,
-          name,
-          weight,
-          max_score,
-          appraisal_questions!inner (
-            id,
-            appraisal_responses (
-              emp_rating,
-              mgr_rating,
-              committee_rating,
-              employee_id,
-              cycle_id
-            )
-          )
-        `)
-        .eq('is_active', true)
-        .eq('appraisal_questions.appraisal_responses.employee_id', employeeId)
-        .eq('appraisal_questions.appraisal_responses.cycle_id', activeCycle.id);
+      // Get responses for these specific questions and employee
+      const questionIds = employeeQuestions.map(eq => eq.question_id);
+      
+      const { data: responses, error: responsesError } = await supabase
+        .from('appraisal_responses')
+        .select('*')
+        .eq('employee_id', employeeId)
+        .eq('cycle_id', cycleToUse.id)
+        .in('question_id', questionIds);
 
-      if (sectionsError) throw sectionsError;
+      if (responsesError) {
+        console.error('Error fetching responses:', responsesError);
+        throw responsesError;
+      }
 
-      // Process the data to calculate scores
-      const processedScores: ScoreData[] = (sectionsData || []).map(section => {
+      console.log('Responses found:', responses);
+
+      // Group questions by section and calculate scores
+      const sectionMap = new Map();
+      
+      employeeQuestions.forEach(eq => {
+        const section = eq.appraisal_questions.appraisal_question_sections;
+        const sectionId = section.id;
+        
+        if (!sectionMap.has(sectionId)) {
+          sectionMap.set(sectionId, {
+            id: sectionId,
+            name: section.name,
+            weight: section.weight,
+            max_score: section.max_score,
+            questions: [],
+            responses: []
+          });
+        }
+        
+        sectionMap.get(sectionId).questions.push(eq.question_id);
+      });
+
+      // Add responses to sections
+      if (responses) {
+        responses.forEach(response => {
+          for (let [sectionId, sectionData] of sectionMap) {
+            if (sectionData.questions.includes(response.question_id)) {
+              sectionData.responses.push(response);
+              break;
+            }
+          }
+        });
+      }
+
+      // Calculate scores for each section
+      const processedScores: ScoreData[] = Array.from(sectionMap.values()).map(section => {
         let empTotal = 0;
         let mgrTotal = 0;
         let committeeTotal = 0;
-        let questionCount = 0;
+        let responseCount = section.responses.length;
 
-        section.appraisal_questions.forEach((question: any) => {
-          if (question.appraisal_responses && question.appraisal_responses.length > 0) {
-            const response = question.appraisal_responses[0];
-            empTotal += response.emp_rating || 0;
-            mgrTotal += response.mgr_rating || 0;
-            committeeTotal += response.committee_rating || 0;
-            questionCount++;
-          }
+        section.responses.forEach((response: any) => {
+          empTotal += response.emp_rating || 0;
+          mgrTotal += response.mgr_rating || 0;
+          committeeTotal += response.committee_rating || 0;
         });
 
         return {
           sectionName: section.name,
           weight: section.weight,
           maxScore: section.max_score,
-          empScore: questionCount > 0 ? empTotal : 0,
-          mgrScore: questionCount > 0 ? mgrTotal : 0,
-          committeeScore: questionCount > 0 ? committeeTotal : 0,
+          empScore: empTotal,
+          mgrScore: mgrTotal,
+          committeeScore: committeeTotal,
         };
       });
 
+      console.log('Processed scores for employee:', employeeName, processedScores);
       setScores(processedScores);
 
     } catch (error) {
       console.error('Error fetching appraisal scores:', error);
       toast({
         title: "Error",
-        description: "Failed to load performance scores",
+        description: "Failed to load performance scores for the selected employee",
         variant: "destructive"
       });
     } finally {
@@ -152,6 +224,7 @@ export function PerformanceScoreCalculator({ employeeName, employeeId }: Perform
         <CardContent className="p-6">
           <div className="flex items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-2">Loading performance scores for {employeeName}...</span>
           </div>
         </CardContent>
       </Card>
@@ -200,7 +273,7 @@ export function PerformanceScoreCalculator({ employeeName, employeeId }: Perform
 
           {/* Detailed Section Performance */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Detailed Section Performance Breakdown</h3>
+            <h3 className="text-lg font-semibold">Detailed Section Performance Breakdown for {employeeName}</h3>
             {scores.map((section, index) => {
               const sectionMaxScore = section.maxScore * 5; // Assuming 5 questions max per section
               const empPercentage = sectionMaxScore > 0 ? (section.empScore / sectionMaxScore) * 100 : 0;
@@ -250,7 +323,8 @@ export function PerformanceScoreCalculator({ employeeName, employeeId }: Perform
 
           {scores.length === 0 && (
             <div className="text-center py-8">
-              <p className="text-gray-500">No appraisal data found for this employee in the current cycle.</p>
+              <p className="text-gray-500">No appraisal data found for {employeeName} in the current cycle.</p>
+              <p className="text-sm text-gray-400 mt-1">Please ensure questions have been assigned and responses have been submitted.</p>
             </div>
           )}
         </CardContent>
