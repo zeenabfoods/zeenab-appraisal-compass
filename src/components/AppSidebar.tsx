@@ -107,9 +107,11 @@ export function AppSidebar({ onNavigate }: AppSidebarProps) {
   }
 
   const handleLinkClick = () => {
+    // Only call onNavigate if it exists, but don't prevent navigation
     if (onNavigate) {
       onNavigate();
     }
+    // Let React Router handle the navigation naturally
   }
 
   const navigationItems = getNavigationItems()
@@ -119,7 +121,15 @@ export function AppSidebar({ onNavigate }: AppSidebarProps) {
   return (
     <div 
       className="h-full w-64 bg-white shadow-lg border-r border-gray-200 flex flex-col" 
-      style={{ minHeight: '100vh', backgroundColor: 'white', zIndex: 10 }}
+      style={{ 
+        minHeight: '100vh', 
+        backgroundColor: 'white', 
+        zIndex: 10,
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '256px'
+      }}
     >
       {/* Header */}
       <div className="flex items-center space-x-2 p-4 border-b border-gray-200">

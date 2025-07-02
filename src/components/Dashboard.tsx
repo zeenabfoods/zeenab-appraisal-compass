@@ -23,7 +23,9 @@ import {
   AlertTriangle,
   Target,
   Star,
-  RefreshCw
+  RefreshCw,
+  Building2,
+  UserCheck
 } from 'lucide-react';
 
 interface AppraisalCycle {
@@ -300,12 +302,58 @@ export function Dashboard() {
         )}
       </div>
 
-      {/* Employee Profile Card - Show for all users with updated profile */}
+      {/* Enhanced Employee Information Card */}
       {currentProfile && (
-        <EmployeeProfileCard 
-          profile={currentProfile} 
-          onProfileUpdate={handleProfileUpdate}
-        />
+        <div className="grid gap-6 md:grid-cols-2">
+          <EmployeeProfileCard 
+            profile={currentProfile} 
+            onProfileUpdate={handleProfileUpdate}
+          />
+          
+          {/* Department and Line Manager Info Card */}
+          <div className="backdrop-blur-md bg-white/60 border-white/40 rounded-xl p-6 shadow-lg">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Organizational Information
+            </h2>
+            <div className="space-y-4">
+              {/* Department Information */}
+              <div className="bg-white/50 rounded-lg p-4 border border-white/60">
+                <div className="flex items-center gap-2 mb-2">
+                  <Building2 className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium text-gray-700">Department</span>
+                </div>
+                <p className="text-gray-900 font-semibold">
+                  {currentProfile.department_name || 'No department assigned'}
+                </p>
+              </div>
+
+              {/* Line Manager Information */}
+              <div className="bg-white/50 rounded-lg p-4 border border-white/60">
+                <div className="flex items-center gap-2 mb-2">
+                  <UserCheck className="h-4 w-4 text-green-600" />
+                  <span className="text-sm font-medium text-gray-700">Line Manager</span>
+                </div>
+                <p className="text-gray-900 font-semibold">
+                  {currentProfile.line_manager_name || 'No line manager assigned'}
+                </p>
+              </div>
+
+              {/* Position Information */}
+              {currentProfile.position && (
+                <div className="bg-white/50 rounded-lg p-4 border border-white/60">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Award className="h-4 w-4 text-purple-600" />
+                    <span className="text-sm font-medium text-gray-700">Position</span>
+                  </div>
+                  <p className="text-gray-900 font-semibold">
+                    {currentProfile.position}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Show assigned questions for employees */}

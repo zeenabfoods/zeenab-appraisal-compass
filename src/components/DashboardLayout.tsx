@@ -28,10 +28,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   // Don't close sidebar on navigation for desktop
   const handleNavigation = () => {
-    // Only close sidebar on mobile
+    // Only close sidebar on mobile (screens smaller than lg)
     if (window.innerWidth < 1024) {
       setSidebarOpen(false);
     }
+    // Desktop sidebar stays open always
   };
 
   if (!profile) {
@@ -60,8 +61,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <div className="min-h-screen flex w-full bg-gradient-to-br from-orange-50/50 via-white to-red-50/50">
-      {/* Desktop Sidebar - Always visible on desktop */}
-      <div className="hidden lg:flex lg:flex-shrink-0">
+      {/* Desktop Sidebar - Always visible and persistent */}
+      <div className="hidden lg:block lg:w-64 lg:flex-shrink-0 lg:fixed lg:inset-y-0 lg:z-50">
         <AppSidebar onNavigate={handleNavigation} />
       </div>
 
@@ -78,8 +79,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </>
       )}
       
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* Main content with left margin for desktop sidebar */}
+      <div className="flex-1 flex flex-col min-w-0 lg:ml-64">
         {/* Header */}
         <header className="sticky top-0 backdrop-blur-md bg-white/80 shadow-sm border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-6 relative z-10 shrink-0">
           <div className="flex items-center space-x-4">
