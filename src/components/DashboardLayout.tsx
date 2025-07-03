@@ -7,7 +7,7 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { LogOut, User, Search, Menu, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -18,22 +18,67 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Menu lock feature to prevent disappearance during animations
+  const [menuLocked, setMenuLocked] = useState(false);
+
+  useEffect(() => {
+    // Initialize sidebar state from localStorage
+    const savedState = localStorage.getItem('sidebarState');
+    if (savedState === 'open') {
+      setSidebarOpen(true);
+    }
+  }, []);
+
   const handleSidebarToggle = () => {
-    setSidebarOpen(!sidebarOpen);
+    if (menuLocked) {
+      console.log('Menu toggle blocked - menu is locked');
+      return;
+    }
+    
+    const newState = !sidebarOpen;
+    setSidebarOpen(newState);
+    localStorage.setItem('sidebarState', newState ? 'open' : 'closed');
+    console.log('Sidebar toggled:', { newState, menuLocked });
   };
 
-  const handleOverlayClick = () => {
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    // Prevent closing if menu is locked or click originated from sidebar
+    if (menuLocked || (e.target as Element).closest('.side-menu')) {
+      return;
+    }
     setSidebarOpen(false);
+    localStorage.setItem('sidebarState', 'closed');
   };
 
-  // Don't close sidebar on navigation for desktop
+  // Enhanced navigation handler with menu lock
   const handleNavigation = () => {
+    setMenuLocked(true);
+    
     // Only close sidebar on mobile (screens smaller than lg)
     if (window.innerWidth < 1024) {
       setSidebarOpen(false);
+      localStorage.setItem('sidebarState', 'closed');
     }
-    // Desktop sidebar stays open always
+    
+    // Release lock after animation completes
+    setTimeout(() => {
+      setMenuLocked(false);
+    }, 300);
   };
+
+  // Add keyboard navigation support
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // ESC key closes mobile sidebar
+      if (e.key === 'Escape' && sidebarOpen && window.innerWidth < 1024) {
+        setSidebarOpen(false);
+        localStorage.setItem('sidebarState', 'closed');
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [sidebarOpen]);
 
   if (!profile) {
     return (
@@ -72,6 +117,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <div 
             className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" 
             onClick={handleOverlayClick}
+            role="button"
+            aria-label="Close sidebar"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                handleOverlayClick(e as any);
+              }
+            }}
           />
           <div className="fixed inset-y-0 left-0 z-50 lg:hidden">
             <AppSidebar onNavigate={handleNavigation} />
@@ -88,8 +141,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <Button
               variant="ghost"
               size="sm"
-              className="lg:hidden hover:bg-gray-100"
+              className={`lg:hidden hover:bg-gray-100 ${menuLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
               onClick={handleSidebarToggle}
+              disabled={menuLocked}
+              aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+              aria-expanded={sidebarOpen}
             >
               {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               <span className="sr-only">Toggle sidebar</span>
