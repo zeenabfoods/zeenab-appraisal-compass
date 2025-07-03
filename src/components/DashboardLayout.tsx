@@ -7,7 +7,7 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { LogOut, User, Search, Menu, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -18,52 +18,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  useEffect(() => {
-    // Initialize sidebar state from localStorage
-    const savedState = localStorage.getItem('sidebarState');
-    if (savedState === 'open') {
-      setSidebarOpen(true);
-    }
-  }, []);
-
   const handleSidebarToggle = () => {
-    const newState = !sidebarOpen;
-    setSidebarOpen(newState);
-    localStorage.setItem('sidebarState', newState ? 'open' : 'closed');
-    console.log('Sidebar toggled:', { newState });
+    setSidebarOpen(!sidebarOpen);
+    console.log('Sidebar toggled:', !sidebarOpen);
   };
 
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    // Prevent closing if click originated from sidebar
-    if ((e.target as Element).closest('.side-menu')) {
-      return;
-    }
+  const handleSidebarClose = () => {
     setSidebarOpen(false);
-    localStorage.setItem('sidebarState', 'closed');
+    console.log('Sidebar closed');
   };
-
-  // Navigation handler for mobile
-  const handleNavigation = () => {
-    // Only close sidebar on mobile (screens smaller than lg)
-    if (window.innerWidth < 1024) {
-      setSidebarOpen(false);
-      localStorage.setItem('sidebarState', 'closed');
-    }
-  };
-
-  // Add keyboard navigation support
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // ESC key closes mobile sidebar
-      if (e.key === 'Escape' && sidebarOpen && window.innerWidth < 1024) {
-        setSidebarOpen(false);
-        localStorage.setItem('sidebarState', 'closed');
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [sidebarOpen]);
 
   if (!profile) {
     return (
@@ -91,36 +54,26 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <div className="min-h-screen flex w-full bg-gradient-to-br from-orange-50/50 via-white to-red-50/50">
-      {/* Desktop Sidebar - Always visible and persistent */}
-      <div className="hidden lg:block lg:w-64 lg:flex-shrink-0">
-        <div className="fixed inset-y-0 left-0 w-64 z-30">
-          <AppSidebar onNavigate={handleNavigation} />
-        </div>
+      {/* Desktop Sidebar - Always visible on desktop */}
+      <div className="hidden lg:flex lg:w-64 lg:flex-shrink-0">
+        <AppSidebar onNavigate={handleSidebarClose} />
       </div>
 
-      {/* Mobile Sidebar */}
+      {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <>
           <div 
             className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" 
-            onClick={handleOverlayClick}
-            role="button"
-            aria-label="Close sidebar"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                handleOverlayClick(e as any);
-              }
-            }}
+            onClick={handleSidebarClose}
           />
           <div className="fixed inset-y-0 left-0 z-50 w-64 lg:hidden">
-            <AppSidebar onNavigate={handleNavigation} />
+            <AppSidebar onNavigate={handleSidebarClose} />
           </div>
         </>
       )}
       
-      {/* Main content with left margin for desktop sidebar */}
-      <div className="flex-1 flex flex-col min-w-0 lg:ml-64">
+      {/* Main content */}
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <header className="sticky top-0 backdrop-blur-md bg-white/80 shadow-sm border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-6 relative z-10 shrink-0">
           <div className="flex items-center space-x-4">
@@ -131,10 +84,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               className="lg:hidden hover:bg-gray-100"
               onClick={handleSidebarToggle}
               aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
-              aria-expanded={sidebarOpen}
             >
               {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              <span className="sr-only">Toggle sidebar</span>
             </Button>
             
             <div className="flex items-center space-x-3">
@@ -164,7 +115,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             {/* Notification Bell */}
             <NotificationBell onClick={handleNotificationClick} />
             
-            {/* User profile with line manager and department info */}
+            {/* User profile */}
             <div className="flex items-center space-x-3 border-l pl-3 md:pl-4 border-gray-200">
               <div className="flex items-center space-x-2">
                 <User className="h-5 w-5 text-gray-400" />
