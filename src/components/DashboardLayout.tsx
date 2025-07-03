@@ -18,9 +18,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Menu lock feature to prevent disappearance during animations
-  const [menuLocked, setMenuLocked] = useState(false);
-
   useEffect(() => {
     // Initialize sidebar state from localStorage
     const savedState = localStorage.getItem('sidebarState');
@@ -30,40 +27,28 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }, []);
 
   const handleSidebarToggle = () => {
-    if (menuLocked) {
-      console.log('Menu toggle blocked - menu is locked');
-      return;
-    }
-    
     const newState = !sidebarOpen;
     setSidebarOpen(newState);
     localStorage.setItem('sidebarState', newState ? 'open' : 'closed');
-    console.log('Sidebar toggled:', { newState, menuLocked });
+    console.log('Sidebar toggled:', { newState });
   };
 
   const handleOverlayClick = (e: React.MouseEvent) => {
-    // Prevent closing if menu is locked or click originated from sidebar
-    if (menuLocked || (e.target as Element).closest('.side-menu')) {
+    // Prevent closing if click originated from sidebar
+    if ((e.target as Element).closest('.side-menu')) {
       return;
     }
     setSidebarOpen(false);
     localStorage.setItem('sidebarState', 'closed');
   };
 
-  // Enhanced navigation handler with menu lock
+  // Navigation handler for mobile
   const handleNavigation = () => {
-    setMenuLocked(true);
-    
     // Only close sidebar on mobile (screens smaller than lg)
     if (window.innerWidth < 1024) {
       setSidebarOpen(false);
       localStorage.setItem('sidebarState', 'closed');
     }
-    
-    // Release lock after animation completes
-    setTimeout(() => {
-      setMenuLocked(false);
-    }, 300);
   };
 
   // Add keyboard navigation support
@@ -107,8 +92,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="min-h-screen flex w-full bg-gradient-to-br from-orange-50/50 via-white to-red-50/50">
       {/* Desktop Sidebar - Always visible and persistent */}
-      <div className="hidden lg:block lg:w-64 lg:flex-shrink-0 lg:fixed lg:inset-y-0 lg:z-50">
-        <AppSidebar onNavigate={handleNavigation} />
+      <div className="hidden lg:block lg:w-64 lg:flex-shrink-0">
+        <div className="fixed inset-y-0 left-0 w-64 z-30">
+          <AppSidebar onNavigate={handleNavigation} />
+        </div>
       </div>
 
       {/* Mobile Sidebar */}
@@ -126,7 +113,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               }
             }}
           />
-          <div className="fixed inset-y-0 left-0 z-50 lg:hidden">
+          <div className="fixed inset-y-0 left-0 z-50 w-64 lg:hidden">
             <AppSidebar onNavigate={handleNavigation} />
           </div>
         </>
@@ -141,9 +128,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <Button
               variant="ghost"
               size="sm"
-              className={`lg:hidden hover:bg-gray-100 ${menuLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className="lg:hidden hover:bg-gray-100"
               onClick={handleSidebarToggle}
-              disabled={menuLocked}
               aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
               aria-expanded={sidebarOpen}
             >

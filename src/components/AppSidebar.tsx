@@ -117,43 +117,16 @@ export function AppSidebar({ onNavigate }: AppSidebarProps) {
     return location.pathname === path
   }
 
-  // Enhanced click handler with error boundary and event management
+  // Simplified click handler - let React Router handle navigation naturally
   const handleMenuClick = (e: React.MouseEvent<HTMLAnchorElement>, url: string) => {
-    try {
-      console.log('Menu item clicked:', { target: e.currentTarget, url });
-      
-      // Prevent event propagation to avoid interference
-      e.stopPropagation();
-      
-      // Add visual feedback
-      e.currentTarget.style.background = 'rgba(255, 165, 0, 0.1)';
-      setTimeout(() => {
-        if (e.currentTarget) {
-          e.currentTarget.style.background = '';
-        }
-      }, 150);
-
-      // Persist menu state during navigation
-      localStorage.setItem('sidebarState', 'open');
-      
-      // Call onNavigate only for mobile
-      if (onNavigate && window.innerWidth < 1024) {
-        onNavigate();
-      }
-      
-      console.log('Navigation successful to:', url);
-      
-    } catch (error) {
-      console.error('Menu click error:', error);
-      e.preventDefault();
-      
-      // Recovery mechanism - try alternative navigation
-      try {
-        navigate(url);
-      } catch (fallbackError) {
-        console.error('Fallback navigation failed:', fallbackError);
-      }
+    console.log('Menu item clicked:', { target: e.currentTarget, url });
+    
+    // Call onNavigate for mobile sidebar closure
+    if (onNavigate && window.innerWidth < 1024) {
+      onNavigate();
     }
+    
+    console.log('Navigation will proceed to:', url);
   };
 
   const navigationItems = getNavigationItems()
@@ -162,16 +135,7 @@ export function AppSidebar({ onNavigate }: AppSidebarProps) {
 
   return (
     <div 
-      className="h-full w-64 bg-white shadow-lg border-r border-gray-200 flex flex-col side-menu" 
-      style={{ 
-        minHeight: '100vh', 
-        backgroundColor: 'white', 
-        zIndex: 10,
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '256px'
-      }}
+      className="h-full w-full bg-white shadow-lg border-r border-gray-200 flex flex-col side-menu" 
       role="navigation"
       aria-label="Main navigation"
     >
