@@ -11,20 +11,24 @@ import {
   UserCheck,
   Scale,
   Settings2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 
 import { useAuthContext } from "@/components/AuthProvider"
 import { Link, useLocation } from "react-router-dom"
+import { useState } from "react"
 
-interface SimpleSidebarProps {
+interface ReliableSidebarProps {
   isOpen: boolean;
+  onToggle: () => void;
 }
 
-export function SimpleSidebar({ isOpen }: SimpleSidebarProps) {
+export function ReliableSidebar({ isOpen, onToggle }: ReliableSidebarProps) {
   const { profile } = useAuthContext()
   const location = useLocation()
 
-  console.log('SimpleSidebar: Rendering with isOpen:', isOpen, 'profile:', profile)
+  console.log('ReliableSidebar: Rendering with isOpen:', isOpen, 'profile:', profile)
 
   // Define navigation items based on user role
   const getNavigationItems = () => {
@@ -108,14 +112,31 @@ export function SimpleSidebar({ isOpen }: SimpleSidebarProps) {
 
   const navigationItems = getNavigationItems()
 
-  console.log('SimpleSidebar: Navigation items:', navigationItems)
-
   if (!profile) {
     return null;
   }
 
   return (
-    <div className="h-full bg-white shadow-lg border-r border-gray-200">
+    <div 
+      className={`fixed top-0 left-0 h-screen bg-white shadow-lg border-r border-gray-200 z-40 transition-all duration-300 ${
+        isOpen ? 'w-64' : 'w-16'
+      }`}
+      style={{ zIndex: 1000 }}
+    >
+      {/* Toggle button */}
+      <div className="absolute -right-3 top-20 bg-white border border-gray-200 rounded-full p-1 shadow-md">
+        <button
+          onClick={onToggle}
+          className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+        >
+          {isOpen ? (
+            <ChevronLeft className="h-4 w-4 text-gray-600" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-gray-600" />
+          )}
+        </button>
+      </div>
+
       {/* Header */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center space-x-2">
@@ -132,7 +153,7 @@ export function SimpleSidebar({ isOpen }: SimpleSidebarProps) {
       </div>
       
       {/* Navigation */}
-      <div className="p-2">
+      <div className="p-2 flex-1 overflow-y-auto">
         <nav className="space-y-1">
           {navigationItems.map((item) => {
             const isActive = isCurrentPath(item.url)
@@ -140,28 +161,30 @@ export function SimpleSidebar({ isOpen }: SimpleSidebarProps) {
               <Link
                 key={item.title}
                 to={item.url}
-                className={`flex items-center px-3 py-2 text-sm rounded-md transition-colors ${
+                className={`flex items-center px-3 py-3 text-sm rounded-md transition-colors group ${
                   isActive
                     ? 'bg-orange-100 text-orange-800 font-medium'
                     : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                 }`}
+                title={!isOpen ? item.title : undefined}
               >
-                <item.icon className={`h-5 w-5 ${isOpen ? 'mr-3' : ''} flex-shrink-0`} />
-                {isOpen && <span className="truncate">{item.title}</span>}
+                <item.icon className="h-5 w-5 flex-shrink-0" />
+                {isOpen && <span className="ml-3 truncate">{item.title}</span>}
               </Link>
             )
           })}
           
           <Link
             to="/notifications"
-            className={`flex items-center px-3 py-2 text-sm rounded-md transition-colors ${
+            className={`flex items-center px-3 py-3 text-sm rounded-md transition-colors group ${
               isCurrentPath('/notifications')
                 ? 'bg-orange-100 text-orange-800 font-medium'
                 : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
             }`}
+            title={!isOpen ? "Notifications" : undefined}
           >
-            <Bell className={`h-5 w-5 ${isOpen ? 'mr-3' : ''} flex-shrink-0`} />
-            {isOpen && <span className="truncate">Notifications</span>}
+            <Bell className="h-5 w-5 flex-shrink-0" />
+            {isOpen && <span className="ml-3 truncate">Notifications</span>}
           </Link>
         </nav>
       </div>

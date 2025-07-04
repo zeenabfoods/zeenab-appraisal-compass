@@ -2,12 +2,12 @@
 import { useAuthContext } from '@/components/AuthProvider';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { SimpleSidebar } from '@/components/SimpleSidebar';
+import { ReliableSidebar } from '@/components/ReliableSidebar';
 import { NotificationBell } from '@/components/NotificationBell';
-import { LogOut, User, Search, Menu } from 'lucide-react';
+import { LogOut, User, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -16,7 +16,18 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { profile, signOut } = useAuthContext();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    // Initialize from localStorage or default to true
+    const saved = localStorage.getItem('sidebar-open');
+    return saved ? JSON.parse(saved) : true;
+  });
+
+  // Save sidebar state to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('sidebar-open', JSON.stringify(sidebarOpen));
+  }, [sidebarOpen]);
+
+  console.log('DashboardLayout: Rendering with sidebarOpen:', sidebarOpen);
 
   if (!profile) {
     return (
@@ -42,28 +53,25 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     navigate('/notifications');
   };
 
+  const toggleSidebar = () => {
+    console.log('DashboardLayout: Toggling sidebar from', sidebarOpen, 'to', !sidebarOpen);
+    setSidebarOpen(!sidebarOpen);
+  };
+
   return (
     <div className="min-h-screen flex w-full bg-gradient-to-br from-orange-50/50 via-white to-red-50/50">
       {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'w-64' : 'w-16'} transition-all duration-300 flex-shrink-0`}>
-        <SimpleSidebar isOpen={sidebarOpen} />
-      </div>
+      <ReliableSidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
       
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div 
+        className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${
+          sidebarOpen ? 'ml-64' : 'ml-16'
+        }`}
+      >
         {/* Header */}
         <header className="sticky top-0 backdrop-blur-md bg-white/80 shadow-sm border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-6 relative z-10 shrink-0">
           <div className="flex items-center space-x-4">
-            {/* Sidebar toggle button */}
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="hover:bg-gray-100"
-            >
-              <Menu className="h-4 w-4" />
-            </Button>
-            
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 rounded-lg overflow-hidden shadow-md">
                 <img 
