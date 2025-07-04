@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,6 +10,8 @@ import { AppraisalAccessDialog } from '@/components/AppraisalAccessDialog';
 import { EmployeeAssignedQuestions } from '@/components/EmployeeAssignedQuestions';
 import { AppraisalHistoryCard } from '@/components/AppraisalHistoryCard';
 import { EmployeeProfileCard } from '@/components/EmployeeProfileCard';
+import { RecentActivityCard } from '@/components/RecentActivityCard';
+import { QuickActionsCard } from '@/components/QuickActionsCard';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Profile } from '@/hooks/useAuth';
 import { EmployeeProfileService, ExtendedProfile } from '@/services/employeeProfileService';
@@ -231,23 +234,6 @@ export function Dashboard() {
     }
   };
 
-  // Quick Actions handlers
-  const handleQuickAction = (action: string) => {
-    switch (action) {
-      case 'review-team':
-        navigate('/manager-appraisals');
-        break;
-      case 'view-analytics':
-        navigate('/company-reports');
-        break;
-      case 'manage-cycles':
-        navigate('/appraisal-cycles');
-        break;
-      default:
-        console.log('Unknown action:', action);
-    }
-  };
-
   // Show loading only while auth is not ready or profile is loading
   if (!authReady || loading || profileLoading) {
     return (
@@ -418,6 +404,12 @@ export function Dashboard() {
         </Card>
       </div>
 
+      {/* Recent Activity and Quick Actions */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <RecentActivityCard />
+        <QuickActionsCard />
+      </div>
+
       {/* Appraisal History and Performance Charts */}
       <div className="grid gap-6 md:grid-cols-2">
         <AppraisalHistoryCard />
@@ -445,73 +437,34 @@ export function Dashboard() {
 
       {/* Team Overview (for managers) */}
       {(currentProfile?.role === 'manager' || currentProfile?.role === 'hr' || currentProfile?.role === 'admin') && (
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg">
-            <CardHeader>
-              <CardTitle>Team Status Overview</CardTitle>
-              <CardDescription>
-                Appraisal completion status across your team
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={statusData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {statusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg">
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-              <CardDescription>
-                Common management tasks
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start"
-                  onClick={() => handleQuickAction('review-team')}
+        <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg">
+          <CardHeader>
+            <CardTitle>Team Status Overview</CardTitle>
+            <CardDescription>
+              Appraisal completion status across your team
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <PieChart>
+                <Pie
+                  data={statusData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
                 >
-                  <Users className="h-4 w-4 mr-2" />
-                  Review Team Appraisals
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start"
-                  onClick={() => handleQuickAction('view-analytics')}
-                >
-                  <TrendingUp className="h-4 w-4 mr-2" />
-                  View Analytics
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start"
-                  onClick={() => handleQuickAction('manage-cycles')}
-                >
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Manage Cycles
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                  {statusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
       )}
 
       {/* Access Restriction Dialog */}

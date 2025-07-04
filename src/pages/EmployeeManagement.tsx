@@ -1,9 +1,9 @@
 
 import { DashboardLayout } from '@/components/DashboardLayout';
-import { EmployeeCard } from '@/components/EmployeeCard';
-import { EmployeeDialog } from '@/components/EmployeeDialog';
-import { EmployeeFilters } from '@/components/EmployeeFilters';
-import { EmployeeEmptyState } from '@/components/EmployeeEmptyState';
+import EmployeeCard from '@/components/EmployeeCard';
+import EmployeeDialog from '@/components/EmployeeDialog';
+import EmployeeFilters from '@/components/EmployeeFilters';
+import EmployeeEmptyState from '@/components/EmployeeEmptyState';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useState } from 'react';
