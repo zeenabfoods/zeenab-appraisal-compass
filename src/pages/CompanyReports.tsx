@@ -1,143 +1,236 @@
 
-import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { BarChart3, FileText, Download, TrendingUp, Users, Target } from 'lucide-react';
+import { DashboardLayout } from '@/components/DashboardLayout';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart3, Users, TrendingUp, Award } from 'lucide-react';
+
+const PERFORMANCE_COLORS = ['#10B981', '#F59E0B', '#EF4444', '#6B7280'];
 
 export default function CompanyReports() {
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Company Reports</h1>
-          <p className="text-gray-600 mt-2">Generate comprehensive reports and analytics for organizational insights</p>
+  const { data: reportData, isLoading } = useQuery({
+    queryKey: ['company-reports'],
+    queryFn: async () => {
+      // Get appraisal statistics
+      const { data: appraisals, error: appraisalsError } = await supabase
+        .from('appraisals')
+        .select(`
+          *,
+          employee:profiles!appraisals_employee_id_fkey(first_name, last_name, department_id),
+          cycle:appraisal_cycles(name, year, quarter)
+        `);
+
+      if (appraisalsError) throw appraisalsError;
+
+      // Get department statistics
+      const { data: departments, error: departmentsError } = await supabase
+        .from('departments')
+        .select('*')
+        .eq('is_active', true);
+
+      if (departmentsError) throw departmentsError;
+
+      return { appraisals, departments };
+    }
+  });
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
         </div>
-        
-        <Button className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600">
-          <FileText className="h-4 w-4 mr-2" />
-          Generate Report
-        </Button>
+      </DashboardLayout>
+    );
+  }
+
+  const appraisals = reportData?.appraisals || [];
+  const departments = reportData?.departments || [];
+
+  // Calculate statistics
+  const totalAppraisals = appraisals.length;
+  const completedAppraisals = appraisals.filter(a => a.status === 'completed').length;
+  const averageScore = appraisals
+    .filter(a => a.overall_score)
+    .reduce((sum, a) => sum + (a.overall_score || 0), 0) / 
+    appraisals.filter(a => a.overall_score).length || 0;
+
+  // Performance distribution
+  const performanceBands = appraisals.reduce((acc: any, appraisal) => {
+    const band = appraisal.performance_band || 'Not Rated';
+    acc[band] = (acc[band] || 0) + 1;
+    return acc;
+  }, {});
+
+  const performanceData = Object.entries(performanceBands).map(([band, count]) => ({
+    name: band,
+    value: count
+  }));
+
+  // Department statistics
+  const departmentStats = departments.map(dept => {
+    const deptAppraisals = appraisals.filter(a => a.employee?.department_id === dept.id);
+    const avgScore = deptAppraisals
+      .filter(a => a.overall_score)
+      .reduce((sum, a) => sum + (a.overall_score || 0), 0) / 
+      deptAppraisals.filter(a => a.overall_score).length || 0;
+    
+    return {
+      name: dept.name,
+      total: deptAppraisals.length,
+      completed: deptAppraisals.filter(a => a.status === 'completed').length,
+      avgScore: Math.round(avgScore * 10) / 10
+    };
+  });
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Company Reports</h1>
+          <p className="text-gray-600">Overview of company-wide appraisal performance and statistics</p>
+        </div>
+
+        {/* Key Metrics */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Appraisals</CardTitle>
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalAppraisals}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Completed</CardTitle>
+              <Award className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{completedAppraisals}</div>
+              <p className="text-xs text-muted-foreground">
+                {totalAppraisals > 0 ? Math.round((completedAppraisals / totalAppraisals) * 100) : 0}% completion rate
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Average Score</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{Math.round(averageScore * 10) / 10}</div>
+              <p className="text-xs text-muted-foreground">Out of 100</p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Departments</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{departments.length}</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Performance Distribution */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Performance Band Distribution</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={performanceData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {performanceData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={PERFORMANCE_COLORS[index % PERFORMANCE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Department Performance */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Department Performance</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={departmentStats}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="name" 
+                      angle={-45}
+                      textAnchor="end"
+                      height={100}
+                    />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="avgScore" fill="#F97316" name="Avg Score" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Department Details Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Department Statistics</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left p-2">Department</th>
+                    <th className="text-left p-2">Total Appraisals</th>
+                    <th className="text-left p-2">Completed</th>
+                    <th className="text-left p-2">Completion Rate</th>
+                    <th className="text-left p-2">Average Score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {departmentStats.map((dept) => (
+                    <tr key={dept.name} className="border-b">
+                      <td className="p-2">{dept.name}</td>
+                      <td className="p-2">{dept.total}</td>
+                      <td className="p-2">{dept.completed}</td>
+                      <td className="p-2">
+                        {dept.total > 0 ? Math.round((dept.completed / dept.total) * 100) : 0}%
+                      </td>
+                      <td className="p-2">{dept.avgScore || 'N/A'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg hover:shadow-xl transition-all">
-          <CardHeader>
-            <div className="flex items-center space-x-2">
-              <BarChart3 className="h-6 w-6 text-orange-600" />
-              <CardTitle>Performance Analytics</CardTitle>
-            </div>
-            <CardDescription>
-              Comprehensive performance analysis across all departments
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" className="w-full">
-              <Download className="h-4 w-4 mr-2" />
-              Generate Report
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg hover:shadow-xl transition-all">
-          <CardHeader>
-            <div className="flex items-center space-x-2">
-              <TrendingUp className="h-6 w-6 text-blue-600" />
-              <CardTitle>Trend Analysis</CardTitle>
-            </div>
-            <CardDescription>
-              Track performance trends over time
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" className="w-full">
-              <Download className="h-4 w-4 mr-2" />
-              View Trends
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg hover:shadow-xl transition-all">
-          <CardHeader>
-            <div className="flex items-center space-x-2">
-              <Users className="h-6 w-6 text-green-600" />
-              <CardTitle>Department Reports</CardTitle>
-            </div>
-            <CardDescription>
-              Department-wise performance breakdowns
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" className="w-full">
-              <Download className="h-4 w-4 mr-2" />
-              Download
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg hover:shadow-xl transition-all">
-          <CardHeader>
-            <div className="flex items-center space-x-2">
-              <Target className="h-6 w-6 text-purple-600" />
-              <CardTitle>Goal Achievement</CardTitle>
-            </div>
-            <CardDescription>
-              Track organizational goal completion rates
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" className="w-full">
-              <Download className="h-4 w-4 mr-2" />
-              View Goals
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg hover:shadow-xl transition-all">
-          <CardHeader>
-            <div className="flex items-center space-x-2">
-              <FileText className="h-6 w-6 text-indigo-600" />
-              <CardTitle>Custom Reports</CardTitle>
-            </div>
-            <CardDescription>
-              Build custom reports with specific metrics
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" className="w-full">
-              Create Custom
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg hover:shadow-xl transition-all">
-          <CardHeader>
-            <div className="flex items-center space-x-2">
-              <BarChart3 className="h-6 w-6 text-red-600" />
-              <CardTitle>Executive Summary</CardTitle>
-            </div>
-            <CardDescription>
-              High-level organizational performance overview
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" className="w-full">
-              <Download className="h-4 w-4 mr-2" />
-              Generate
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="backdrop-blur-md bg-white/60 border-white/40">
-        <CardContent className="flex flex-col items-center justify-center py-12">
-          <BarChart3 className="h-16 w-16 text-gray-400 mb-4" />
-          <h3 className="text-xl font-medium text-gray-900 mb-2">Advanced Reporting System</h3>
-          <p className="text-gray-600 text-center max-w-md">
-            Our comprehensive reporting system provides deep insights into organizational performance, 
-            helping you make data-driven decisions for better outcomes.
-          </p>
-        </CardContent>
-      </Card>
-    </div>
+    </DashboardLayout>
   );
 }

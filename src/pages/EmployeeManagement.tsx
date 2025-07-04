@@ -1,342 +1,124 @@
 
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { DashboardLayout } from '@/components/DashboardLayout';
+import { EmployeeCard } from '@/components/EmployeeCard';
+import { EmployeeDialog } from '@/components/EmployeeDialog';
+import { EmployeeFilters } from '@/components/EmployeeFilters';
+import { EmployeeEmptyState } from '@/components/EmployeeEmptyState';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogTrigger } from '@/components/ui/dialog';
-import { useToast } from '@/hooks/use-toast';
 import { Plus } from 'lucide-react';
-import { EmployeeProfileService, ExtendedProfile, EmployeeUpdateData } from '@/services/employeeProfileService';
-import EmployeeCard from '@/components/EmployeeCard';
-import EmployeeDialog from '@/components/EmployeeDialog';
-import EmployeeFilters from '@/components/EmployeeFilters';
-import EmployeeEmptyState from '@/components/EmployeeEmptyState';
-
-interface Department {
-  id: string;
-  name: string;
-}
 
 export default function EmployeeManagement() {
-  const { profile } = useAuth();
-  const { toast } = useToast();
-  const [employees, setEmployees] = useState<ExtendedProfile[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterRole, setFilterRole] = useState('all');
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState<ExtendedProfile | null>(null);
-  const [updating, setUpdating] = useState(false);
-  const [newEmployee, setNewEmployee] = useState<EmployeeUpdateData>({
-    first_name: '',
-    last_name: '',
-    email: '',
-    role: 'staff',
-    position: '',
-    department_id: '',
-    line_manager_id: ''
+  const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [selectedRole, setSelectedRole] = useState('');
+
+  const { data: employees, isLoading, refetch } = useQuery({
+    queryKey: ['employees'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(`
+          *,
+          department:departments(name)
+        `)
+        .order('first_name');
+      
+      if (error) throw error;
+      return data;
+    }
   });
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    try {
-      console.log('🔄 Loading employee management data...');
-      
-      // Load departments first
-      const { data: departmentsData, error: departmentsError } = await supabase
+  const { data: departments } = useQuery({
+    queryKey: ['departments'],
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from('departments')
-        .select('id, name')
+        .select('*')
         .eq('is_active', true)
         .order('name');
-
-      if (departmentsError) {
-        console.error('❌ Error loading departments:', departmentsError);
-        throw departmentsError;
-      }
-
-      console.log('✅ Departments loaded:', departmentsData?.length);
-      setDepartments(departmentsData || []);
-
-      // Load all employees with names using the service
-      const employeesWithNames = await EmployeeProfileService.getAllEmployeesWithNames();
-      setEmployees(employeesWithNames);
-      console.log('✅ Employees loaded with names:', employeesWithNames.length);
       
-    } catch (error) {
-      console.error('❌ Error in loadData:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load employee data. Please check the console for details.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!editingEmployee) {
-      toast({ 
-        title: "Info", 
-        description: "Employee creation requires proper authentication setup",
-        variant: "default"
-      });
-      return;
-    }
-
-    setUpdating(true);
-    
-    try {
-      console.log('🔄 Starting employee update process...');
-      console.log('📝 Form data being submitted:', {
-        ...newEmployee,
-        employee_id: editingEmployee.id
-      });
-      
-      // Capture original state for comparison
-      const originalEmployee = { ...editingEmployee };
-      console.log('📊 Original employee state:', originalEmployee);
-      
-      // Use the service to update the employee with enhanced tracking
-      const updatedProfile = await EmployeeProfileService.updateEmployee(editingEmployee.id, newEmployee);
-      
-      console.log('✅ Service returned updated profile:', updatedProfile);
-      
-      // Update the local state with the complete updated profile
-      setEmployees(currentEmployees => 
-        currentEmployees.map(emp => 
-          emp.id === editingEmployee.id ? updatedProfile : emp
-        )
-      );
-
-      // Create detailed success message with verification info
-      const departmentStatus = updatedProfile.department_name ? 
-        `Department: "${updatedProfile.department_name}"` : 
-        'No department assigned';
-      
-      const managerStatus = updatedProfile.line_manager_name ? 
-        `Manager: "${updatedProfile.line_manager_name}"` : 
-        'No manager assigned';
-
-      const successMessage = `Employee "${updatedProfile.first_name} ${updatedProfile.last_name}" updated successfully.`;
-      
-      console.log('📋 Success details:', {
-        employee: `${updatedProfile.first_name} ${updatedProfile.last_name}`,
-        departmentId: updatedProfile.department_id,
-        departmentName: updatedProfile.department_name,
-        managerId: updatedProfile.line_manager_id,
-        managerName: updatedProfile.line_manager_name
-      });
-      
-      toast({ 
-        title: "Update Successful", 
-        description: `${successMessage} ${departmentStatus}. ${managerStatus}.`,
-      });
-
-      console.log('✅ Employee update completed successfully');
-      
-      setShowAddDialog(false);
-      setEditingEmployee(null);
-      resetForm();
-
-      // Force a fresh reload after a short delay to ensure UI consistency
-      setTimeout(() => {
-        console.log('🔄 Reloading data to ensure UI consistency...');
-        loadData();
-      }, 1000);
-      
-    } catch (error) {
-      console.error('❌ Complete error during update:', {
-        error: error,
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        employeeId: editingEmployee.id,
-        formData: newEmployee
-      });
-      
-      let errorMessage = 'Failed to save employee';
-      if (error instanceof Error) {
-        errorMessage = error.message;
-        
-        // Provide specific guidance for common issues
-        if (error.message.includes('schema')) {
-          errorMessage = 'Database relationship error detected. Please refresh the page and try again. If the issue persists, contact support.';
-        } else if (error.message.includes('Department')) {
-          errorMessage += '. Please verify the department selection is valid.';
-        } else if (error.message.includes('Manager')) {
-          errorMessage += '. Please verify the manager selection is valid.';
-        } else if (error.message.includes('verification failed')) {
-          errorMessage += '. The update may have been partially applied. Please refresh and try again.';
-        }
-      }
-      
-      toast({
-        title: "Update Failed",
-        description: errorMessage,
-        variant: "destructive"
-      });
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  const toggleEmployeeStatus = async (id: string, isActive: boolean) => {
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ is_active: isActive })
-        .eq('id', id);
-
       if (error) throw error;
-      
-      setEmployees(employees.map(emp => 
-        emp.id === id ? { ...emp, is_active: isActive } : emp
-      ));
-      
-      toast({
-        title: "Success",
-        description: `Employee ${isActive ? 'activated' : 'deactivated'} successfully`
-      });
-    } catch (error) {
-      console.error('Error updating employee status:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update employee status",
-        variant: "destructive"
-      });
+      return data;
     }
-  };
+  });
 
-  const editEmployee = (employee: ExtendedProfile) => {
-    console.log('📝 Editing employee:', employee);
-    console.log('🏢 Employee department_id:', employee.department_id);
-    console.log('👤 Employee line_manager_id:', employee.line_manager_id);
-    
-    setEditingEmployee(employee);
-    setNewEmployee({
-      first_name: employee.first_name,
-      last_name: employee.last_name,
-      email: employee.email,
-      role: employee.role,
-      position: employee.position || '',
-      // Use the actual IDs, not the display names
-      department_id: employee.department_id || 'none',
-      line_manager_id: employee.line_manager_id || 'none'
-    });
-    
-    console.log('📋 Form state set to:', {
-      first_name: employee.first_name,
-      last_name: employee.last_name,
-      email: employee.email,
-      role: employee.role,
-      position: employee.position || '',
-      department_id: employee.department_id || 'none',
-      line_manager_id: employee.line_manager_id || 'none'
-    });
-    
-    setShowAddDialog(true);
-  };
-
-  const resetForm = () => {
-    setNewEmployee({
-      first_name: '',
-      last_name: '',
-      email: '',
-      role: 'staff',
-      position: '',
-      department_id: '',
-      line_manager_id: ''
-    });
-  };
-
-  const handleAddEmployee = () => {
-    setEditingEmployee(null);
-    resetForm();
-    setShowAddDialog(true);
-  };
-
-  const filteredEmployees = employees.filter(employee => {
+  const filteredEmployees = employees?.filter(employee => {
     const matchesSearch = 
       employee.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       employee.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       employee.email.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesRole = filterRole === 'all' || employee.role === filterRole;
+    const matchesDepartment = !selectedDepartment || employee.department_id === selectedDepartment;
+    const matchesRole = !selectedRole || employee.role === selectedRole;
     
-    return matchesSearch && matchesRole;
+    return matchesSearch && matchesDepartment && matchesRole;
   });
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
-      </div>
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Employee Management</h1>
-          <p className="text-gray-600 mt-2">Manage employee profiles, roles, and organizational structure</p>
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Employee Management</h1>
+            <p className="text-gray-600">Manage employee profiles and information</p>
+          </div>
+          <Button onClick={() => setIsDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Employee
+          </Button>
         </div>
-        
-        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-          <DialogTrigger asChild>
-            <Button 
-              className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
-              onClick={handleAddEmployee}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Employee
-            </Button>
-          </DialogTrigger>
-          <EmployeeDialog
-            open={showAddDialog}
-            onOpenChange={setShowAddDialog}
-            editingEmployee={editingEmployee}
-            newEmployee={newEmployee}
-            setNewEmployee={setNewEmployee}
-            departments={departments}
-            employees={employees}
-            updating={updating}
-            onSubmit={handleSubmit}
-          />
-        </Dialog>
-      </div>
 
-      <EmployeeFilters
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        filterRole={filterRole}
-        setFilterRole={setFilterRole}
-      />
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filteredEmployees.map((employee) => (
-          <EmployeeCard
-            key={employee.id}
-            employee={employee}
-            onEdit={editEmployee}
-            onToggleStatus={toggleEmployeeStatus}
-          />
-        ))}
-      </div>
-
-      {filteredEmployees.length === 0 && (
-        <EmployeeEmptyState
+        <EmployeeFilters
           searchTerm={searchTerm}
-          filterRole={filterRole}
-          onAddEmployee={handleAddEmployee}
+          onSearchChange={setSearchTerm}
+          selectedDepartment={selectedDepartment}
+          onDepartmentChange={setSelectedDepartment}
+          selectedRole={selectedRole}
+          onRoleChange={setSelectedRole}
+          departments={departments || []}
         />
-      )}
-    </div>
+
+        {filteredEmployees && filteredEmployees.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredEmployees.map((employee) => (
+              <EmployeeCard 
+                key={employee.id} 
+                employee={employee} 
+                onUpdate={refetch}
+              />
+            ))}
+          </div>
+        ) : (
+          <EmployeeEmptyState 
+            hasEmployees={!!employees?.length}
+            isFiltered={!!(searchTerm || selectedDepartment || selectedRole)}
+          />
+        )}
+
+        <EmployeeDialog
+          isOpen={isDialogOpen}
+          onClose={() => setIsDialogOpen(false)}
+          onSuccess={() => {
+            setIsDialogOpen(false);
+            refetch();
+          }}
+          departments={departments || []}
+        />
+      </div>
+    </DashboardLayout>
   );
 }
