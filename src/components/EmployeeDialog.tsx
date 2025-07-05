@@ -24,7 +24,7 @@ interface EmployeeDialogProps {
   onSubmit: (e: React.FormEvent) => void;
 }
 
-export default function EmployeeDialog({
+export function EmployeeDialog({
   open,
   onOpenChange,
   editingEmployee,
@@ -37,11 +37,11 @@ export default function EmployeeDialog({
 }: EmployeeDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="backdrop-blur-md bg-white/90 max-w-2xl">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{editingEmployee ? 'Edit Employee' : 'Add New Employee'}</DialogTitle>
+          <DialogTitle>Edit Employee</DialogTitle>
           <DialogDescription>
-            {editingEmployee ? 'Update employee information' : 'Add a new employee to your organization'}
+            Update employee information, department, and line manager assignments
           </DialogDescription>
         </DialogHeader>
         
@@ -118,7 +118,6 @@ export default function EmployeeDialog({
                 value={newEmployee.department_id || 'none'} 
                 onValueChange={(value) => {
                   console.log('🏢 Department selection changed to:', value);
-                  console.log('🏢 Available departments:', departments.map(d => ({ id: d.id, name: d.name })));
                   setNewEmployee({ ...newEmployee, department_id: value === 'none' ? null : value });
                 }}
               >
@@ -140,8 +139,6 @@ export default function EmployeeDialog({
                 value={newEmployee.line_manager_id || 'none'} 
                 onValueChange={(value) => {
                   console.log('👤 Line manager selection changed to:', value);
-                  const selectedManager = employees.find(emp => emp.id === value);
-                  console.log('👤 Selected manager details:', selectedManager);
                   setNewEmployee({ ...newEmployee, line_manager_id: value === 'none' ? null : value });
                 }}
               >
@@ -169,7 +166,7 @@ export default function EmployeeDialog({
               disabled={updating}
               className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
             >
-              {updating ? 'Updating...' : (editingEmployee ? 'Update' : 'Add')} Employee
+              {updating ? 'Updating...' : 'Update Employee'}
             </Button>
             <Button 
               type="button" 

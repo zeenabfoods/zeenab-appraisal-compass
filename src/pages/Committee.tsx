@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Users, Calendar, Clock, CheckCircle, TrendingUp } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Users, Calendar, Clock, CheckCircle, TrendingUp, Eye } from 'lucide-react';
 
 export default function Committee() {
   const [selectedAppraisalId, setSelectedAppraisalId] = useState<string>('');
@@ -16,6 +17,7 @@ export default function Committee() {
   const { data: committeeAppraisals, isLoading } = useQuery({
     queryKey: ['committee-appraisals'],
     queryFn: async () => {
+      console.log('Fetching committee appraisals...');
       const { data, error } = await supabase
         .from('appraisals')
         .select(`
@@ -32,7 +34,11 @@ export default function Committee() {
         .eq('status', 'committee_review')
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching committee appraisals:', error);
+        throw error;
+      }
+      console.log('Committee appraisals fetched:', data);
       return data || [];
     }
   });
@@ -116,7 +122,7 @@ export default function Committee() {
           </div>
         ) : (
           <>
-            {/* Committee Member Selection */}
+            {/* Quick Select Dropdown */}
             {committeeAppraisals && committeeAppraisals.length > 0 && (
               <Card>
                 <CardHeader>
@@ -139,64 +145,99 @@ export default function Committee() {
               </Card>
             )}
 
-            {/* List of available appraisals */}
+            {/* Table view of available appraisals */}
             {committeeAppraisals && committeeAppraisals.length > 0 ? (
-              <div className="grid gap-4">
-                {committeeAppraisals.map((appraisal) => (
-                  <Card key={appraisal.id} className="hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-3">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 flex items-center justify-center text-white font-semibold">
-                            {appraisal.employee?.first_name?.[0]}{appraisal.employee?.last_name?.[0]}
-                          </div>
-                          <div>
-                            <CardTitle className="text-lg">
-                              {appraisal.employee?.first_name} {appraisal.employee?.last_name}
-                            </CardTitle>
-                            <p className="text-sm text-gray-600">{appraisal.employee?.email}</p>
-                            <p className="text-sm text-gray-600">
-                              {appraisal.employee?.position} • {appraisal.employee?.department?.name}
-                            </p>
-                          </div>
-                        </div>
-                        <Badge className="bg-purple-100 text-purple-800">
-                          Committee Review
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex justify-between items-center">
-                        <div className="text-sm text-gray-600 space-y-1">
-                          <div className="flex items-center space-x-1">
-                            <Calendar className="h-4 w-4" />
-                            <span>Cycle: {appraisal.cycle?.name}</span>
-                          </div>
-                          {appraisal.manager_reviewed_at && (
-                            <div className="flex items-center space-x-1">
-                              <Clock className="h-4 w-4" />
-                              <span>Manager Review: {new Date(appraisal.manager_reviewed_at).toLocaleDateString()}</span>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Appraisals Pending Committee Review ({committeeAppraisals.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Employee</TableHead>
+                        <TableHead>Position</TableHead>
+                        <TableHead>Department</TableHead>
+                        <TableHead>Cycle</TableHead>
+                        <TableHead>Manager Review Date</TableHead>
+                        <TableHead>Current Score</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {committeeAppraisals.map((appraisal) => (
+                        <TableRow key={appraisal.id}>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 flex items-center justify-center text-white text-sm font-semibold">
+                                {appraisal.employee?.first_name?.[0]}{appraisal.employee?.last_name?.[0]}
+                              </div>
+                              <div>
+                                <p className="font-medium">
+                                  {appraisal.employee?.first_name} {appraisal.employee?.last_name}
+                                </p>
+                                <p className="text-sm text-gray-500">{appraisal.employee?.email}</p>
+                              </div>
                             </div>
-                          )}
-                          {appraisal.overall_score && (
-                            <div className="flex items-center space-x-1">
-                              <TrendingUp className="h-4 w-4" />
-                              <span>Current Score: {appraisal.overall_score}/100</span>
+                          </TableCell>
+                          <TableCell>{appraisal.employee?.position || 'Not set'}</TableCell>
+                          <TableCell>{appraisal.employee?.department?.name || 'Not assigned'}</TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{appraisal.cycle?.name}</p>
+                              <p className="text-sm text-gray-500">
+                                {appraisal.cycle?.year} Q{appraisal.cycle?.quarter}
+                              </p>
                             </div>
-                          )}
-                        </div>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => setSelectedAppraisalId(appraisal.id)}
-                        >
-                          Review Details
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                          </TableCell>
+                          <TableCell>
+                            {appraisal.manager_reviewed_at ? (
+                              <div className="flex items-center space-x-1">
+                                <Calendar className="h-4 w-4 text-gray-400" />
+                                <span className="text-sm">
+                                  {new Date(appraisal.manager_reviewed_at).toLocaleDateString()}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-gray-400">Not reviewed</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {appraisal.overall_score ? (
+                              <div className="flex items-center space-x-1">
+                                <TrendingUp className="h-4 w-4 text-blue-500" />
+                                <span className="font-medium">{appraisal.overall_score}/100</span>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-gray-400">Not scored</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className="bg-purple-100 text-purple-800">
+                              Committee Review
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Button 
+                              size="sm"
+                              variant="outline" 
+                              onClick={() => setSelectedAppraisalId(appraisal.id)}
+                              className="flex items-center space-x-1"
+                            >
+                              <Eye className="h-4 w-4" />
+                              <span>Review</span>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
             ) : (
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-12">
