@@ -110,13 +110,23 @@ export default function EmployeeManagement() {
         )}
 
         <EmployeeDialog
-          isOpen={isDialogOpen}
-          onClose={() => setIsDialogOpen(false)}
-          onSuccess={() => {
-            setIsDialogOpen(false);
-            refetch();
+          open={isDialogOpen}
+          onOpenChange={setIsDialogOpen}
+          editingEmployee={null}
+          newEmployee={{
+            first_name: '',
+            last_name: '',
+            email: '',
+            role: 'staff',
+            position: '',
+            department_id: null,
+            line_manager_id: null
           }}
+          setNewEmployee={() => {}}
           departments={departments || []}
+          employees={employees || []}
+          updating={false}
+          onSubmit={() => {}}
         />
       </div>
     </DashboardLayout>

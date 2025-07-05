@@ -6,16 +6,22 @@ import { Search } from 'lucide-react';
 
 interface EmployeeFiltersProps {
   searchTerm: string;
-  setSearchTerm: (term: string) => void;
-  filterRole: string;
-  setFilterRole: (role: string) => void;
+  onSearchChange: (term: string) => void;
+  selectedDepartment: string;
+  onDepartmentChange: (department: string) => void;
+  selectedRole: string;
+  onRoleChange: (role: string) => void;
+  departments: Array<{ id: string; name: string; }>;
 }
 
 export default function EmployeeFilters({
   searchTerm,
-  setSearchTerm,
-  filterRole,
-  setFilterRole
+  onSearchChange,
+  selectedDepartment,
+  onDepartmentChange,
+  selectedRole,
+  onRoleChange,
+  departments
 }: EmployeeFiltersProps) {
   return (
     <div className="flex gap-4 items-center">
@@ -24,17 +30,29 @@ export default function EmployeeFilters({
         <Input 
           placeholder="Search employees..." 
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => onSearchChange(e.target.value)}
           className="pl-10"
         />
       </div>
       
-      <Select value={filterRole} onValueChange={setFilterRole}>
+      <Select value={selectedDepartment} onValueChange={onDepartmentChange}>
         <SelectTrigger className="w-48">
-          <SelectValue />
+          <SelectValue placeholder="All Departments" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All Roles</SelectItem>
+          <SelectItem value="">All Departments</SelectItem>
+          {departments.map((dept) => (
+            <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      
+      <Select value={selectedRole} onValueChange={onRoleChange}>
+        <SelectTrigger className="w-48">
+          <SelectValue placeholder="All Roles" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="">All Roles</SelectItem>
           <SelectItem value="staff">Staff</SelectItem>
           <SelectItem value="manager">Manager</SelectItem>
           <SelectItem value="hr">HR</SelectItem>
