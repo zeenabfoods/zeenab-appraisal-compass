@@ -9,12 +9,24 @@ import { supabase } from '@/integrations/supabase/client';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
+import { ExtendedProfile, EmployeeUpdateData } from '@/services/employeeProfileService';
 
 export default function EmployeeManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [selectedRole, setSelectedRole] = useState('');
+  const [editingEmployee, setEditingEmployee] = useState<ExtendedProfile | null>(null);
+  const [newEmployee, setNewEmployee] = useState<EmployeeUpdateData>({
+    first_name: '',
+    last_name: '',
+    email: '',
+    role: 'staff',
+    position: '',
+    department_id: null,
+    line_manager_id: null
+  });
+  const [updating, setUpdating] = useState(false);
 
   const { data: employees, isLoading, refetch } = useQuery({
     queryKey: ['employees'],
@@ -59,7 +71,33 @@ export default function EmployeeManagement() {
   });
 
   const handleAddEmployee = () => {
+    setEditingEmployee(null);
+    setNewEmployee({
+      first_name: '',
+      last_name: '',
+      email: '',
+      role: 'staff',
+      position: '',
+      department_id: null,
+      line_manager_id: null
+    });
     setIsDialogOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUpdating(true);
+    
+    try {
+      // Handle employee creation/update logic here
+      console.log('Submitting employee data:', newEmployee);
+      await refetch();
+      setIsDialogOpen(false);
+    } catch (error) {
+      console.error('Error saving employee:', error);
+    } finally {
+      setUpdating(false);
+    }
   };
 
   if (isLoading) {
@@ -116,7 +154,13 @@ export default function EmployeeManagement() {
         <EmployeeDialog
           open={isDialogOpen}
           onOpenChange={setIsDialogOpen}
-          onEmployeeAdded={refetch}
+          editingEmployee={editingEmployee}
+          newEmployee={newEmployee}
+          setNewEmployee={setNewEmployee}
+          departments={departments || []}
+          employees={employees || []}
+          updating={updating}
+          onSubmit={handleSubmit}
         />
       </div>
     </DashboardLayout>
