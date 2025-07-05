@@ -1,32 +1,16 @@
 
 import { DashboardLayout } from '@/components/DashboardLayout';
 import EmployeeCard from '@/components/EmployeeCard';
-import EmployeeDialog from '@/components/EmployeeDialog';
 import EmployeeFilters from '@/components/EmployeeFilters';
 import EmployeeEmptyState from '@/components/EmployeeEmptyState';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
-import { ExtendedProfile, EmployeeUpdateData } from '@/services/employeeProfileService';
 
 export default function EmployeeManagement() {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [selectedRole, setSelectedRole] = useState('');
-  const [editingEmployee, setEditingEmployee] = useState<ExtendedProfile | null>(null);
-  const [newEmployee, setNewEmployee] = useState<EmployeeUpdateData>({
-    first_name: '',
-    last_name: '',
-    email: '',
-    role: 'staff',
-    position: '',
-    department_id: null,
-    line_manager_id: null
-  });
-  const [updating, setUpdating] = useState(false);
 
   const { data: employees, isLoading, refetch } = useQuery({
     queryKey: ['employees'],
@@ -70,36 +54,6 @@ export default function EmployeeManagement() {
     return matchesSearch && matchesDepartment && matchesRole;
   });
 
-  const handleAddEmployee = () => {
-    setEditingEmployee(null);
-    setNewEmployee({
-      first_name: '',
-      last_name: '',
-      email: '',
-      role: 'staff',
-      position: '',
-      department_id: null,
-      line_manager_id: null
-    });
-    setIsDialogOpen(true);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setUpdating(true);
-    
-    try {
-      // Handle employee creation/update logic here
-      console.log('Submitting employee data:', newEmployee);
-      await refetch();
-      setIsDialogOpen(false);
-    } catch (error) {
-      console.error('Error saving employee:', error);
-    } finally {
-      setUpdating(false);
-    }
-  };
-
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -118,10 +72,6 @@ export default function EmployeeManagement() {
             <h1 className="text-2xl font-bold text-gray-900">Employee Management</h1>
             <p className="text-gray-600">Manage employee profiles and information</p>
           </div>
-          <Button onClick={handleAddEmployee}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Employee
-          </Button>
         </div>
 
         <EmployeeFilters
@@ -150,18 +100,6 @@ export default function EmployeeManagement() {
             isFiltered={!!(searchTerm || (selectedDepartment && selectedDepartment !== 'all') || (selectedRole && selectedRole !== 'all'))}
           />
         )}
-
-        <EmployeeDialog
-          open={isDialogOpen}
-          onOpenChange={setIsDialogOpen}
-          editingEmployee={editingEmployee}
-          newEmployee={newEmployee}
-          setNewEmployee={setNewEmployee}
-          departments={departments || []}
-          employees={employees || []}
-          updating={updating}
-          onSubmit={handleSubmit}
-        />
       </div>
     </DashboardLayout>
   );

@@ -47,8 +47,7 @@ export function QuickActionsCard() {
 
     // Check if user has manager, hr, or admin role
     if (profile?.role === 'manager' || profile?.role === 'hr' || profile?.role === 'admin') {
-      return [
-        ...commonActions,
+      commonActions.push(
         {
           id: 'view-team',
           label: 'View Team Performance',
@@ -61,13 +60,12 @@ export function QuickActionsCard() {
           icon: Shield,
           description: 'Create performance reports'
         }
-      ];
+      );
     }
 
     // Check if user has hr or admin role
     if (profile?.role === 'hr' || profile?.role === 'admin') {
-      return [
-        ...commonActions,
+      commonActions.push(
         {
           id: 'manage-cycles',
           label: 'Manage Cycles',
@@ -86,7 +84,7 @@ export function QuickActionsCard() {
           icon: FileText,
           description: 'Manage question templates'
         }
-      ];
+      );
     }
 
     return commonActions;

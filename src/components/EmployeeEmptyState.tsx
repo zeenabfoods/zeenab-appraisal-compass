@@ -1,8 +1,7 @@
 
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Users, Plus } from 'lucide-react';
+import { Users } from 'lucide-react';
 
 interface EmployeeEmptyStateProps {
   hasEmployees: boolean;
@@ -23,15 +22,9 @@ export default function EmployeeEmptyState({
         <p className="text-gray-600 text-center mb-4">
           {isFiltered 
             ? 'Try adjusting your search or filter criteria'
-            : 'Get started by adding your first employee'
+            : 'Employees will appear here once they register. You can then assign departments and line managers to them.'
           }
         </p>
-        {!hasEmployees && (
-          <Button className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600">
-            <Plus className="h-4 w-4 mr-2" />
-            Add First Employee
-          </Button>
-        )}
       </CardContent>
     </Card>
   );
