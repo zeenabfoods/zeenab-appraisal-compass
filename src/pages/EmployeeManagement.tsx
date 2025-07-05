@@ -26,7 +26,7 @@ export default function EmployeeManagement() {
         .from('profiles')
         .select(`
           *,
-          department:departments(name),
+          department:departments!profiles_department_id_fkey(name),
           line_manager:profiles!profiles_line_manager_id_fkey(first_name, last_name)
         `)
         .order('first_name');

@@ -27,7 +27,7 @@ export default function Committee() {
             last_name, 
             email,
             position,
-            department:departments(name)
+            department:departments!profiles_department_id_fkey(name)
           ),
           cycle:appraisal_cycles(name, year, quarter)
         `)
