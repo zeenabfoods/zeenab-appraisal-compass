@@ -45,7 +45,7 @@ export function CommitteeAnalytics({
     return acc;
   }, {} as Record<string, SectionPerformanceData>);
 
-  const sectionData = Object.entries(sectionPerformance).map(([name, data]) => ({
+  const sectionData = Object.entries(sectionPerformance).map(([name, data]: [string, SectionPerformanceData]) => ({
     name,
     current: Number((data.total / data.count).toFixed(1)),
     employee: Number((data.empTotal / data.count).toFixed(1)),
