@@ -45,6 +45,7 @@ export function QuickActionsCard() {
       }
     ];
 
+    // Check if user has manager, hr, or admin role
     if (profile?.role === 'manager' || profile?.role === 'hr' || profile?.role === 'admin') {
       return [
         ...commonActions,
@@ -63,6 +64,7 @@ export function QuickActionsCard() {
       ];
     }
 
+    // Check if user has hr or admin role
     if (profile?.role === 'hr' || profile?.role === 'admin') {
       return [
         ...commonActions,

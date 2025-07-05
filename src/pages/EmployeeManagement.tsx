@@ -52,11 +52,15 @@ export default function EmployeeManagement() {
       employee.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       employee.email.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesDepartment = !selectedDepartment || employee.department_id === selectedDepartment;
-    const matchesRole = !selectedRole || employee.role === selectedRole;
+    const matchesDepartment = !selectedDepartment || selectedDepartment === 'all' || employee.department_id === selectedDepartment;
+    const matchesRole = !selectedRole || selectedRole === 'all' || employee.role === selectedRole;
     
     return matchesSearch && matchesDepartment && matchesRole;
   });
+
+  const handleAddEmployee = () => {
+    setIsDialogOpen(true);
+  };
 
   if (isLoading) {
     return (
@@ -76,7 +80,7 @@ export default function EmployeeManagement() {
             <h1 className="text-2xl font-bold text-gray-900">Employee Management</h1>
             <p className="text-gray-600">Manage employee profiles and information</p>
           </div>
-          <Button onClick={() => setIsDialogOpen(true)}>
+          <Button onClick={handleAddEmployee}>
             <Plus className="h-4 w-4 mr-2" />
             Add Employee
           </Button>
@@ -105,28 +109,14 @@ export default function EmployeeManagement() {
         ) : (
           <EmployeeEmptyState 
             hasEmployees={!!employees?.length}
-            isFiltered={!!(searchTerm || selectedDepartment || selectedRole)}
+            isFiltered={!!(searchTerm || (selectedDepartment && selectedDepartment !== 'all') || (selectedRole && selectedRole !== 'all'))}
           />
         )}
 
         <EmployeeDialog
           open={isDialogOpen}
           onOpenChange={setIsDialogOpen}
-          editingEmployee={null}
-          newEmployee={{
-            first_name: '',
-            last_name: '',
-            email: '',
-            role: 'staff',
-            position: '',
-            department_id: null,
-            line_manager_id: null
-          }}
-          setNewEmployee={() => {}}
-          departments={departments || []}
-          employees={employees || []}
-          updating={false}
-          onSubmit={() => {}}
+          onEmployeeAdded={refetch}
         />
       </div>
     </DashboardLayout>

@@ -40,7 +40,7 @@ export default function EmployeeFilters({
           <SelectValue placeholder="All Departments" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">All Departments</SelectItem>
+          <SelectItem value="all">All Departments</SelectItem>
           {departments.map((dept) => (
             <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
           ))}
@@ -52,7 +52,7 @@ export default function EmployeeFilters({
           <SelectValue placeholder="All Roles" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">All Roles</SelectItem>
+          <SelectItem value="all">All Roles</SelectItem>
           <SelectItem value="staff">Staff</SelectItem>
           <SelectItem value="manager">Manager</SelectItem>
           <SelectItem value="hr">HR</SelectItem>
