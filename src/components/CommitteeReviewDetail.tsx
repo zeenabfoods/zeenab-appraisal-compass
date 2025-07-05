@@ -1,18 +1,16 @@
-
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Users, Calendar, TrendingUp, Target, MessageSquare, Star, Clock } from 'lucide-react';
+import { Users, BarChart3, Clock, Target, Send, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { CommitteeScoreComparison } from './CommitteeScoreComparison';
+import { CommitteeAnalytics } from './CommitteeAnalytics';
 
 interface CommitteeReviewDetailProps {
   appraisalId: string;
@@ -21,6 +19,7 @@ interface CommitteeReviewDetailProps {
 export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProps) {
   const [committeeComments, setCommitteeComments] = useState('');
   const [committeeScores, setCommitteeScores] = useState<Record<string, number>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -74,7 +73,7 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data;
+      return data || [];
     },
     enabled: !!appraisalData?.employee_id
   });
@@ -102,6 +101,45 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
   // Submit committee review
   const submitReviewMutation = useMutation({
     mutationFn: async () => {
+      setIsSubmitting(true);
+      
+      // Calculate final scores
+      let totalWeightedScore = 0;
+      let totalWeight = 0;
+      
+      const responses = appraisalData?.responses || [];
+      
+      // Update individual response scores with committee ratings
+      for (const response of responses) {
+        const committeeScore = committeeScores[response.id];
+        if (committeeScore) {
+          const { error: responseError } = await supabase
+            .from('appraisal_responses')
+            .update({
+              committee_rating: committeeScore,
+              committee_comment: committeeComments
+            })
+            .eq('id', response.id);
+
+          if (responseError) throw responseError;
+          
+          // Weight calculation (assuming weight from question)
+          const weight = 1; // Default weight, you can get this from question data
+          totalWeightedScore += committeeScore * 20; // Convert to 100 scale
+          totalWeight += weight;
+        }
+      }
+      
+      const finalScore = Math.round(totalWeightedScore / totalWeight);
+      
+      // Calculate performance band
+      let performanceBand = 'Poor';
+      if (finalScore >= 91) performanceBand = 'Exceptional';
+      else if (finalScore >= 81) performanceBand = 'Excellent';
+      else if (finalScore >= 71) performanceBand = 'Very Good';
+      else if (finalScore >= 61) performanceBand = 'Good';
+      else if (finalScore >= 51) performanceBand = 'Fair';
+
       // Update appraisal with committee review
       const { error: appraisalError } = await supabase
         .from('appraisals')
@@ -109,33 +147,25 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
           committee_comments: committeeComments,
           committee_reviewed_at: new Date().toISOString(),
           committee_reviewed_by: (await supabase.auth.getUser()).data.user?.id,
+          overall_score: finalScore,
+          performance_band: performanceBand,
           status: 'hr_review'
         })
         .eq('id', appraisalId);
 
       if (appraisalError) throw appraisalError;
-
-      // Update individual response scores with committee ratings
-      for (const [responseId, score] of Object.entries(committeeScores)) {
-        const { error: responseError } = await supabase
-          .from('appraisal_responses')
-          .update({
-            committee_rating: score,
-            committee_comment: committeeComments
-          })
-          .eq('id', responseId);
-
-        if (responseError) throw responseError;
-      }
+      
+      setIsSubmitting(false);
     },
     onSuccess: () => {
       toast({
-        title: "Committee Review Submitted",
-        description: "The appraisal has been reviewed and forwarded to HR.",
+        title: "Committee Review Completed",
+        description: "The appraisal has been reviewed and forwarded to HR for final processing.",
       });
       queryClient.invalidateQueries({ queryKey: ['committee-appraisals'] });
     },
     onError: (error) => {
+      setIsSubmitting(false);
       toast({
         title: "Error",
         description: "Failed to submit committee review. Please try again.",
@@ -150,6 +180,12 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
       ...prev,
       [responseId]: score
     }));
+  };
+
+  const canSubmit = () => {
+    const responses = appraisalData?.responses || [];
+    const scoredResponses = Object.keys(committeeScores).length;
+    return scoredResponses === responses.length && committeeComments.trim().length > 0;
   };
 
   if (isLoading) {
@@ -176,29 +212,32 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
   return (
     <div className="space-y-6">
       {/* Employee Header */}
-      <Card>
+      <Card className="border-l-4 border-l-purple-500">
         <CardHeader>
           <div className="flex justify-between items-start">
             <div className="flex items-center space-x-4">
-              <div className="bg-orange-100 p-3 rounded-full">
-                <Users className="h-6 w-6 text-orange-600" />
+              <div className="bg-gradient-to-r from-purple-100 to-pink-100 p-4 rounded-full">
+                <Users className="h-8 w-8 text-purple-600" />
               </div>
               <div>
-                <CardTitle className="text-xl">
+                <CardTitle className="text-2xl">
                   {employee?.first_name} {employee?.last_name}
                 </CardTitle>
-                <p className="text-gray-600">{employee?.email}</p>
+                <p className="text-gray-600 text-lg">{employee?.email}</p>
                 <p className="text-sm text-gray-500">
                   {employee?.position} • {employee?.department?.name}
                 </p>
               </div>
             </div>
             <div className="text-right">
-              <Badge className="bg-purple-100 text-purple-800">
+              <Badge className="bg-purple-100 text-purple-800 text-sm px-3 py-1">
                 Committee Review
               </Badge>
-              <p className="text-sm text-gray-500 mt-1">
-                {appraisalData.cycle?.name}
+              <p className="text-sm text-gray-500 mt-2">
+                <strong>{appraisalData.cycle?.name}</strong>
+              </p>
+              <p className="text-xs text-gray-400">
+                Year: {appraisalData.cycle?.year} • Q{appraisalData.cycle?.quarter}
               </p>
             </div>
           </div>
@@ -207,122 +246,92 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
 
       <Tabs defaultValue="scores" className="space-y-4">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="scores">Score Comparison</TabsTrigger>
-          <TabsTrigger value="history">Appraisal History</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="goals">Goals & Development</TabsTrigger>
+          <TabsTrigger value="scores" className="flex items-center space-x-2">
+            <BarChart3 className="h-4 w-4" />
+            <span>Score Review</span>
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="flex items-center space-x-2">
+            <Target className="h-4 w-4" />
+            <span>Analytics</span>
+          </TabsTrigger>
+          <TabsTrigger value="history" className="flex items-center space-x-2">
+            <Clock className="h-4 w-4" />
+            <span>History</span>
+          </TabsTrigger>
+          <TabsTrigger value="goals" className="flex items-center space-x-2">
+            <CheckCircle className="h-4 w-4" />
+            <span>Goals & Comments</span>
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="scores" className="space-y-4">
+        <TabsContent value="scores" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Score Comparison & Committee Review</CardTitle>
+              <p className="text-sm text-gray-600">
+                Review employee and manager ratings, then provide your committee assessment
+              </p>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {responses.map((response) => (
-                <div key={response.id} className="border rounded-lg p-4 space-y-4">
-                  <div>
-                    <h4 className="font-medium">{response.question?.question_text}</h4>
-                    <p className="text-sm text-gray-500">
-                      Section: {response.question?.section?.name}
-                    </p>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Employee Score */}
-                    <div className="bg-blue-50 p-3 rounded-lg">
-                      <Label className="text-sm font-medium text-blue-700">Employee Score</Label>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <div className="flex">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <Star
-                              key={star}
-                              className={`h-4 w-4 ${
-                                star <= (response.emp_rating || 0)
-                                  ? 'text-blue-500 fill-current'
-                                  : 'text-gray-300'
-                              }`}
-                            />
-                          ))}
-                        </div>
-                        <span className="text-sm font-medium">{response.emp_rating}/5</span>
-                      </div>
-                      {response.emp_comment && (
-                        <p className="text-xs text-gray-600 mt-1">{response.emp_comment}</p>
-                      )}
-                    </div>
-
-                    {/* Manager Score */}
-                    <div className="bg-green-50 p-3 rounded-lg">
-                      <Label className="text-sm font-medium text-green-700">Manager Score</Label>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <div className="flex">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <Star
-                              key={star}
-                              className={`h-4 w-4 ${
-                                star <= (response.mgr_rating || 0)
-                                  ? 'text-green-500 fill-current'
-                                  : 'text-gray-300'
-                              }`}
-                            />
-                          ))}
-                        </div>
-                        <span className="text-sm font-medium">{response.mgr_rating}/5</span>
-                      </div>
-                      {response.mgr_comment && (
-                        <p className="text-xs text-gray-600 mt-1">{response.mgr_comment}</p>
-                      )}
-                    </div>
-
-                    {/* Committee Score */}
-                    <div className="bg-purple-50 p-3 rounded-lg">
-                      <Label className="text-sm font-medium text-purple-700">Committee Score</Label>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <Select
-                          value={committeeScores[response.id]?.toString() || ''}
-                          onValueChange={(value) => handleScoreChange(response.id, parseInt(value))}
-                        >
-                          <SelectTrigger className="w-20 h-8">
-                            <SelectValue placeholder="Rate" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {[1, 2, 3, 4, 5].map((score) => (
-                              <SelectItem key={score} value={score.toString()}>
-                                {score}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <span className="text-sm text-gray-500">/5</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              <Separator />
-
-              <div className="space-y-4">
-                <Label htmlFor="committee-comments">Committee Comments</Label>
-                <Textarea
-                  id="committee-comments"
-                  placeholder="Provide detailed feedback and justification for score adjustments..."
-                  value={committeeComments}
-                  onChange={(e) => setCommitteeComments(e.target.value)}
-                  rows={4}
-                />
-              </div>
-
-              <Button 
-                onClick={() => submitReviewMutation.mutate()}
-                disabled={submitReviewMutation.isPending}
-                className="w-full"
-              >
-                {submitReviewMutation.isPending ? 'Submitting...' : 'Submit Committee Review'}
-              </Button>
+            <CardContent>
+              <CommitteeScoreComparison
+                responses={responses}
+                committeeScores={committeeScores}
+                onScoreChange={handleScoreChange}
+              />
             </CardContent>
           </Card>
+
+          {/* Committee Final Comments */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Committee Final Comments</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="committee-comments">
+                  Provide detailed feedback and justification for score adjustments *
+                </Label>
+                <Textarea
+                  id="committee-comments"
+                  placeholder="Provide comprehensive feedback on the employee's performance, justification for any score adjustments, and recommendations for development..."
+                  value={committeeComments}
+                  onChange={(e) => setCommitteeComments(e.target.value)}
+                  rows={6}
+                  className="resize-none"
+                />
+                <p className="text-xs text-gray-500">
+                  Minimum 50 characters required. Current: {committeeComments.length}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t">
+                <div className="text-sm text-gray-600">
+                  Progress: {Object.keys(committeeScores).length}/{responses.length} questions scored
+                </div>
+                
+                <Button 
+                  onClick={() => submitReviewMutation.mutate()}
+                  disabled={!canSubmit() || isSubmitting}
+                  className="flex items-center space-x-2"
+                  size="lg"
+                >
+                  <Send className="h-4 w-4" />
+                  <span>
+                    {isSubmitting ? 'Submitting...' : 'Complete Committee Review'}
+                  </span>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="analytics">
+          <CommitteeAnalytics
+            appraisalData={appraisalData}
+            appraisalHistory={appraisalHistory || []}
+            analytics={analytics}
+            responses={responses}
+          />
         </TabsContent>
 
         <TabsContent value="history" className="space-y-4">
@@ -362,65 +371,6 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
                 </div>
               ) : (
                 <p className="text-gray-500 text-center py-8">No previous appraisals found</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="analytics" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <TrendingUp className="h-5 w-5" />
-                <span>Performance Analytics</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {analytics ? (
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <h4 className="font-medium text-blue-900">Overall Performance</h4>
-                      <p className="text-2xl font-bold text-blue-600 mt-1">
-                        {analytics.overall_score}/100
-                      </p>
-                      <p className="text-sm text-blue-700">{analytics.performance_band}</p>
-                    </div>
-                    <div className="bg-green-50 p-4 rounded-lg">
-                      <h4 className="font-medium text-green-900">Performance Trend</h4>
-                      <p className="text-sm text-green-700 mt-1">
-                        {analytics.trends ? 'Trending upward' : 'Stable performance'}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {analytics.section_scores && (
-                    <div>
-                      <h4 className="font-medium mb-3">Section Breakdown</h4>
-                      <div className="space-y-2">
-                        {Object.entries(analytics.section_scores as Record<string, number>).map(([section, score]) => (
-                          <div key={section} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                            <span className="text-sm">{section}</span>
-                            <span className="font-medium">{score}/100</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {analytics.recommendations && (
-                    <div>
-                      <h4 className="font-medium mb-3">AI Recommendations</h4>
-                      <div className="p-3 bg-yellow-50 rounded-lg">
-                        <p className="text-sm text-yellow-800">
-                          {JSON.stringify(analytics.recommendations)}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <p className="text-gray-500 text-center py-8">No analytics data available</p>
               )}
             </CardContent>
           </Card>
