@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +10,13 @@ interface AnalyticsProps {
   appraisalHistory: any[];
   analytics: any;
   responses: any[];
+}
+
+interface SectionPerformanceData {
+  total: number;
+  count: number;
+  empTotal: number;
+  mgrTotal: number;
 }
 
 export function CommitteeAnalytics({ 
@@ -30,13 +36,14 @@ export function CommitteeAnalytics({
     const mgrScore = response.mgr_rating || 0;
     const avgScore = (empScore + mgrScore) / 2;
     
-    acc[sectionName].total += avgScore;
-    acc[sectionName].empTotal += empScore;
-    acc[sectionName].mgrTotal += mgrScore;
-    acc[sectionName].count += 1;
+    const sectionData = acc[sectionName] as SectionPerformanceData;
+    sectionData.total += avgScore;
+    sectionData.empTotal += empScore;
+    sectionData.mgrTotal += mgrScore;
+    sectionData.count += 1;
     
     return acc;
-  }, {} as Record<string, any>);
+  }, {} as Record<string, SectionPerformanceData>);
 
   const sectionData = Object.entries(sectionPerformance).map(([name, data]) => ({
     name,
