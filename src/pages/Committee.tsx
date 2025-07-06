@@ -2,17 +2,20 @@
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { CommitteeReviewDetail } from '@/components/CommitteeReviewDetail';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Users, Calendar, Clock, CheckCircle, TrendingUp, Eye } from 'lucide-react';
+import { Users, Calendar, Clock, CheckCircle, TrendingUp, Eye, Trash2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Committee() {
   const [selectedAppraisalId, setSelectedAppraisalId] = useState<string>('');
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: committeeAppraisals, isLoading } = useQuery({
     queryKey: ['committee-appraisals'],
@@ -65,6 +68,38 @@ export default function Committee() {
       };
     }
   });
+
+  const deleteAppraisalMutation = useMutation({
+    mutationFn: async (appraisalId: string) => {
+      const { error } = await supabase
+        .from('appraisals')
+        .delete()
+        .eq('id', appraisalId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['committee-appraisals'] });
+      queryClient.invalidateQueries({ queryKey: ['committee-stats'] });
+      toast({
+        title: "Success",
+        description: "Appraisal deleted successfully"
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete appraisal",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleDeleteAppraisal = (appraisalId: string) => {
+    if (confirm('Are you sure you want to delete this appraisal? This action cannot be undone.')) {
+      deleteAppraisalMutation.mutate(appraisalId);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -222,15 +257,25 @@ export default function Committee() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Button 
-                              size="sm"
-                              variant="outline" 
-                              onClick={() => setSelectedAppraisalId(appraisal.id)}
-                              className="flex items-center space-x-1"
-                            >
-                              <Eye className="h-4 w-4" />
-                              <span>Review</span>
-                            </Button>
+                            <div className="flex space-x-2">
+                              <Button 
+                                size="sm"
+                                variant="outline" 
+                                onClick={() => setSelectedAppraisalId(appraisal.id)}
+                                className="flex items-center space-x-1"
+                              >
+                                <Eye className="h-4 w-4" />
+                                <span>Review</span>
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDeleteAppraisal(appraisal.id)}
+                                className="hover:bg-red-100 text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}

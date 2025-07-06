@@ -1,4 +1,3 @@
-
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -104,6 +103,24 @@ export default function DepartmentManagement() {
     }
   });
 
+  const deleteDepartmentMutation = useMutation({
+    mutationFn: async (departmentId: string) => {
+      const { error } = await supabase
+        .from('departments')
+        .delete()
+        .eq('id', departmentId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
+      toast({ title: 'Department deleted successfully' });
+    },
+    onError: (error) => {
+      toast({ title: 'Error deleting department', description: error.message, variant: 'destructive' });
+    }
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingDepartment) {
@@ -128,6 +145,12 @@ export default function DepartmentManagement() {
     setIsDialogOpen(false);
     setEditingDepartment(null);
     setFormData({ name: '', description: '', line_manager_id: '', is_active: true });
+  };
+
+  const handleDelete = (departmentId: string, departmentName: string) => {
+    if (confirm(`Are you sure you want to delete "${departmentName}"? This action cannot be undone.`)) {
+      deleteDepartmentMutation.mutate(departmentId);
+    }
   };
 
   if (isLoading) {
@@ -254,6 +277,14 @@ export default function DepartmentManagement() {
                       onClick={() => handleEdit(department)}
                     >
                       <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDelete(department.id, department.name)}
+                      className="hover:bg-red-100 text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>

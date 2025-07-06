@@ -1,12 +1,12 @@
 import { DashboardLayout } from '@/components/DashboardLayout';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Users } from 'lucide-react';
+import { Edit, Users, Trash2 } from 'lucide-react';
 import { EmployeeDialog } from '@/components/EmployeeDialog';
 import { ExtendedProfile, EmployeeUpdateData } from '@/services/employeeProfileService';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +16,7 @@ export default function EmployeeManagement() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [updating, setUpdating] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: employees, isLoading, refetch } = useQuery({
     queryKey: ['employees'],
@@ -177,6 +178,37 @@ export default function EmployeeManagement() {
     }
   };
 
+  const deleteEmployeeMutation = useMutation({
+    mutationFn: async (employeeId: string) => {
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', employeeId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      toast({
+        title: "Success",
+        description: "Employee deleted successfully"
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete employee",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleDeleteEmployee = (employeeId: string, employeeName: string) => {
+    if (confirm(`Are you sure you want to delete ${employeeName}? This action cannot be undone.`)) {
+      deleteEmployeeMutation.mutate(employeeId);
+    }
+  };
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -258,14 +290,24 @@ export default function EmployeeManagement() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleEdit(employee)}
-                            className="hover:bg-orange-100"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                          <div className="flex space-x-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleEdit(employee)}
+                              className="hover:bg-orange-100"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleDeleteEmployee(employee.id, `${employee.first_name} ${employee.last_name}`)}
+                              className="hover:bg-red-100 text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
