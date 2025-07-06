@@ -184,46 +184,53 @@ export default function EmployeeManagement() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {employees.map((employee) => (
-                    <TableRow key={employee.id}>
-                      <TableCell className="font-medium">
-                        {employee.first_name} {employee.last_name}
-                      </TableCell>
-                      <TableCell>{employee.email}</TableCell>
-                      <TableCell>
-                        <Badge className={getRoleBadgeColor(employee.role)}>
-                          {employee.role.toUpperCase()}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{employee.position || 'Not set'}</TableCell>
-                      <TableCell>
-                        {employee.department?.name || 
-                          <span className="text-amber-600 italic">Not assigned</span>
-                        }
-                      </TableCell>
-                      <TableCell>
-                        {employee.line_manager ? 
-                          `${employee.line_manager.first_name} ${employee.line_manager.last_name}` :
-                          <span className="text-amber-600 italic">Not assigned</span>
-                        }
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={employee.is_active ? "default" : "secondary"}>
-                          {employee.is_active ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleEdit(employee)}
-                          className="hover:bg-orange-100"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {employees.map((employee) => {
+                    // Handle line_manager as it comes as an array from Supabase
+                    const lineManager = Array.isArray(employee.line_manager) && employee.line_manager.length > 0 
+                      ? employee.line_manager[0] 
+                      : null;
+                    
+                    return (
+                      <TableRow key={employee.id}>
+                        <TableCell className="font-medium">
+                          {employee.first_name} {employee.last_name}
+                        </TableCell>
+                        <TableCell>{employee.email}</TableCell>
+                        <TableCell>
+                          <Badge className={getRoleBadgeColor(employee.role)}>
+                            {employee.role.toUpperCase()}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{employee.position || 'Not set'}</TableCell>
+                        <TableCell>
+                          {employee.department?.name || 
+                            <span className="text-amber-600 italic">Not assigned</span>
+                          }
+                        </TableCell>
+                        <TableCell>
+                          {lineManager ? 
+                            `${lineManager.first_name} ${lineManager.last_name}` :
+                            <span className="text-amber-600 italic">Not assigned</span>
+                          }
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={employee.is_active ? "default" : "secondary"}>
+                            {employee.is_active ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleEdit(employee)}
+                            className="hover:bg-orange-100"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </CardContent>
