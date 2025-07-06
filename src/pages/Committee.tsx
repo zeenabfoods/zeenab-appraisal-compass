@@ -71,14 +71,45 @@ export default function Committee() {
 
   const deleteAppraisalMutation = useMutation({
     mutationFn: async (appraisalId: string) => {
+      console.log('Deleting appraisal with ID:', appraisalId);
+      
+      // Delete related appraisal responses first
+      const { error: responsesError } = await supabase
+        .from('appraisal_responses')
+        .delete()
+        .eq('appraisal_id', appraisalId);
+      
+      if (responsesError) {
+        console.error('Error deleting appraisal responses:', responsesError);
+        throw responsesError;
+      }
+
+      // Delete related notifications
+      const { error: notificationsError } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('related_appraisal_id', appraisalId);
+      
+      if (notificationsError) {
+        console.error('Error deleting notifications:', notificationsError);
+        // Don't throw here as notifications might not exist
+      }
+
+      // Finally delete the appraisal
       const { error } = await supabase
         .from('appraisals')
         .delete()
         .eq('id', appraisalId);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting appraisal:', error);
+        throw error;
+      }
+
+      console.log('Appraisal deleted successfully');
     },
     onSuccess: () => {
+      console.log('Delete mutation successful, invalidating queries...');
       queryClient.invalidateQueries({ queryKey: ['committee-appraisals'] });
       queryClient.invalidateQueries({ queryKey: ['committee-stats'] });
       toast({
@@ -87,6 +118,7 @@ export default function Committee() {
       });
     },
     onError: (error: any) => {
+      console.error('Delete mutation failed:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete appraisal",
@@ -96,7 +128,8 @@ export default function Committee() {
   });
 
   const handleDeleteAppraisal = (appraisalId: string) => {
-    if (confirm('Are you sure you want to delete this appraisal? This action cannot be undone.')) {
+    console.log('Delete button clicked for appraisal:', appraisalId);
+    if (confirm('Are you sure you want to delete this appraisal? This action cannot be undone and will remove all related data.')) {
       deleteAppraisalMutation.mutate(appraisalId);
     }
   };
@@ -272,6 +305,7 @@ export default function Committee() {
                                 variant="ghost"
                                 onClick={() => handleDeleteAppraisal(appraisal.id)}
                                 className="hover:bg-red-100 text-red-600 hover:text-red-700"
+                                disabled={deleteAppraisalMutation.isPending}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>

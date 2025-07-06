@@ -1,3 +1,4 @@
+
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -154,7 +155,7 @@ export default function EmployeeManagement() {
         description: "Employee profile updated successfully"
       });
 
-      refetch();
+      await queryClient.invalidateQueries({ queryKey: ['employees'] });
       setDialogOpen(false);
       resetForm();
     } catch (error: any) {
@@ -180,21 +181,104 @@ export default function EmployeeManagement() {
 
   const deleteEmployeeMutation = useMutation({
     mutationFn: async (employeeId: string) => {
+      console.log('Deleting employee with ID:', employeeId);
+      
+      // First, check if employee has any related data that needs to be cleaned up
+      const { data: appraisals } = await supabase
+        .from('appraisals')
+        .select('id')
+        .eq('employee_id', employeeId);
+
+      const { data: responses } = await supabase
+        .from('appraisal_responses')
+        .select('id')
+        .eq('employee_id', employeeId);
+
+      const { data: questions } = await supabase
+        .from('employee_appraisal_questions')
+        .select('id')
+        .eq('employee_id', employeeId);
+
+      const { data: notifications } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('related_employee_id', employeeId);
+
+      console.log('Related data found:', { appraisals, responses, questions, notifications });
+
+      // Delete related data first to avoid foreign key constraints
+      if (notifications && notifications.length > 0) {
+        const { error: notifError } = await supabase
+          .from('notifications')
+          .delete()
+          .eq('related_employee_id', employeeId);
+        
+        if (notifError) {
+          console.error('Error deleting notifications:', notifError);
+          throw notifError;
+        }
+      }
+
+      if (questions && questions.length > 0) {
+        const { error: questionsError } = await supabase
+          .from('employee_appraisal_questions')
+          .delete()
+          .eq('employee_id', employeeId);
+        
+        if (questionsError) {
+          console.error('Error deleting employee questions:', questionsError);
+          throw questionsError;
+        }
+      }
+
+      if (responses && responses.length > 0) {
+        const { error: responsesError } = await supabase
+          .from('appraisal_responses')
+          .delete()
+          .eq('employee_id', employeeId);
+        
+        if (responsesError) {
+          console.error('Error deleting responses:', responsesError);
+          throw responsesError;
+        }
+      }
+
+      if (appraisals && appraisals.length > 0) {
+        const { error: appraisalsError } = await supabase
+          .from('appraisals')
+          .delete()
+          .eq('employee_id', employeeId);
+        
+        if (appraisalsError) {
+          console.error('Error deleting appraisals:', appraisalsError);
+          throw appraisalsError;
+        }
+      }
+
+      // Finally delete the employee profile
       const { error } = await supabase
         .from('profiles')
         .delete()
         .eq('id', employeeId);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting employee profile:', error);
+        throw error;
+      }
+
+      console.log('Employee deleted successfully');
     },
     onSuccess: () => {
+      console.log('Delete mutation successful, invalidating queries...');
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
       toast({
         title: "Success",
         description: "Employee deleted successfully"
       });
     },
     onError: (error: any) => {
+      console.error('Delete mutation failed:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete employee",
@@ -204,7 +288,8 @@ export default function EmployeeManagement() {
   });
 
   const handleDeleteEmployee = (employeeId: string, employeeName: string) => {
-    if (confirm(`Are you sure you want to delete ${employeeName}? This action cannot be undone.`)) {
+    console.log('Delete button clicked for:', employeeId, employeeName);
+    if (confirm(`Are you sure you want to delete ${employeeName}? This action cannot be undone and will remove all related appraisal data.`)) {
       deleteEmployeeMutation.mutate(employeeId);
     }
   };
@@ -304,6 +389,7 @@ export default function EmployeeManagement() {
                               variant="ghost"
                               onClick={() => handleDeleteEmployee(employee.id, `${employee.first_name} ${employee.last_name}`)}
                               className="hover:bg-red-100 text-red-600 hover:text-red-700"
+                              disabled={deleteEmployeeMutation.isPending}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
