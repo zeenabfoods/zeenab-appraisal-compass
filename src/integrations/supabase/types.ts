@@ -820,6 +820,10 @@ export type Database = {
           department_name: string
         }[]
       }
+      is_cycle_accessible_to_employee: {
+        Args: { cycle_id_param: string }
+        Returns: boolean
+      }
       notify_hr_manager_review: {
         Args: { appraisal_id_param: string; manager_id_param: string }
         Returns: undefined

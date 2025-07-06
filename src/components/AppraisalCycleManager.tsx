@@ -4,13 +4,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Calendar, Users, TrendingUp, Settings, Edit, Trash2 } from 'lucide-react';
+import { Plus, Calendar } from 'lucide-react';
+import { AppraisalCycleStats } from '@/components/AppraisalCycleStats';
 
 interface AppraisalCycle {
   id: string;
@@ -140,12 +140,48 @@ export function AppraisalCycleManager() {
     }
   };
 
-  const deleteCycle = async (cycleId: string) => {
-    if (!confirm('Are you sure you want to delete this appraisal cycle? This action cannot be undone.')) {
+  const deleteCycle = async (cycleId: string, cycleName: string) => {
+    if (!confirm(`Are you sure you want to delete "${cycleName}"? This will also delete all related appraisals and responses. This action cannot be undone.`)) {
       return;
     }
 
     try {
+      console.log('Deleting cycle with ID:', cycleId);
+
+      // First delete appraisal responses related to this cycle
+      const { error: responsesError } = await supabase
+        .from('appraisal_responses')
+        .delete()
+        .eq('cycle_id', cycleId);
+
+      if (responsesError) {
+        console.error('Error deleting appraisal responses:', responsesError);
+        throw responsesError;
+      }
+
+      // Then delete appraisals for this cycle
+      const { error: appraisalsError } = await supabase
+        .from('appraisals')
+        .delete()
+        .eq('cycle_id', cycleId);
+
+      if (appraisalsError) {
+        console.error('Error deleting appraisals:', appraisalsError);
+        throw appraisalsError;
+      }
+
+      // Delete employee question assignments for this cycle
+      const { error: assignmentsError } = await supabase
+        .from('employee_appraisal_questions')
+        .delete()
+        .eq('cycle_id', cycleId);
+
+      if (assignmentsError) {
+        console.error('Error deleting question assignments:', assignmentsError);
+        throw assignmentsError;
+      }
+
+      // Finally delete the cycle itself
       const { error } = await supabase
         .from('appraisal_cycles')
         .delete()
@@ -156,7 +192,7 @@ export function AppraisalCycleManager() {
       setCycles(cycles.filter(cycle => cycle.id !== cycleId));
       toast({
         title: "Success",
-        description: "Appraisal cycle deleted successfully",
+        description: `"${cycleName}" deleted successfully`,
       });
     } catch (error) {
       console.error('Error deleting cycle:', error);
@@ -188,15 +224,6 @@ export function AppraisalCycleManager() {
       start_date: '',
       end_date: '',
     });
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'completed': return 'bg-blue-100 text-blue-800';
-      case 'archived': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-yellow-100 text-yellow-800';
-    }
   };
 
   if (loading) {
@@ -336,79 +363,12 @@ export function AppraisalCycleManager() {
       {/* Cycles Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {cycles.map((cycle) => (
-          <Card key={cycle.id} className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg hover:shadow-xl transition-all">
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="text-lg">{cycle.name}</CardTitle>
-                  <CardDescription>
-                    Q{cycle.quarter} {cycle.year}
-                  </CardDescription>
-                </div>
-                <Badge className={getStatusColor(cycle.status)}>
-                  {cycle.status}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center text-sm text-gray-600">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  {new Date(cycle.start_date).toLocaleDateString()} - {new Date(cycle.end_date).toLocaleDateString()}
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Users className="h-4 w-4 mr-1" />
-                    <span>156 employees</span>
-                  </div>
-                  <div className="flex items-center text-sm text-gray-600">
-                    <TrendingUp className="h-4 w-4 mr-1" />
-                    <span>73% complete</span>
-                  </div>
-                </div>
-                
-                {(profile?.role === 'hr' || profile?.role === 'admin') && (
-                  <div className="flex flex-wrap gap-2">
-                    {cycle.status === 'draft' && (
-                      <Button
-                        size="sm"
-                        onClick={() => updateCycleStatus(cycle.id, 'active')}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        Activate
-                      </Button>
-                    )}
-                    {cycle.status === 'active' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => updateCycleStatus(cycle.id, 'completed')}
-                      >
-                        Complete
-                      </Button>
-                    )}
-                    <Button 
-                      size="sm" 
-                      variant="ghost"
-                      onClick={() => editCycle(cycle)}
-                      className="hover:bg-blue-100"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="ghost"
-                      onClick={() => deleteCycle(cycle.id)}
-                      className="hover:bg-red-100 text-red-600"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <AppraisalCycleStats 
+            key={cycle.id} 
+            cycle={cycle}
+            onEdit={(profile?.role === 'hr' || profile?.role === 'admin') ? editCycle : undefined}
+            onDelete={(profile?.role === 'hr' || profile?.role === 'admin') ? deleteCycle : undefined}
+          />
         ))}
       </div>
 
