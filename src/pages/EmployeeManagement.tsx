@@ -1,4 +1,3 @@
-
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,21 +21,58 @@ export default function EmployeeManagement() {
     queryKey: ['employees'],
     queryFn: async () => {
       console.log('Fetching employees...');
-      const { data, error } = await supabase
+      
+      // First get all employees - simplified query to avoid join issues
+      const { data: employeesData, error: employeesError } = await supabase
         .from('profiles')
-        .select(`
-          *,
-          department:departments!profiles_department_id_fkey(name),
-          line_manager:profiles!profiles_line_manager_id_fkey(first_name, last_name)
-        `)
+        .select('*')
         .order('first_name');
       
-      if (error) {
-        console.error('Error fetching employees:', error);
-        throw error;
+      if (employeesError) {
+        console.error('Error fetching employees:', employeesError);
+        throw employeesError;
       }
-      console.log('Employees fetched:', data);
-      return data;
+
+      console.log('Raw employees data:', employeesData);
+
+      // Get all departments separately
+      const { data: departmentsData } = await supabase
+        .from('departments')
+        .select('id, name')
+        .eq('is_active', true);
+
+      console.log('Departments data:', departmentsData);
+
+      // Enhance employees with department and manager names
+      const enhancedEmployees = await Promise.all(
+        (employeesData || []).map(async (employee) => {
+          const enhanced: any = { ...employee };
+
+          // Add department name
+          if (employee.department_id && departmentsData) {
+            const department = departmentsData.find(d => d.id === employee.department_id);
+            if (department) {
+              enhanced.department = { name: department.name };
+            }
+          }
+
+          // Add line manager name
+          if (employee.line_manager_id) {
+            const manager = employeesData.find(emp => emp.id === employee.line_manager_id);
+            if (manager) {
+              enhanced.line_manager = [{
+                first_name: manager.first_name,
+                last_name: manager.last_name
+              }];
+            }
+          }
+
+          return enhanced;
+        })
+      );
+
+      console.log('Enhanced employees:', enhancedEmployees);
+      return enhancedEmployees;
     }
   });
 
@@ -159,6 +195,9 @@ export default function EmployeeManagement() {
             <h1 className="text-2xl font-bold text-gray-900">Employee Management</h1>
             <p className="text-gray-600">Manage employee profiles and assignments</p>
           </div>
+          <div className="text-sm text-gray-500">
+            Total Employees: {employees?.length || 0}
+          </div>
         </div>
 
         {employees && employees.length > 0 ? (
@@ -185,7 +224,7 @@ export default function EmployeeManagement() {
                 </TableHeader>
                 <TableBody>
                   {employees.map((employee) => {
-                    // Handle line_manager as it comes as an array from Supabase
+                    // Handle line_manager as it comes as an array from our enhanced data
                     const lineManager = Array.isArray(employee.line_manager) && employee.line_manager.length > 0 
                       ? employee.line_manager[0] 
                       : null;
