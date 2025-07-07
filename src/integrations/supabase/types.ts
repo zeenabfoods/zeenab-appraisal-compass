@@ -798,6 +798,10 @@ export type Database = {
         Args: { score: number }
         Returns: string
       }
+      complete_appraisal_cycle: {
+        Args: { cycle_id_param: string }
+        Returns: undefined
+      }
       delete_section_with_questions: {
         Args: { section_id_param: string }
         Returns: undefined

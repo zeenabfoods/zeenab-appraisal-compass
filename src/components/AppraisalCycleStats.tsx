@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Users, TrendingUp, Edit, Trash2, Play } from 'lucide-react';
+import { Calendar, Users, TrendingUp, Edit, Trash2, Play, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 
@@ -100,6 +100,35 @@ export function AppraisalCycleStats({ cycle, onEdit, onDelete }: AppraisalCycleS
     }
   };
 
+  const handleCompleteCycle = async () => {
+    if (!confirm(`Are you sure you want to complete "${cycle.name}"? This will prevent employees from accessing this cycle and mark all related appraisals as completed. This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase.rpc('complete_appraisal_cycle', {
+        cycle_id_param: cycle.id
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Appraisal cycle completed successfully",
+      });
+
+      // Refresh the page or trigger a re-fetch
+      window.location.reload();
+    } catch (error) {
+      console.error('Error completing cycle:', error);
+      toast({
+        title: "Error",
+        description: "Failed to complete appraisal cycle",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardContent className="p-6">
@@ -146,6 +175,17 @@ export function AppraisalCycleStats({ cycle, onEdit, onDelete }: AppraisalCycleS
               >
                 <Play className="h-4 w-4 mr-1" />
                 Activate
+              </Button>
+            )}
+            {cycle.status === 'active' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCompleteCycle}
+                className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+              >
+                <CheckCircle className="h-4 w-4 mr-1" />
+                Complete
               </Button>
             )}
             <Button
