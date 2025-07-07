@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 interface SectionScore {
@@ -8,6 +7,7 @@ interface SectionScore {
   weight: number;
   isNoteworthy: boolean;
   maxScore: number;
+  [key: string]: any; // Add index signature for Json compatibility
 }
 
 interface PerformanceCalculationResult {
@@ -211,6 +211,20 @@ export class PerformanceCalculationService {
     calculation: PerformanceCalculationResult
   ): Promise<void> {
     try {
+      // Convert the section scores to a JSON-compatible format
+      const sectionScoresJson = {
+        sections: calculation.sectionScores.map(section => ({
+          sectionId: section.sectionId,
+          sectionName: section.sectionName,
+          score: section.score,
+          weight: section.weight,
+          isNoteworthy: section.isNoteworthy,
+          maxScore: section.maxScore
+        })),
+        baseScore: calculation.baseScore,
+        noteworthyBonus: calculation.noteworthyBonus
+      };
+
       const { error } = await supabase
         .from('performance_analytics')
         .upsert({
@@ -218,11 +232,7 @@ export class PerformanceCalculationService {
           cycle_id: cycleId,
           overall_score: calculation.overallScore,
           performance_band: calculation.performanceBand,
-          section_scores: {
-            sections: calculation.sectionScores,
-            baseScore: calculation.baseScore,
-            noteworthyBonus: calculation.noteworthyBonus
-          }
+          section_scores: sectionScoresJson
         }, {
           onConflict: 'employee_id,cycle_id'
         });
