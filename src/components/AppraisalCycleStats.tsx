@@ -3,8 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Users, TrendingUp, Edit, Trash2 } from 'lucide-react';
+import { Calendar, Users, TrendingUp, Edit, Trash2, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 interface AppraisalCycleStatsProps {
   cycle: {
@@ -21,6 +22,8 @@ interface AppraisalCycleStatsProps {
 }
 
 export function AppraisalCycleStats({ cycle, onEdit, onDelete }: AppraisalCycleStatsProps) {
+  const { toast } = useToast();
+
   // Get total active employees
   const { data: totalEmployees } = useQuery({
     queryKey: ['total-employees'],
@@ -71,6 +74,32 @@ export function AppraisalCycleStats({ cycle, onEdit, onDelete }: AppraisalCycleS
     }
   };
 
+  const handleActivateCycle = async () => {
+    try {
+      const { error } = await supabase
+        .from('appraisal_cycles')
+        .update({ status: 'active' })
+        .eq('id', cycle.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Appraisal cycle activated successfully",
+      });
+
+      // Refresh the page or trigger a re-fetch
+      window.location.reload();
+    } catch (error) {
+      console.error('Error activating cycle:', error);
+      toast({
+        title: "Error",
+        description: "Failed to activate appraisal cycle",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardContent className="p-6">
@@ -108,6 +137,17 @@ export function AppraisalCycleStats({ cycle, onEdit, onDelete }: AppraisalCycleS
 
         {onEdit && onDelete && (
           <div className="flex justify-end space-x-2">
+            {cycle.status === 'draft' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleActivateCycle}
+                className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+              >
+                <Play className="h-4 w-4 mr-1" />
+                Activate
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"

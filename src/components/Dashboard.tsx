@@ -323,6 +323,13 @@ export function Dashboard() {
                 <p className="text-gray-900 font-semibold">
                   {currentProfile.line_manager_name || 'No line manager assigned'}
                 </p>
+                {currentProfile.line_manager_name && (
+                  <div className="mt-2 text-sm text-gray-600">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                      {currentProfile.role === 'staff' ? 'Direct Report' : 'Supervisor'}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Position Information */}
