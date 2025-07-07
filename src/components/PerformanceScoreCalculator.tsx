@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Calculator, TrendingUp, Award, Users } from 'lucide-react';
+import { Calculator, TrendingUp, Award, Users, CheckCircle, AlertCircle } from 'lucide-react';
+import { PerformanceCalculationService } from '@/services/performanceCalculationService';
 
 interface PerformanceScore {
   id: string;
@@ -16,6 +17,7 @@ interface PerformanceScore {
   created_at: string;
   employee_name: string;
   cycle_name: string;
+  section_scores?: any;
 }
 
 interface PerformanceScoreCalculatorProps {
@@ -48,6 +50,7 @@ export function PerformanceScoreCalculator({
           overall_score,
           performance_band,
           created_at,
+          section_scores,
           employee:profiles!employee_id(first_name, last_name),
           cycle:appraisal_cycles!cycle_id(name)
         `)
@@ -71,7 +74,8 @@ export function PerformanceScoreCalculator({
         employee_name: score.employee 
           ? `${score.employee.first_name} ${score.employee.last_name}`
           : 'Unknown Employee',
-        cycle_name: score.cycle?.name || 'Unknown Cycle'
+        cycle_name: score.cycle?.name || 'Unknown Cycle',
+        section_scores: score.section_scores
       })) || [];
 
       setScores(formattedScores);
@@ -90,30 +94,66 @@ export function PerformanceScoreCalculator({
   const calculatePerformanceScores = async () => {
     setCalculating(true);
     try {
-      // Get the most recent cycle for calculation
+      // Get active cycles for calculation
       const { data: cycles, error: cycleError } = await supabase
         .from('appraisal_cycles')
         .select('id, name')
         .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(1);
+        .order('created_at', { ascending: false });
 
       if (cycleError) throw cycleError;
       
-      const recentCycle = cycles?.[0];
-      if (!recentCycle) {
+      if (!cycles || cycles.length === 0) {
         toast({
-          title: "No Active Cycle",
-          description: "No active appraisal cycle found for calculation",
+          title: "No Active Cycles",
+          description: "No active appraisal cycles found for calculation",
           variant: "destructive"
         });
         return;
       }
 
-      // Implementation for calculating performance scores would go here
+      // Get employees to calculate for
+      let employeesToCalculate = [];
+      if (showAllEmployees) {
+        const { data: employees, error: empError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name')
+          .eq('is_active', true);
+        
+        if (empError) throw empError;
+        employeesToCalculate = employees || [];
+      } else if (employeeId) {
+        employeesToCalculate = [{ id: employeeId }];
+      }
+
+      let calculatedCount = 0;
+      
+      // Calculate scores for each employee and cycle combination
+      for (const cycle of cycles) {
+        for (const employee of employeesToCalculate) {
+          try {
+            const calculation = await PerformanceCalculationService.calculatePerformanceScore(
+              employee.id,
+              cycle.id
+            );
+            
+            if (calculation) {
+              await PerformanceCalculationService.savePerformanceAnalytics(
+                employee.id,
+                cycle.id,
+                calculation
+              );
+              calculatedCount++;
+            }
+          } catch (error) {
+            console.error(`Error calculating for employee ${employee.id}:`, error);
+          }
+        }
+      }
+
       toast({
-        title: "Calculation Started",
-        description: `Performance scores calculation initiated for ${recentCycle.name}`,
+        title: "Calculation Complete",
+        description: `Successfully calculated ${calculatedCount} performance scores`,
       });
 
       // Reload scores after calculation
@@ -214,13 +254,39 @@ export function PerformanceScoreCalculator({
                       <div className="text-2xl font-bold text-orange-600">
                         {score.overall_score}%
                       </div>
+                      {score.section_scores && (
+                        <div className="text-xs text-gray-500">
+                          Base: {score.section_scores.baseScore}% 
+                          {score.section_scores.noteworthyBonus > 0 && 
+                            ` + ${score.section_scores.noteworthyBonus}% bonus`
+                          }
+                        </div>
+                      )}
                     </div>
                     <Badge className={getBandColor(score.performance_band)}>
                       {score.performance_band}
                     </Badge>
                   </div>
                 </div>
-                <div className="text-xs text-gray-500">
+                
+                {/* Section breakdown if available */}
+                {score.section_scores?.sections && (
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                      {score.section_scores.sections.map((section: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between">
+                          <span className="text-gray-600 truncate">
+                            {section.sectionName}
+                            {section.isNoteworthy && <span className="text-amber-500 ml-1">★</span>}
+                          </span>
+                          <span className="font-medium">{section.score.toFixed(1)}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                <div className="text-xs text-gray-500 mt-2">
                   Calculated: {new Date(score.created_at).toLocaleDateString()}
                 </div>
               </div>
