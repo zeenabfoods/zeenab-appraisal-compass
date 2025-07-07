@@ -12,6 +12,7 @@ import { AppraisalHistoryCard } from '@/components/AppraisalHistoryCard';
 import { EmployeeProfileCard } from '@/components/EmployeeProfileCard';
 import { RecentActivityCard } from '@/components/RecentActivityCard';
 import { QuickActionsCard } from '@/components/QuickActionsCard';
+import { PerformanceScoreCalculator } from '@/components/PerformanceScoreCalculator';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Profile } from '@/hooks/useAuth';
 import { EmployeeProfileService, ExtendedProfile } from '@/services/employeeProfileService';
@@ -42,24 +43,13 @@ interface AppraisalCycle {
 }
 
 interface DashboardStats {
-  totalEmployees: number;
-  completedAppraisals: number;
+  totalAppraisals: number;
   pendingAppraisals: number;
+  completedAppraisals: number;
   averageScore: number;
+  teamMembers: number;
+  completionRate: number;
 }
-
-const performanceData = [
-  { name: 'Q1', score: 85 },
-  { name: 'Q2', score: 88 },
-  { name: 'Q3', score: 92 },
-  { name: 'Q4', score: 89 },
-];
-
-const statusData = [
-  { name: 'Completed', value: 65, color: '#10b981' },
-  { name: 'In Progress', value: 25, color: '#f59e0b' },
-  { name: 'Not Started', value: 10, color: '#ef4444' },
-];
 
 export function Dashboard() {
   const { profile, user, loading, authReady } = useAuth();
@@ -68,10 +58,12 @@ export function Dashboard() {
   const [profileLoading, setProfileLoading] = useState(false);
   const [cycles, setCycles] = useState<AppraisalCycle[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
-    totalEmployees: 0,
-    completedAppraisals: 0,
+    totalAppraisals: 0,
     pendingAppraisals: 0,
-    averageScore: 0
+    completedAppraisals: 0,
+    averageScore: 0,
+    teamMembers: 0,
+    completionRate: 0
   });
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [showAccessDialog, setShowAccessDialog] = useState(false);
@@ -105,42 +97,55 @@ export function Dashboard() {
 
   useEffect(() => {
     // Only load dashboard data when auth is ready and user exists
-    if (authReady && user) {
+    if (authReady && user && currentProfile) {
       console.log('Auth ready and user exists, loading dashboard data');
       loadDashboardData();
     } else if (authReady && !user) {
       console.log('Auth ready but no user, stopping dashboard loading');
       setDashboardLoading(false);
     }
-  }, [authReady, user]);
+  }, [authReady, user, currentProfile]);
 
   const loadDashboardData = async () => {
     try {
       console.log('Loading dashboard data...');
       setDashboardLoading(true);
       
-      // Load real data from database
+      // Get current user's appraisals and stats
+      let appraisalsQuery = supabase
+        .from('appraisals')
+        .select('id, status, overall_score, cycle_id');
+
+      // If user is HR/Admin, get all appraisals, otherwise get only their own
+      if (currentProfile?.role === 'hr' || currentProfile?.role === 'admin') {
+        // HR/Admin can see all appraisals
+      } else if (currentProfile?.role === 'manager' && currentProfile?.id) {
+        // Managers can see their team's appraisals
+        const { data: teamMembers } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('line_manager_id', currentProfile.id);
+        
+        const teamIds = teamMembers ? teamMembers.map(t => t.id) : [];
+        teamIds.push(currentProfile.id); // Include manager's own appraisals
+        
+        appraisalsQuery = appraisalsQuery.in('employee_id', teamIds);
+      } else {
+        // Regular employees see only their own appraisals
+        appraisalsQuery = appraisalsQuery.eq('employee_id', currentProfile?.id);
+      }
+
       const [
-        { data: profilesData, error: profilesError },
         { data: appraisalsData, error: appraisalsError },
         { data: cyclesData, error: cyclesError }
       ] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('id, is_active')
-          .eq('is_active', true),
-        supabase
-          .from('appraisals')
-          .select('id, status, overall_score'),
+        appraisalsQuery,
         supabase
           .from('appraisal_cycles')
           .select('*')
           .order('created_at', { ascending: false })
       ]);
 
-      if (profilesError) {
-        console.error('Error fetching profiles:', profilesError);
-      }
       if (appraisalsError) {
         console.error('Error fetching appraisals:', appraisalsError);
       }
@@ -148,10 +153,29 @@ export function Dashboard() {
         console.error('Error fetching cycles:', cyclesError);
       }
 
-      // Calculate actual stats
-      const totalEmployees = profilesData?.length || 0;
+      // Calculate team members count based on role
+      let teamMembersCount = 0;
+      if (currentProfile?.role === 'hr' || currentProfile?.role === 'admin') {
+        const { data: allProfiles } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('is_active', true);
+        teamMembersCount = allProfiles?.length || 0;
+      } else if (currentProfile?.role === 'manager' && currentProfile?.id) {
+        const { data: teamMembers } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('line_manager_id', currentProfile.id);
+        teamMembersCount = teamMembers?.length || 0;
+      } else {
+        // Regular employees don't have team members
+        teamMembersCount = 0;
+      }
+
+      // Calculate stats from actual data
+      const totalAppraisals = appraisalsData?.length || 0;
       const completedAppraisals = appraisalsData?.filter(a => a.status === 'completed').length || 0;
-      const pendingAppraisals = appraisalsData?.filter(a => a.status === 'submitted' || a.status === 'manager_review').length || 0;
+      const pendingAppraisals = appraisalsData?.filter(a => ['submitted', 'manager_review', 'hr_review', 'committee_review'].includes(a.status)).length || 0;
       
       // Calculate average score from completed appraisals
       const completedWithScores = appraisalsData?.filter(a => a.status === 'completed' && a.overall_score) || [];
@@ -159,18 +183,25 @@ export function Dashboard() {
         ? completedWithScores.reduce((sum, a) => sum + (a.overall_score || 0), 0) / completedWithScores.length
         : 0;
 
+      // Calculate completion rate
+      const completionRate = totalAppraisals > 0 ? (completedAppraisals / totalAppraisals) * 100 : 0;
+
       console.log('📊 Dashboard stats calculated:', {
-        totalEmployees,
+        totalAppraisals,
         completedAppraisals,
         pendingAppraisals,
-        averageScore: averageScore.toFixed(1)
+        averageScore: averageScore.toFixed(1),
+        teamMembersCount,
+        completionRate: completionRate.toFixed(1)
       });
 
       setStats({
-        totalEmployees,
-        completedAppraisals,
+        totalAppraisals,
         pendingAppraisals,
-        averageScore: parseFloat(averageScore.toFixed(1))
+        completedAppraisals,
+        averageScore: parseFloat(averageScore.toFixed(1)),
+        teamMembers: teamMembersCount,
+        completionRate: parseFloat(completionRate.toFixed(1))
       });
 
       if (cyclesData) {
@@ -180,12 +211,14 @@ export function Dashboard() {
 
     } catch (error) {
       console.error('Error loading dashboard data:', error);
-      // Set fallback values if real data fails
+      // Set empty values if real data fails
       setStats({
-        totalEmployees: 0,
-        completedAppraisals: 0,
+        totalAppraisals: 0,
         pendingAppraisals: 0,
-        averageScore: 0
+        completedAppraisals: 0,
+        averageScore: 0,
+        teamMembers: 0,
+        completionRate: 0
       });
     } finally {
       setDashboardLoading(false);
@@ -358,26 +391,13 @@ export function Dashboard() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total Appraisals</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardLoading ? '...' : stats.totalEmployees}</div>
+            <div className="text-2xl font-bold">{dashboardLoading ? '...' : stats.totalAppraisals}</div>
             <p className="text-xs text-muted-foreground">
-              Active team members
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed Appraisals</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardLoading ? '...' : stats.completedAppraisals}</div>
-            <p className="text-xs text-muted-foreground">
-              Finalized appraisals
+              {stats.totalAppraisals === 0 ? 'No appraisals yet' : 'Your appraisals'}
             </p>
           </CardContent>
         </Card>
@@ -390,22 +410,38 @@ export function Dashboard() {
           <CardContent>
             <div className="text-2xl font-bold">{dashboardLoading ? '...' : stats.pendingAppraisals}</div>
             <p className="text-xs text-muted-foreground">
-              Awaiting completion
+              {stats.pendingAppraisals === 0 ? 'No pending reviews' : 'Awaiting completion'}
             </p>
           </CardContent>
         </Card>
 
         <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Average Score</CardTitle>
-            <Star className="h-4 w-4 text-yellow-600" />
+            <CardTitle className="text-sm font-medium">
+              {currentProfile?.role === 'hr' || currentProfile?.role === 'admin' ? 'All Employees' : 'Team Members'}
+            </CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{dashboardLoading ? '...' : stats.teamMembers}</div>
+            <p className="text-xs text-muted-foreground">
+              {stats.teamMembers === 0 ? 'No team members' : 
+               currentProfile?.role === 'hr' || currentProfile?.role === 'admin' ? 'Total employees' : 'Your team'}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Completion Rate</CardTitle>
+            <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {dashboardLoading ? '...' : stats.averageScore > 0 ? `${stats.averageScore}%` : 'N/A'}
+              {dashboardLoading ? '...' : stats.completionRate > 0 ? `${stats.completionRate}%` : 'N/A'}
             </div>
             <p className="text-xs text-muted-foreground">
-              {stats.averageScore > 0 ? 'Team performance' : 'No completed appraisals'}
+              {stats.totalAppraisals === 0 ? 'No appraisals to track' : 'Completed appraisals'}
             </p>
           </CardContent>
         </Card>
@@ -417,62 +453,16 @@ export function Dashboard() {
         <QuickActionsCard />
       </div>
 
-      {/* Appraisal History and Performance Charts */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <AppraisalHistoryCard />
-
-        <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg">
-          <CardHeader>
-            <CardTitle>Performance Trends</CardTitle>
-            <CardDescription>
-              Your quarterly performance scores
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={performanceData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="score" fill="#fb923c" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Team Overview (for managers) */}
-      {(currentProfile?.role === 'manager' || currentProfile?.role === 'hr' || currentProfile?.role === 'admin') && (
-        <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg">
-          <CardHeader>
-            <CardTitle>Team Status Overview</CardTitle>
-            <CardDescription>
-              Appraisal completion status across your team
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie
-                  data={statusData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {statusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+      {/* Performance Score Calculator */}
+      {currentProfile && (
+        <PerformanceScoreCalculator 
+          employeeId={currentProfile.id}
+          showAllEmployees={currentProfile.role === 'hr' || currentProfile.role === 'admin'}
+        />
       )}
+
+      {/* Appraisal History */}
+      <AppraisalHistoryCard />
 
       {/* Access Restriction Dialog */}
       <AppraisalAccessDialog
