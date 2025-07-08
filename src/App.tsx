@@ -19,6 +19,8 @@ import EmployeeQuestionsView from "./pages/EmployeeQuestionsView";
 import Committee from "./pages/Committee";
 import CompanyReports from "./pages/CompanyReports";
 import Notifications from "./pages/Notifications";
+import AppraisalPage from "./pages/AppraisalPage";
+import NewAppraisalPage from "./pages/NewAppraisalPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +38,8 @@ function App() {
               <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
               <Route path="/manager-appraisals" element={<ProtectedRoute><ManagerAppraisals /></ProtectedRoute>} />
               <Route path="/my-appraisals" element={<ProtectedRoute><MyAppraisals /></ProtectedRoute>} />
+              <Route path="/appraisal/new" element={<ProtectedRoute><NewAppraisalPage /></ProtectedRoute>} />
+              <Route path="/appraisal/:id" element={<ProtectedRoute><AppraisalPage /></ProtectedRoute>} />
               <Route path="/employee-management" element={<ProtectedRoute><EmployeeManagement /></ProtectedRoute>} />
               <Route path="/department-management" element={<ProtectedRoute><DepartmentManagement /></ProtectedRoute>} />
               <Route path="/appraisal-cycles" element={<ProtectedRoute><AppraisalCycles /></ProtectedRoute>} />
