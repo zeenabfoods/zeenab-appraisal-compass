@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -60,80 +59,64 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    loadAppraisalData();
+    loadData();
   }, [cycleId, employeeId]);
 
-  const loadAppraisalData = async () => {
+  const loadData = async () => {
     try {
-      console.log('🔄 Starting appraisal data load...');
-      console.log('📊 Parameters:', { cycleId, employeeId, mode });
-
+      console.log('🔄 Starting data load for:', { cycleId, employeeId, mode });
       setLoading(true);
       setError('');
 
-      // Step 1: Load sections
-      console.log('📁 Loading sections...');
-      const { data: sectionsData, error: sectionsError } = await supabase
-        .from('appraisal_question_sections')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order');
-
-      if (sectionsError) {
-        console.error('❌ Sections error:', sectionsError);
-        throw new Error(`Failed to load sections: ${sectionsError.message}`);
-      }
+      // Step 1: Load sections first
+      await loadSections();
       
-      console.log('✅ Sections loaded:', sectionsData?.length || 0);
-      setSections(sectionsData || []);
-
-      // Step 2: Check for existing appraisal
-      console.log('🔍 Checking for existing appraisal...');
-      const { data: existingAppraisal, error: appraisalError } = await supabase
-        .from('appraisals')
-        .select('*')
-        .eq('cycle_id', cycleId)
-        .eq('employee_id', employeeId)
-        .maybeSingle();
-
-      if (appraisalError) {
-        console.error('❌ Appraisal check error:', appraisalError);
-        throw new Error(`Failed to check appraisal: ${appraisalError.message}`);
-      }
-
-      console.log('📋 Existing appraisal:', existingAppraisal ? 'Found' : 'Not found');
-      setAppraisalData(existingAppraisal);
-
-      // Step 3: Get assigned questions
-      console.log('📝 Loading assigned questions...');
-      const { data: assignedQuestions, error: assignedError } = await supabase
-        .from('employee_appraisal_questions')
-        .select('question_id')
-        .eq('employee_id', employeeId)
-        .eq('cycle_id', cycleId)
-        .eq('is_active', true);
-
-      if (assignedError) {
-        console.error('❌ Assigned questions error:', assignedError);
-        throw new Error(`Failed to load assigned questions: ${assignedError.message}`);
-      }
-
-      console.log('📊 Assigned questions count:', assignedQuestions?.length || 0);
-
-      if (!assignedQuestions || assignedQuestions.length === 0) {
-        console.log('⚠️ No questions assigned - showing empty state');
-        setQuestions([]);
-        setLoading(false);
-        return;
-      }
-
-      // Step 4: Get question details
-      console.log('🔍 Loading question details...');
-      const questionIds = assignedQuestions.map(q => q.question_id);
+      // Step 2: Load assigned questions for the employee
+      await loadQuestions();
       
-      const { data: questionsData, error: questionsError } = await supabase
-        .from('appraisal_questions')
-        .select(`
+      // Step 3: Load existing appraisal and responses
+      await loadExistingData();
+
+      console.log('✅ All data loaded successfully');
+    } catch (error: any) {
+      console.error('❌ Error loading data:', error);
+      setError(error.message || 'Failed to load appraisal data');
+      toast({
+        title: "Error Loading Data",
+        description: error.message || 'Failed to load appraisal data',
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadSections = async () => {
+    console.log('📁 Loading sections...');
+    const { data: sectionsData, error: sectionsError } = await supabase
+      .from('appraisal_question_sections')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order');
+
+    if (sectionsError) {
+      console.error('❌ Sections error:', sectionsError);
+      throw new Error(`Failed to load sections: ${sectionsError.message}`);
+    }
+    
+    console.log('✅ Sections loaded:', sectionsData?.length || 0);
+    setSections(sectionsData || []);
+  };
+
+  const loadQuestions = async () => {
+    console.log('📝 Loading assigned questions...');
+    
+    // Get assigned questions for this employee and cycle
+    const { data: assignedQuestions, error: assignedError } = await supabase
+      .from('employee_appraisal_questions')
+      .select(`
+        question_id,
+        appraisal_questions!inner (
           id,
           question_text,
           question_type,
@@ -143,63 +126,77 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
           appraisal_question_sections (
             name
           )
-        `)
-        .in('id', questionIds)
-        .eq('is_active', true);
+        )
+      `)
+      .eq('employee_id', employeeId)
+      .eq('cycle_id', cycleId)
+      .eq('is_active', true);
 
-      if (questionsError) {
-        console.error('❌ Questions details error:', questionsError);
-        throw new Error(`Failed to load question details: ${questionsError.message}`);
+    if (assignedError) {
+      console.error('❌ Assigned questions error:', assignedError);
+      throw new Error(`Failed to load questions: ${assignedError.message}`);
+    }
+
+    console.log('📊 Raw assigned questions:', assignedQuestions);
+
+    if (!assignedQuestions || assignedQuestions.length === 0) {
+      console.log('⚠️ No questions assigned');
+      setQuestions([]);
+      return;
+    }
+
+    // Process questions
+    const processedQuestions: Question[] = assignedQuestions.map((item: any) => ({
+      id: item.appraisal_questions.id,
+      question_text: item.appraisal_questions.question_text,
+      question_type: item.appraisal_questions.question_type,
+      weight: item.appraisal_questions.weight,
+      is_required: item.appraisal_questions.is_required,
+      section_id: item.appraisal_questions.section_id,
+      section_name: item.appraisal_questions.appraisal_question_sections?.name || 'General'
+    }));
+
+    console.log('✅ Questions processed:', processedQuestions.length);
+    setQuestions(processedQuestions);
+  };
+
+  const loadExistingData = async () => {
+    console.log('🔍 Loading existing appraisal data...');
+    
+    // Check for existing appraisal
+    const { data: existingAppraisal, error: appraisalError } = await supabase
+      .from('appraisals')
+      .select('*')
+      .eq('cycle_id', cycleId)
+      .eq('employee_id', employeeId)
+      .maybeSingle();
+
+    if (appraisalError) {
+      console.error('❌ Appraisal error:', appraisalError);
+      throw new Error(`Failed to load appraisal: ${appraisalError.message}`);
+    }
+
+    console.log('📋 Existing appraisal:', existingAppraisal ? 'Found' : 'Not found');
+    setAppraisalData(existingAppraisal);
+
+    // Load existing responses if appraisal exists
+    if (existingAppraisal) {
+      const { data: responsesData, error: responsesError } = await supabase
+        .from('appraisal_responses')
+        .select('*')
+        .eq('appraisal_id', existingAppraisal.id);
+
+      if (responsesError) {
+        console.error('❌ Responses error:', responsesError);
+        // Don't throw - just log and continue with empty responses
+      } else {
+        const responsesMap: Record<string, AppraisalResponse> = {};
+        responsesData?.forEach(response => {
+          responsesMap[response.question_id] = response;
+        });
+        console.log('✅ Responses loaded:', Object.keys(responsesMap).length);
+        setResponses(responsesMap);
       }
-
-      // Step 5: Process questions
-      const processedQuestions: Question[] = (questionsData || []).map((q: any) => ({
-        id: q.id,
-        question_text: q.question_text,
-        question_type: q.question_type,
-        weight: q.weight,
-        is_required: q.is_required,
-        section_id: q.section_id,
-        section_name: q.appraisal_question_sections?.name || 'General'
-      }));
-
-      console.log('✅ Questions processed:', processedQuestions.length);
-      setQuestions(processedQuestions);
-
-      // Step 6: Load existing responses if appraisal exists
-      if (existingAppraisal) {
-        console.log('🔄 Loading existing responses...');
-        const { data: responsesData, error: responsesError } = await supabase
-          .from('appraisal_responses')
-          .select('*')
-          .eq('appraisal_id', existingAppraisal.id);
-
-        if (responsesError) {
-          console.error('❌ Responses error:', responsesError);
-          // Don't throw error for responses - just log and continue
-          console.log('⚠️ Could not load responses, continuing with empty responses');
-        } else {
-          const responsesMap: Record<string, AppraisalResponse> = {};
-          responsesData?.forEach(response => {
-            responsesMap[response.question_id] = response;
-          });
-          console.log('✅ Responses loaded:', Object.keys(responsesMap).length);
-          setResponses(responsesMap);
-        }
-      }
-
-      console.log('🎉 Appraisal data loading completed successfully');
-
-    } catch (error: any) {
-      console.error('❌ Critical error in loadAppraisalData:', error);
-      setError(error.message || 'Failed to load appraisal data');
-      toast({
-        title: "Error Loading Appraisal",
-        description: error.message || 'An unexpected error occurred while loading the appraisal data.',
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -350,7 +347,7 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
         <CardContent>
           <p className="text-gray-600 mb-4">{error}</p>
           <div className="flex space-x-2">
-            <Button onClick={() => loadAppraisalData()} variant="outline">
+            <Button onClick={() => loadData()} variant="outline">
               Try Again
             </Button>
             <Button onClick={() => window.location.reload()} variant="outline">
@@ -370,7 +367,7 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
           <CardHeader>
             <CardTitle>No Questions Assigned</CardTitle>
             <CardDescription>
-              No appraisal questions have been assigned to you for this cycle yet.
+              No appraisal questions have been assigned for this cycle yet.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -378,7 +375,7 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
               Questions are being automatically assigned. Please refresh the page in a moment or contact HR if the issue persists.
             </p>
             <div className="flex space-x-2">
-              <Button onClick={() => loadAppraisalData()} variant="outline">
+              <Button onClick={() => loadData()} variant="outline">
                 Refresh Data
               </Button>
               <Button onClick={() => window.location.reload()} variant="outline">
