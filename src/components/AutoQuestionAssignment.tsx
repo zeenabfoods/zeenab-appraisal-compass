@@ -6,9 +6,10 @@ import { useToast } from '@/hooks/use-toast';
 interface AutoQuestionAssignmentProps {
   employeeId: string;
   cycleId?: string;
+  onAssignmentComplete?: () => void;
 }
 
-export function AutoQuestionAssignment({ employeeId, cycleId }: AutoQuestionAssignmentProps) {
+export function AutoQuestionAssignment({ employeeId, cycleId, onAssignmentComplete }: AutoQuestionAssignmentProps) {
   const { toast } = useToast();
   const [isAssigning, setIsAssigning] = useState(false);
 
@@ -40,6 +41,10 @@ export function AutoQuestionAssignment({ employeeId, cycleId }: AutoQuestionAssi
 
       if (existingAssignments && existingAssignments.length > 0) {
         console.log('✅ Employee already has questions assigned');
+        // Questions are already assigned, trigger callback to refresh parent
+        if (onAssignmentComplete) {
+          setTimeout(() => onAssignmentComplete(), 100);
+        }
         return;
       }
 
@@ -96,6 +101,11 @@ export function AutoQuestionAssignment({ employeeId, cycleId }: AutoQuestionAssi
         title: "Questions Assigned",
         description: `${questions.length} appraisal questions have been automatically assigned to you.`,
       });
+
+      // Trigger callback to refresh parent component
+      if (onAssignmentComplete) {
+        setTimeout(() => onAssignmentComplete(), 500);
+      }
 
     } catch (error) {
       console.error('❌ Error in autoAssignDefaultQuestions:', error);
@@ -223,6 +233,11 @@ export function AutoQuestionAssignment({ employeeId, cycleId }: AutoQuestionAssi
           title: "Questions Created and Assigned",
           description: `${createdQuestions.length} default appraisal questions have been created and assigned to you.`,
         });
+
+        // Trigger callback to refresh parent component
+        if (onAssignmentComplete) {
+          setTimeout(() => onAssignmentComplete(), 500);
+        }
       }
 
     } catch (error) {

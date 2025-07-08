@@ -362,7 +362,14 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
   if (questions.length === 0) {
     return (
       <div className="space-y-6">
-        <AutoQuestionAssignment employeeId={employeeId} cycleId={cycleId} />
+        <AutoQuestionAssignment 
+          employeeId={employeeId} 
+          cycleId={cycleId}
+          onAssignmentComplete={() => {
+            console.log('Questions assigned, reloading data...');
+            loadData();
+          }}
+        />
         <Card>
           <CardHeader>
             <CardTitle>No Questions Assigned</CardTitle>
@@ -372,14 +379,11 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
           </CardHeader>
           <CardContent>
             <p className="text-gray-600 mb-4">
-              Questions are being automatically assigned. Please refresh the page in a moment or contact HR if the issue persists.
+              Questions are being automatically assigned. Please wait a moment...
             </p>
             <div className="flex space-x-2">
-              <Button onClick={() => loadData()} variant="outline">
-                Refresh Data
-              </Button>
-              <Button onClick={() => window.location.reload()} variant="outline">
-                Refresh Page
+              <Button onClick={() => loadData()} variant="outline" disabled={loading}>
+                {loading ? 'Loading...' : 'Refresh Data'}
               </Button>
             </div>
           </CardContent>
