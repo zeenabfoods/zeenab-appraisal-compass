@@ -59,7 +59,9 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    loadData();
+    if (cycleId && employeeId) {
+      loadData();
+    }
   }, [cycleId, employeeId]);
 
   const loadData = async () => {
@@ -366,8 +368,8 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
           employeeId={employeeId} 
           cycleId={cycleId}
           onAssignmentComplete={() => {
-            console.log('Questions assigned, reloading data...');
-            loadData();
+            console.log('Questions assigned, reloading questions only...');
+            loadQuestions();
           }}
         />
         <Card>
