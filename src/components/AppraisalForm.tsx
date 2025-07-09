@@ -361,7 +361,7 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
     );
   }
 
-  if (questions.length === 0) {
+  if (questions.length === 0 && !loading) {
     return (
       <div className="space-y-6">
         <AutoQuestionAssignment 

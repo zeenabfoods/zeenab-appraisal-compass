@@ -14,7 +14,7 @@ export function AutoQuestionAssignment({ employeeId, cycleId, onAssignmentComple
   const [isAssigning, setIsAssigning] = useState(false);
 
   useEffect(() => {
-    if (employeeId && cycleId) {
+    if (employeeId && cycleId && !isAssigning) {
       checkAndAssignQuestions();
     }
   }, [employeeId, cycleId]);
@@ -41,9 +41,9 @@ export function AutoQuestionAssignment({ employeeId, cycleId, onAssignmentComple
 
       if (existingAssignments && existingAssignments.length > 0) {
         console.log('✅ Employee already has questions assigned');
-        // Questions are already assigned, trigger callback to refresh parent
+        // Questions are already assigned, trigger callback to refresh parent only once
         if (onAssignmentComplete) {
-          setTimeout(() => onAssignmentComplete(), 100);
+          onAssignmentComplete();
         }
         return;
       }
