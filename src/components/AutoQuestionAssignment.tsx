@@ -104,7 +104,7 @@ export function AutoQuestionAssignment({ employeeId, cycleId, onAssignmentComple
 
       // Trigger callback to refresh parent component
       if (onAssignmentComplete) {
-        setTimeout(() => onAssignmentComplete(), 500);
+        onAssignmentComplete();
       }
 
     } catch (error) {
@@ -236,7 +236,7 @@ export function AutoQuestionAssignment({ employeeId, cycleId, onAssignmentComple
 
         // Trigger callback to refresh parent component
         if (onAssignmentComplete) {
-          setTimeout(() => onAssignmentComplete(), 500);
+          onAssignmentComplete();
         }
       }
 

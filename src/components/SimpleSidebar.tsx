@@ -15,10 +15,15 @@ import {
 
 import { useAuthContext } from "@/components/AuthProvider"
 import { Link, useLocation } from "react-router-dom"
+import { useEnhancedProfile } from "@/hooks/useEnhancedProfile"
 
 export function SimpleSidebar() {
-  const { profile } = useAuthContext()
+  const { profile: baseProfile } = useAuthContext()
+  const { enhancedProfile, loading } = useEnhancedProfile()
   const location = useLocation()
+  
+  // Use enhanced profile if available, fallback to base profile
+  const profile = enhancedProfile || baseProfile
 
   // Define navigation items based on user role
   const getNavigationItems = () => {
@@ -170,14 +175,14 @@ export function SimpleSidebar() {
           </div>
         </div>
         
-        {/* Department and Position info */}
-        {(profile.department || profile.position) && (
+        {/* Department and Line Manager info */}
+        {(profile.department || profile.line_manager_id) && (
           <div className="text-xs text-gray-500 space-y-1 mt-2">
             {profile.department && (
               <div>Dept: {profile.department.name}</div>
             )}
-            {profile.position && (
-              <div>Role: {profile.position}</div>
+            {profile.line_manager_id && (
+              <div>Line Manager: {loading ? 'Loading...' : (enhancedProfile?.line_manager_name || 'Not assigned')}</div>
             )}
           </div>
         )}
