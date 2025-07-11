@@ -111,7 +111,7 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
   };
 
   const loadQuestions = async () => {
-    console.log('📝 Loading assigned questions...');
+    console.log('📝 Loading assigned questions for employee:', employeeId, 'cycle:', cycleId);
     
     // Get assigned questions for this employee and cycle
     const { data: assignedQuestions, error: assignedError } = await supabase
@@ -139,27 +139,40 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
       throw new Error(`Failed to load questions: ${assignedError.message}`);
     }
 
-    console.log('📊 Raw assigned questions:', assignedQuestions);
+    console.log('📊 Raw assigned questions count:', assignedQuestions?.length || 0);
+    console.log('📊 Raw assigned questions data:', assignedQuestions);
 
     if (!assignedQuestions || assignedQuestions.length === 0) {
-      console.log('⚠️ No questions assigned');
+      console.log('⚠️ No questions assigned - will trigger auto assignment');
       setQuestions([]);
       return;
     }
 
-    // Process questions
-    const processedQuestions: Question[] = assignedQuestions.map((item: any) => ({
-      id: item.appraisal_questions.id,
-      question_text: item.appraisal_questions.question_text,
-      question_type: item.appraisal_questions.question_type,
-      weight: item.appraisal_questions.weight,
-      is_required: item.appraisal_questions.is_required,
-      section_id: item.appraisal_questions.section_id,
-      section_name: item.appraisal_questions.appraisal_question_sections?.name || 'General'
-    }));
+    // Process questions with error handling
+    try {
+      const processedQuestions: Question[] = assignedQuestions
+        .filter(item => item.appraisal_questions) // Filter out any null questions
+        .map((item: any) => {
+          console.log('Processing question item:', item);
+          return {
+            id: item.appraisal_questions.id,
+            question_text: item.appraisal_questions.question_text,
+            question_type: item.appraisal_questions.question_type,
+            weight: item.appraisal_questions.weight,
+            is_required: item.appraisal_questions.is_required,
+            section_id: item.appraisal_questions.section_id,
+            section_name: item.appraisal_questions.appraisal_question_sections?.name || 'General'
+          };
+        });
 
-    console.log('✅ Questions processed:', processedQuestions.length);
-    setQuestions(processedQuestions);
+      console.log('✅ Questions processed successfully:', processedQuestions.length);
+      console.log('✅ Processed questions:', processedQuestions);
+      setQuestions(processedQuestions);
+    } catch (processingError) {
+      console.error('❌ Error processing questions:', processingError);
+      console.error('❌ Raw data that failed:', assignedQuestions);
+      throw new Error(`Failed to process questions: ${processingError}`);
+    }
   };
 
   const loadExistingData = async () => {
