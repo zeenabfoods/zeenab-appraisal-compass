@@ -12,18 +12,20 @@ interface AutoQuestionAssignmentProps {
 export function AutoQuestionAssignment({ employeeId, cycleId, onAssignmentComplete }: AutoQuestionAssignmentProps) {
   const { toast } = useToast();
   const [isAssigning, setIsAssigning] = useState(false);
+  const [hasRun, setHasRun] = useState(false);
 
   useEffect(() => {
-    if (employeeId && cycleId && !isAssigning) {
+    if (employeeId && cycleId && !isAssigning && !hasRun) {
       checkAndAssignQuestions();
     }
-  }, [employeeId, cycleId]);
+  }, [employeeId, cycleId, hasRun]);
 
   const checkAndAssignQuestions = async () => {
-    if (isAssigning) return;
+    if (isAssigning || hasRun) return;
     
     try {
       setIsAssigning(true);
+      setHasRun(true);
       console.log('🔍 Checking if employee has assigned questions...');
 
       // Check if employee already has questions assigned for this cycle
@@ -41,10 +43,7 @@ export function AutoQuestionAssignment({ employeeId, cycleId, onAssignmentComple
 
       if (existingAssignments && existingAssignments.length > 0) {
         console.log('✅ Employee already has questions assigned');
-        // Questions are already assigned, trigger callback to refresh parent only once
-        if (onAssignmentComplete) {
-          onAssignmentComplete();
-        }
+        // Questions are already assigned, no need to trigger callback
         return;
       }
 

@@ -368,8 +368,8 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
           employeeId={employeeId} 
           cycleId={cycleId}
           onAssignmentComplete={() => {
-            console.log('Questions assigned, reloading questions only...');
-            loadQuestions();
+            console.log('Questions assigned, reloading all data...');
+            loadData();
           }}
         />
         <Card>
