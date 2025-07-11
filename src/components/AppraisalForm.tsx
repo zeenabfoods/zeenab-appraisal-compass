@@ -113,18 +113,19 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
   const loadQuestions = async () => {
     console.log('📝 Loading assigned questions for employee:', employeeId, 'cycle:', cycleId);
     
-    // Get assigned questions for this employee and cycle
+    // Get assigned questions for this employee and cycle - use LEFT JOIN to avoid filtering
     const { data: assignedQuestions, error: assignedError } = await supabase
       .from('employee_appraisal_questions')
       .select(`
         question_id,
-        appraisal_questions!inner (
+        appraisal_questions (
           id,
           question_text,
           question_type,
           weight,
           is_required,
           section_id,
+          is_active,
           appraisal_question_sections (
             name
           )
@@ -140,7 +141,7 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
     }
 
     console.log('📊 Raw assigned questions count:', assignedQuestions?.length || 0);
-    console.log('📊 Raw assigned questions data:', assignedQuestions);
+    console.log('📊 Raw assigned questions sample:', assignedQuestions?.slice(0, 2));
 
     if (!assignedQuestions || assignedQuestions.length === 0) {
       console.log('⚠️ No questions assigned - will trigger auto assignment');
@@ -148,25 +149,43 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
       return;
     }
 
-    // Process questions with error handling
+    // Process questions with comprehensive validation
     try {
       const processedQuestions: Question[] = assignedQuestions
-        .filter(item => item.appraisal_questions) // Filter out any null questions
+        .filter(item => {
+          // Validate the question data exists and is active
+          const isValid = item.appraisal_questions && 
+                         item.appraisal_questions.id && 
+                         item.appraisal_questions.question_text &&
+                         item.appraisal_questions.is_active !== false;
+          
+          if (!isValid) {
+            console.warn('⚠️ Filtering out invalid question:', item);
+          }
+          return isValid;
+        })
         .map((item: any) => {
-          console.log('Processing question item:', item);
+          const question = item.appraisal_questions;
           return {
-            id: item.appraisal_questions.id,
-            question_text: item.appraisal_questions.question_text,
-            question_type: item.appraisal_questions.question_type,
-            weight: item.appraisal_questions.weight,
-            is_required: item.appraisal_questions.is_required,
-            section_id: item.appraisal_questions.section_id,
-            section_name: item.appraisal_questions.appraisal_question_sections?.name || 'General'
+            id: question.id,
+            question_text: question.question_text,
+            question_type: question.question_type || 'rating',
+            weight: question.weight || 1.0,
+            is_required: question.is_required || false,
+            section_id: question.section_id,
+            section_name: question.appraisal_question_sections?.name || 'General'
           };
         });
 
       console.log('✅ Questions processed successfully:', processedQuestions.length);
-      console.log('✅ Processed questions:', processedQuestions);
+      
+      if (processedQuestions.length === 0) {
+        console.warn('⚠️ All questions were filtered out - checking raw data again');
+        console.log('📊 Full raw data for debugging:', JSON.stringify(assignedQuestions, null, 2));
+        setQuestions([]);
+        return;
+      }
+      
       setQuestions(processedQuestions);
     } catch (processingError) {
       console.error('❌ Error processing questions:', processingError);

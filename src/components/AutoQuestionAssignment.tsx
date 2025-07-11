@@ -13,12 +13,16 @@ export function AutoQuestionAssignment({ employeeId, cycleId, onAssignmentComple
   const { toast } = useToast();
   const [isAssigning, setIsAssigning] = useState(false);
   const [hasRun, setHasRun] = useState(false);
+  const [attemptCount, setAttemptCount] = useState(0);
 
   useEffect(() => {
-    if (employeeId && cycleId && !isAssigning && !hasRun) {
+    // Prevent infinite loops by limiting attempts
+    if (employeeId && cycleId && !isAssigning && !hasRun && attemptCount < 3) {
       checkAndAssignQuestions();
+    } else if (attemptCount >= 3) {
+      console.error('❌ Max auto-assignment attempts reached, stopping to prevent infinite loop');
     }
-  }, [employeeId, cycleId, hasRun]);
+  }, [employeeId, cycleId, hasRun, attemptCount]);
 
   const checkAndAssignQuestions = async () => {
     if (isAssigning || hasRun) return;
@@ -26,7 +30,8 @@ export function AutoQuestionAssignment({ employeeId, cycleId, onAssignmentComple
     try {
       setIsAssigning(true);
       setHasRun(true);
-      console.log('🔍 Checking if employee has assigned questions...');
+      setAttemptCount(prev => prev + 1);
+      console.log('🔍 Checking if employee has assigned questions... (attempt', attemptCount + 1, ')');
 
       // Check if employee already has questions assigned for this cycle
       const { data: existingAssignments, error: checkError } = await supabase
@@ -101,9 +106,12 @@ export function AutoQuestionAssignment({ employeeId, cycleId, onAssignmentComple
         description: `${questions.length} appraisal questions have been automatically assigned to you.`,
       });
 
-      // Trigger callback to refresh parent component
+      // Trigger callback to refresh parent component with a delay to ensure DB consistency
       if (onAssignmentComplete) {
-        onAssignmentComplete();
+        setTimeout(() => {
+          console.log('🔄 Triggering assignment complete callback');
+          onAssignmentComplete();
+        }, 1000);
       }
 
     } catch (error) {
@@ -233,9 +241,12 @@ export function AutoQuestionAssignment({ employeeId, cycleId, onAssignmentComple
           description: `${createdQuestions.length} default appraisal questions have been created and assigned to you.`,
         });
 
-        // Trigger callback to refresh parent component
+        // Trigger callback to refresh parent component with a delay to ensure DB consistency
         if (onAssignmentComplete) {
-          onAssignmentComplete();
+          setTimeout(() => {
+            console.log('🔄 Triggering assignment complete callback (default questions)');
+            onAssignmentComplete();
+          }, 1000);
         }
       }
 
