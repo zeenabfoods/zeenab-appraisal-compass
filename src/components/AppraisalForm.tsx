@@ -149,6 +149,18 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
     console.log('🔍 Raw API response:', assignedQuestions);
     console.log('📊 Raw assigned questions count:', assignedQuestions?.length || 0);
     console.log('📊 Raw assigned questions sample:', assignedQuestions?.slice(0, 2));
+    
+    // Deep inspection of first question structure
+    if (assignedQuestions && assignedQuestions.length > 0) {
+      console.log('🔍 Deep inspection of first question:', 
+        JSON.stringify(assignedQuestions[0]?.appraisal_questions, null, 2));
+      console.log('🔍 Is active status check:', 
+        assignedQuestions.map(q => ({
+          hasQuestionObj: !!q.appraisal_questions,
+          isActive: q.appraisal_questions?.is_active,
+          id: q.appraisal_questions?.id
+        })));
+    }
 
     if (!assignedQuestions || assignedQuestions.length === 0) {
       console.log('⚠️ No questions assigned - will trigger auto assignment');
@@ -160,28 +172,53 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
     try {
       const processedQuestions: Question[] = assignedQuestions
         .filter(item => {
-          // Validate the question data exists and is active
-          const isValid = item.appraisal_questions && 
-                         item.appraisal_questions.id && 
-                         item.appraisal_questions.question_text &&
-                         item.appraisal_questions.is_active !== false;
+          // Detailed validation with individual checks
+          const hasQuestionObj = !!item.appraisal_questions;
+          const hasId = !!item.appraisal_questions?.id;
+          const hasText = !!item.appraisal_questions?.question_text;
+          const isActive = item.appraisal_questions?.is_active;
+          const isActiveValid = isActive !== false; // Allow null/undefined to pass
+          
+          const isValid = hasQuestionObj && hasId && hasText && isActiveValid;
           
           if (!isValid) {
-            console.warn('⚠️ Filtering out invalid question:', item);
+            console.log('❌ Filtered question:', {
+              item: item,
+              hasQuestionObj,
+              hasId,
+              hasText,
+              isActive,
+              isActiveValid,
+              reason: !hasQuestionObj ? 'Missing question object' :
+                     !hasId ? 'Missing ID' :
+                     !hasText ? 'Missing question text' :
+                     !isActiveValid ? `is_active is false (${isActive})` :
+                     'Unknown'
+            });
+          } else {
+            console.log('✅ Valid question passed filter:', {
+              id: item.appraisal_questions?.id,
+              text: item.appraisal_questions?.question_text?.substring(0, 50) + '...',
+              isActive: item.appraisal_questions?.is_active
+            });
           }
+          
           return isValid;
         })
         .map((item: any) => {
+          console.log('🗺️ Mapping item:', item); // Add mapping debug
           const question = item.appraisal_questions;
-          return {
-            id: question.id,
-            question_text: question.question_text,
-            question_type: question.question_type || 'rating',
-            weight: question.weight || 1.0,
-            is_required: question.is_required || false,
-            section_id: question.section_id,
-            section_name: question.appraisal_question_sections?.name || 'General'
+          const mapped = {
+            id: question?.id || 'missing-id',
+            question_text: question?.question_text || 'missing-text',
+            question_type: question?.question_type || 'rating',
+            weight: question?.weight || 1.0,
+            is_required: question?.is_required || false,
+            section_id: question?.section_id || null,
+            section_name: question?.appraisal_question_sections?.name || 'General'
           };
+          console.log('✅ Mapped to:', mapped);
+          return mapped;
         });
 
       console.log('🔍 Processed questions:', processedQuestions);
