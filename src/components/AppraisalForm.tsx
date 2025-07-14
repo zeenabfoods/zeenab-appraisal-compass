@@ -115,17 +115,8 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
     setSections(sectionsData || []);
   };
 
-  let loadAttempts = 0;
-  const MAX_ATTEMPTS = 3;
-  
   const loadQuestions = async () => {
-    if (loadAttempts++ > MAX_ATTEMPTS) {
-      console.error('🚨 ABORTING: Maximum load attempts reached to prevent infinite loop');
-      setError('Too many load attempts - possible infinite loop detected');
-      return;
-    }
-    
-    console.log(`📝 Loading assigned questions (attempt ${loadAttempts}) for employee:`, employeeId, 'cycle:', cycleId);
+    console.log('📝 Loading assigned questions for employee:', employeeId, 'cycle:', cycleId);
     console.log('🔍 Current dependencies check:', { cycleId, employeeId, mode });
     
     // Get assigned questions for this employee and cycle - use LEFT JOIN to avoid filtering

@@ -178,21 +178,23 @@ export default function AppraisalPage() {
         </div>
 
         {/* Appraisal Form */}
-        {(() => {
-          console.log('🏁 AppraisalPage: Rendering AppraisalForm with props:', {
-            cycleId: appraisal.cycle_id,
-            employeeId: appraisal.employee_id,
-            mode: getAppraisalMode()
-          });
-          return (
-            <AppraisalForm
-              cycleId={appraisal.cycle_id}
-              employeeId={appraisal.employee_id}
-              mode={getAppraisalMode()}
-              onComplete={handleComplete}
-            />
-          );
-        })()}
+        {appraisal.cycle_id && appraisal.employee_id ? (
+          <AppraisalForm
+            cycleId={appraisal.cycle_id}
+            employeeId={appraisal.employee_id}
+            mode={getAppraisalMode()}
+            onComplete={handleComplete}
+          />
+        ) : (
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600 mr-2"></div>
+                <span>Loading appraisal details...</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </DashboardLayout>
   );
