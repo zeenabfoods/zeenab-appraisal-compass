@@ -59,10 +59,15 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    console.log('🔄 useEffect triggered with:', { cycleId, employeeId });
     if (cycleId && employeeId) {
       loadData();
     }
   }, [cycleId, employeeId]);
+
+  useEffect(() => {
+    console.log('🔍 Final questions state:', questions);
+  }, [questions]);
 
   const loadData = async () => {
     try {
@@ -110,8 +115,18 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
     setSections(sectionsData || []);
   };
 
+  let loadAttempts = 0;
+  const MAX_ATTEMPTS = 3;
+  
   const loadQuestions = async () => {
-    console.log('📝 Loading assigned questions for employee:', employeeId, 'cycle:', cycleId);
+    if (loadAttempts++ > MAX_ATTEMPTS) {
+      console.error('🚨 ABORTING: Maximum load attempts reached to prevent infinite loop');
+      setError('Too many load attempts - possible infinite loop detected');
+      return;
+    }
+    
+    console.log(`📝 Loading assigned questions (attempt ${loadAttempts}) for employee:`, employeeId, 'cycle:', cycleId);
+    console.log('🔍 Current dependencies check:', { cycleId, employeeId, mode });
     
     // Get assigned questions for this employee and cycle - use LEFT JOIN to avoid filtering
     const { data: assignedQuestions, error: assignedError } = await supabase
@@ -140,6 +155,7 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
       throw new Error(`Failed to load questions: ${assignedError.message}`);
     }
 
+    console.log('🔍 Raw API response:', assignedQuestions);
     console.log('📊 Raw assigned questions count:', assignedQuestions?.length || 0);
     console.log('📊 Raw assigned questions sample:', assignedQuestions?.slice(0, 2));
 
@@ -177,6 +193,7 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
           };
         });
 
+      console.log('🔍 Processed questions:', processedQuestions);
       console.log('✅ Questions processed successfully:', processedQuestions.length);
       
       if (processedQuestions.length === 0) {
@@ -186,7 +203,9 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
         return;
       }
       
+      console.log('🔄 Setting questions state with:', processedQuestions.length, 'questions');
       setQuestions(processedQuestions);
+      console.log('✅ Final questions state should be:', processedQuestions.length);
     } catch (processingError) {
       console.error('❌ Error processing questions:', processingError);
       console.error('❌ Raw data that failed:', assignedQuestions);
@@ -396,6 +415,7 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
   if (questions.length === 0 && !loading) {
     return (
       <div className="space-y-6">
+        {/* TEMPORARILY COMMENTED OUT FOR DEBUGGING
         <AutoQuestionAssignment 
           employeeId={employeeId} 
           cycleId={cycleId}
@@ -404,20 +424,51 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
             loadData();
           }}
         />
+        */}
         <Card>
           <CardHeader>
-            <CardTitle>No Questions Assigned</CardTitle>
+            <CardTitle>🐛 Debug: No Questions Found</CardTitle>
             <CardDescription>
               No appraisal questions have been assigned for this cycle yet.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-gray-600 mb-4">
-              Questions are being automatically assigned. Please wait a moment...
+              AutoQuestionAssignment temporarily disabled for debugging.
             </p>
             <div className="flex space-x-2">
               <Button onClick={() => loadData()} variant="outline" disabled={loading}>
                 {loading ? 'Loading...' : 'Refresh Data'}
+              </Button>
+              <Button 
+                onClick={() => {
+                  console.log('🧪 Setting mock questions for testing...');
+                  const mockQuestions: Question[] = [
+                    {
+                      id: 'mock-1',
+                      question_text: 'How would you rate your overall performance this quarter?',
+                      question_type: 'rating',
+                      weight: 1.0,
+                      is_required: true,
+                      section_id: 'mock-section',
+                      section_name: 'Mock Performance'
+                    },
+                    {
+                      id: 'mock-2',
+                      question_text: 'What were your key achievements?',
+                      question_type: 'text',
+                      weight: 1.0,
+                      is_required: false,
+                      section_id: 'mock-section',
+                      section_name: 'Mock Performance'
+                    }
+                  ];
+                  setQuestions(mockQuestions);
+                  console.log('✅ Mock questions set:', mockQuestions);
+                }} 
+                variant="secondary"
+              >
+                🧪 Test with Mock Questions
               </Button>
             </div>
           </CardContent>
@@ -472,94 +523,116 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
       </Card>
 
       {/* Questions by Section */}
-      {Object.entries(questionsBySection).map(([sectionName, sectionQuestions]) => (
-        <Card key={sectionName}>
-          <CardHeader>
-            <CardTitle className="text-lg">{sectionName}</CardTitle>
-            <CardDescription>
-              {sectionQuestions.length} question{sectionQuestions.length !== 1 ? 's' : ''} in this section
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {sectionQuestions.map((question, index) => {
-              const response = responses[question.id] || {} as AppraisalResponse;
-              const currentRating = mode === 'employee' ? response.emp_rating : response.mgr_rating;
-              const currentComment = mode === 'employee' ? response.emp_comment : response.mgr_comment;
+      {Object.entries(questionsBySection).map(([sectionName, sectionQuestions]) => {
+        try {
+          return (
+            <Card key={sectionName}>
+              <CardHeader>
+                <CardTitle className="text-lg">{sectionName}</CardTitle>
+                <CardDescription>
+                  {sectionQuestions.length} question{sectionQuestions.length !== 1 ? 's' : ''} in this section
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {sectionQuestions.map((question, index) => {
+                  try {
+                    const response = responses[question.id] || {} as AppraisalResponse;
+                    const currentRating = mode === 'employee' ? response.emp_rating : response.mgr_rating;
+                    const currentComment = mode === 'employee' ? response.emp_comment : response.mgr_comment;
 
-              return (
-                <div key={question.id} className="space-y-4">
-                  <div className="flex justify-between items-start">
-                    <h4 className="font-medium text-gray-900">
-                      {index + 1}. {question.question_text}
-                    </h4>
-                    <div className="flex items-center space-x-2">
-                      {question.is_required && (
-                        <Badge variant="outline" className="text-xs">Required</Badge>
-                      )}
-                      <Badge variant="secondary" className="text-xs">
-                        Weight: {question.weight}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  {/* Rating */}
-                  <div className="space-y-2">
-                    <Label>Rating (1-5 scale)</Label>
-                    <RadioGroup
-                      value={currentRating?.toString() || ''}
-                      onValueChange={(value) => handleRatingChange(question.id, parseInt(value))}
-                      className="flex space-x-4"
-                      disabled={isReadOnly}
-                    >
-                      {[1, 2, 3, 4, 5].map(rating => (
-                        <div key={rating} className="flex items-center space-x-2">
-                          <RadioGroupItem value={rating.toString()} id={`${question.id}-${rating}`} />
-                          <Label htmlFor={`${question.id}-${rating}`}>{rating}</Label>
+                    return (
+                      <div key={question.id} className="space-y-4">
+                        <div className="flex justify-between items-start">
+                          <h4 className="font-medium text-gray-900">
+                            {index + 1}. {question.question_text}
+                          </h4>
+                          <div className="flex items-center space-x-2">
+                            {question.is_required && (
+                              <Badge variant="outline" className="text-xs">Required</Badge>
+                            )}
+                            <Badge variant="secondary" className="text-xs">
+                              Weight: {question.weight}
+                            </Badge>
+                          </div>
                         </div>
-                      ))}
-                    </RadioGroup>
-                  </div>
 
-                  {/* Comment */}
-                  <div className="space-y-2">
-                    <Label>Comments</Label>
-                    <Textarea
-                      placeholder="Add your comments..."
-                      value={currentComment || ''}
-                      onChange={(e) => handleCommentChange(question.id, e.target.value)}
-                      disabled={isReadOnly}
-                      rows={3}
-                    />
-                  </div>
+                        {/* Rating */}
+                        <div className="space-y-2">
+                          <Label>Rating (1-5 scale)</Label>
+                          <RadioGroup
+                            value={currentRating?.toString() || ''}
+                            onValueChange={(value) => handleRatingChange(question.id, parseInt(value))}
+                            className="flex space-x-4"
+                            disabled={isReadOnly}
+                          >
+                            {[1, 2, 3, 4, 5].map(rating => (
+                              <div key={rating} className="flex items-center space-x-2">
+                                <RadioGroupItem value={rating.toString()} id={`${question.id}-${rating}`} />
+                                <Label htmlFor={`${question.id}-${rating}`}>{rating}</Label>
+                              </div>
+                            ))}
+                          </RadioGroup>
+                        </div>
 
-                  {/* Show other person's feedback if available */}
-                  {mode === 'manager' && response.emp_rating && (
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-sm font-medium text-gray-700">Employee Self-Assessment:</p>
-                      <p className="text-sm">Rating: {response.emp_rating}/5</p>
-                      {response.emp_comment && (
-                        <p className="text-sm mt-1">"{response.emp_comment}"</p>
-                      )}
-                    </div>
-                  )}
+                        {/* Comment */}
+                        <div className="space-y-2">
+                          <Label>Comments</Label>
+                          <Textarea
+                            placeholder="Add your comments..."
+                            value={currentComment || ''}
+                            onChange={(e) => handleCommentChange(question.id, e.target.value)}
+                            disabled={isReadOnly}
+                            rows={3}
+                          />
+                        </div>
 
-                  {mode === 'employee' && response.mgr_rating && (
-                    <div className="bg-blue-50 p-3 rounded-lg">
-                      <p className="text-sm font-medium text-blue-700">Manager Assessment:</p>
-                      <p className="text-sm">Rating: {response.mgr_rating}/5</p>
-                      {response.mgr_comment && (
-                        <p className="text-sm mt-1">"{response.mgr_comment}"</p>
-                      )}
-                    </div>
-                  )}
+                        {/* Show other person's feedback if available */}
+                        {mode === 'manager' && response.emp_rating && (
+                          <div className="bg-gray-50 p-3 rounded-lg">
+                            <p className="text-sm font-medium text-gray-700">Employee Self-Assessment:</p>
+                            <p className="text-sm">Rating: {response.emp_rating}/5</p>
+                            {response.emp_comment && (
+                              <p className="text-sm mt-1">"{response.emp_comment}"</p>
+                            )}
+                          </div>
+                        )}
 
-                  {index < sectionQuestions.length - 1 && <Separator />}
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-      ))}
+                        {mode === 'employee' && response.mgr_rating && (
+                          <div className="bg-blue-50 p-3 rounded-lg">
+                            <p className="text-sm font-medium text-blue-700">Manager Assessment:</p>
+                            <p className="text-sm">Rating: {response.mgr_rating}/5</p>
+                            {response.mgr_comment && (
+                              <p className="text-sm mt-1">"{response.mgr_comment}"</p>
+                            )}
+                          </div>
+                        )}
+
+                        {index < sectionQuestions.length - 1 && <Separator />}
+                      </div>
+                    );
+                  } catch (questionError) {
+                    console.error('❌ Error rendering question:', questionError, question);
+                    return (
+                      <div key={question?.id || `error-${index}`} className="bg-red-50 p-3 rounded-lg">
+                        <p className="text-red-600 text-sm">Error rendering question {index + 1}</p>
+                      </div>
+                    );
+                  }
+                })}
+              </CardContent>
+            </Card>
+          );
+        } catch (sectionError) {
+          console.error('❌ Error rendering section:', sectionError, sectionName);
+          return (
+            <Card key={sectionName}>
+              <CardContent>
+                <p className="text-red-600">Error rendering section: {sectionName}</p>
+              </CardContent>
+            </Card>
+          );
+        }
+      })}
 
       {/* Action Buttons */}
       {!isReadOnly && (

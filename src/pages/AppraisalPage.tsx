@@ -41,6 +41,9 @@ export default function AppraisalPage() {
   const loadAppraisal = async () => {
     if (!id || !profile) return;
 
+    console.log('🏁 AppraisalPage: Loading appraisal with ID:', id);
+    console.log('🏁 AppraisalPage: Current profile:', profile.id, profile.role);
+
     try {
       const { data, error } = await supabase
         .from('appraisals')
@@ -52,6 +55,8 @@ export default function AppraisalPage() {
         .single();
 
       if (error) throw error;
+      
+      console.log('🏁 AppraisalPage: Loaded appraisal data:', data);
 
       // Check if user has access to this appraisal
       if (data.employee_id !== profile.id && 
@@ -173,12 +178,21 @@ export default function AppraisalPage() {
         </div>
 
         {/* Appraisal Form */}
-        <AppraisalForm
-          cycleId={appraisal.cycle_id}
-          employeeId={appraisal.employee_id}
-          mode={getAppraisalMode()}
-          onComplete={handleComplete}
-        />
+        {(() => {
+          console.log('🏁 AppraisalPage: Rendering AppraisalForm with props:', {
+            cycleId: appraisal.cycle_id,
+            employeeId: appraisal.employee_id,
+            mode: getAppraisalMode()
+          });
+          return (
+            <AppraisalForm
+              cycleId={appraisal.cycle_id}
+              employeeId={appraisal.employee_id}
+              mode={getAppraisalMode()}
+              onComplete={handleComplete}
+            />
+          );
+        })()}
       </div>
     </DashboardLayout>
   );
