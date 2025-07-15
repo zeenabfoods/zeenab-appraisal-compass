@@ -48,6 +48,8 @@ interface AppraisalFormProps {
 }
 
 export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: AppraisalFormProps) {
+  console.log('🚀 AppraisalForm component rendered with props:', { cycleId, employeeId, mode });
+  
   const { profile } = useAuth();
   const { toast } = useToast();
   const [sections, setSections] = useState<Section[]>([]);
