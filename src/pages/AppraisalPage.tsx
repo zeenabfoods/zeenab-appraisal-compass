@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { AppraisalForm } from '@/components/AppraisalForm';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -32,17 +32,21 @@ export default function AppraisalPage() {
   const [appraisal, setAppraisal] = useState<Appraisal | null>(null);
   const [loading, setLoading] = useState(true);
 
+  console.log('🏁 AppraisalPage: Rendered with ID:', id, 'Profile:', profile?.id);
+
   useEffect(() => {
-    if (id) {
+    if (id && profile) {
       loadAppraisal();
     }
-  }, [id]);
+  }, [id, profile]);
 
   const loadAppraisal = async () => {
-    if (!id || !profile) return;
+    if (!id || !profile) {
+      console.log('🏁 AppraisalPage: Missing required data:', { id, profile: !!profile });
+      return;
+    }
 
     console.log('🏁 AppraisalPage: Loading appraisal with ID:', id);
-    console.log('🏁 AppraisalPage: Current profile:', profile.id, profile.role);
 
     try {
       const { data, error } = await supabase
@@ -54,7 +58,10 @@ export default function AppraisalPage() {
         .eq('id', id)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ AppraisalPage: Database error:', error);
+        throw error;
+      }
       
       console.log('🏁 AppraisalPage: Loaded appraisal data:', data);
 
@@ -70,6 +77,7 @@ export default function AppraisalPage() {
           .single();
 
         if (!employeeData || employeeData.line_manager_id !== profile.id) {
+          console.warn('🏁 AppraisalPage: Access denied for user:', profile.id);
           toast({
             title: "Access Denied",
             description: "You don't have permission to view this appraisal",
@@ -81,8 +89,8 @@ export default function AppraisalPage() {
       }
 
       setAppraisal(data);
-    } catch (error) {
-      console.error('Error loading appraisal:', error);
+    } catch (error: any) {
+      console.error('❌ AppraisalPage: Error loading appraisal:', error);
       toast({
         title: "Error",
         description: "Failed to load appraisal",
@@ -131,6 +139,7 @@ export default function AppraisalPage() {
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+          <span className="ml-2">Loading appraisal...</span>
         </div>
       </DashboardLayout>
     );
@@ -150,6 +159,12 @@ export default function AppraisalPage() {
       </DashboardLayout>
     );
   }
+
+  console.log('✅ AppraisalPage: About to render AppraisalForm with:', {
+    cycleId: appraisal.cycle_id,
+    employeeId: appraisal.employee_id,
+    mode: getAppraisalMode()
+  });
 
   return (
     <DashboardLayout>
@@ -177,7 +192,7 @@ export default function AppraisalPage() {
           </Badge>
         </div>
 
-        {/* Appraisal Form */}
+        {/* Appraisal Form - Only render when we have the required data */}
         {appraisal.cycle_id && appraisal.employee_id ? (
           <AppraisalForm
             cycleId={appraisal.cycle_id}

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,17 +12,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Send, Clock, CheckCircle, AlertCircle } from 'lucide-react';
-import { AutoQuestionAssignment } from '@/components/AutoQuestionAssignment';
-
-interface Question {
-  id: string;
-  question_text: string;
-  weight: number;
-  section_id: string;
-  is_required: boolean;
-  question_type: string;
-  section_name?: string;
-}
+import { useAppraisalQuestions } from '@/hooks/useAppraisalQuestions';
 
 interface Section {
   id: string;
@@ -53,198 +44,64 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
   const { profile } = useAuth();
   const { toast } = useToast();
   const [sections, setSections] = useState<Section[]>([]);
-  const [questions, setQuestions] = useState<Question[]>([]);
   const [responses, setResponses] = useState<Record<string, AppraisalResponse>>({});
   const [appraisalData, setAppraisalData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string>('');
+  const [sectionsLoading, setSectionsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // Use the dedicated hook for question loading
+  const { 
+    questions, 
+    loading: questionsLoading, 
+    error: questionsError, 
+    refetch: refetchQuestions,
+    autoAssignQuestions 
+  } = useAppraisalQuestions(employeeId, cycleId);
+
   useEffect(() => {
-    console.log('🔄 useEffect triggered with:', { cycleId, employeeId });
+    console.log('🔄 AppraisalForm: useEffect triggered with:', { cycleId, employeeId });
     if (cycleId && employeeId) {
-      loadData();
+      loadSectionsAndAppraisalData();
     }
   }, [cycleId, employeeId]);
 
-  useEffect(() => {
-    console.log('🔍 Final questions state:', questions);
-  }, [questions]);
-
-  const loadData = async () => {
+  const loadSectionsAndAppraisalData = async () => {
     try {
-      console.log('🔄 Starting data load for:', { cycleId, employeeId, mode });
-      setLoading(true);
-      setError('');
+      console.log('🔄 AppraisalForm: Loading sections and appraisal data');
+      setSectionsLoading(true);
 
-      // Step 1: Load sections first
-      await loadSections();
+      // Load sections
+      const { data: sectionsData, error: sectionsError } = await supabase
+        .from('appraisal_question_sections')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order');
+
+      if (sectionsError) {
+        console.error('❌ AppraisalForm: Sections error:', sectionsError);
+        throw new Error(`Failed to load sections: ${sectionsError.message}`);
+      }
       
-      // Step 2: Load assigned questions for the employee
-      await loadQuestions();
-      
-      // Step 3: Load existing appraisal and responses
+      console.log('✅ AppraisalForm: Sections loaded:', sectionsData?.length || 0);
+      setSections(sectionsData || []);
+
+      // Load existing appraisal and responses
       await loadExistingData();
 
-      console.log('✅ All data loaded successfully');
     } catch (error: any) {
-      console.error('❌ Error loading data:', error);
-      setError(error.message || 'Failed to load appraisal data');
+      console.error('❌ AppraisalForm: Error loading data:', error);
       toast({
         title: "Error Loading Data",
         description: error.message || 'Failed to load appraisal data',
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadSections = async () => {
-    console.log('📁 Loading sections...');
-    const { data: sectionsData, error: sectionsError } = await supabase
-      .from('appraisal_question_sections')
-      .select('*')
-      .eq('is_active', true)
-      .order('sort_order');
-
-    if (sectionsError) {
-      console.error('❌ Sections error:', sectionsError);
-      throw new Error(`Failed to load sections: ${sectionsError.message}`);
-    }
-    
-    console.log('✅ Sections loaded:', sectionsData?.length || 0);
-    setSections(sectionsData || []);
-  };
-
-  const loadQuestions = async () => {
-    console.log('📝 Loading assigned questions for employee:', employeeId, 'cycle:', cycleId);
-    console.log('🔍 Current dependencies check:', { cycleId, employeeId, mode });
-    
-    // Get assigned questions for this employee and cycle - use LEFT JOIN to avoid filtering
-    const { data: assignedQuestions, error: assignedError } = await supabase
-      .from('employee_appraisal_questions')
-      .select(`
-        question_id,
-        appraisal_questions (
-          id,
-          question_text,
-          question_type,
-          weight,
-          is_required,
-          section_id,
-          is_active,
-          appraisal_question_sections (
-            name
-          )
-        )
-      `)
-      .eq('employee_id', employeeId)
-      .eq('cycle_id', cycleId)
-      .eq('is_active', true);
-
-    if (assignedError) {
-      console.error('❌ Assigned questions error:', assignedError);
-      throw new Error(`Failed to load questions: ${assignedError.message}`);
-    }
-
-    console.log('🔍 Raw API response:', assignedQuestions);
-    console.log('📊 Raw assigned questions count:', assignedQuestions?.length || 0);
-    console.log('📊 Raw assigned questions sample:', assignedQuestions?.slice(0, 2));
-    
-    // Deep inspection of first question structure
-    if (assignedQuestions && assignedQuestions.length > 0) {
-      console.log('🔍 Deep inspection of first question:', 
-        JSON.stringify(assignedQuestions[0]?.appraisal_questions, null, 2));
-      console.log('🔍 Is active status check:', 
-        assignedQuestions.map(q => ({
-          hasQuestionObj: !!q.appraisal_questions,
-          isActive: q.appraisal_questions?.is_active,
-          id: q.appraisal_questions?.id
-        })));
-    }
-
-    if (!assignedQuestions || assignedQuestions.length === 0) {
-      console.log('⚠️ No questions assigned - will trigger auto assignment');
-      setQuestions([]);
-      return;
-    }
-
-    // Process questions with comprehensive validation
-    try {
-      const processedQuestions: Question[] = assignedQuestions
-        .filter(item => {
-          // Detailed validation with individual checks
-          const hasQuestionObj = !!item.appraisal_questions;
-          const hasId = !!item.appraisal_questions?.id;
-          const hasText = !!item.appraisal_questions?.question_text;
-          const isActive = item.appraisal_questions?.is_active;
-          const isActiveValid = isActive !== false; // Allow null/undefined to pass
-          
-          const isValid = hasQuestionObj && hasId && hasText && isActiveValid;
-          
-          if (!isValid) {
-            console.log('❌ Filtered question:', {
-              item: item,
-              hasQuestionObj,
-              hasId,
-              hasText,
-              isActive,
-              isActiveValid,
-              reason: !hasQuestionObj ? 'Missing question object' :
-                     !hasId ? 'Missing ID' :
-                     !hasText ? 'Missing question text' :
-                     !isActiveValid ? `is_active is false (${isActive})` :
-                     'Unknown'
-            });
-          } else {
-            console.log('✅ Valid question passed filter:', {
-              id: item.appraisal_questions?.id,
-              text: item.appraisal_questions?.question_text?.substring(0, 50) + '...',
-              isActive: item.appraisal_questions?.is_active
-            });
-          }
-          
-          return isValid;
-        })
-        .map((item: any) => {
-          console.log('🗺️ Mapping item:', item); // Add mapping debug
-          const question = item.appraisal_questions;
-          const mapped = {
-            id: question?.id || 'missing-id',
-            question_text: question?.question_text || 'missing-text',
-            question_type: question?.question_type || 'rating',
-            weight: question?.weight || 1.0,
-            is_required: question?.is_required || false,
-            section_id: question?.section_id || null,
-            section_name: question?.appraisal_question_sections?.name || 'General'
-          };
-          console.log('✅ Mapped to:', mapped);
-          return mapped;
-        });
-
-      console.log('🔍 Processed questions:', processedQuestions);
-      console.log('✅ Questions processed successfully:', processedQuestions.length);
-      
-      if (processedQuestions.length === 0) {
-        console.warn('⚠️ All questions were filtered out - checking raw data again');
-        console.log('📊 Full raw data for debugging:', JSON.stringify(assignedQuestions, null, 2));
-        setQuestions([]);
-        return;
-      }
-      
-      console.log('🔄 Setting questions state with:', processedQuestions.length, 'questions');
-      setQuestions(processedQuestions);
-      console.log('✅ Final questions state should be:', processedQuestions.length);
-    } catch (processingError) {
-      console.error('❌ Error processing questions:', processingError);
-      console.error('❌ Raw data that failed:', assignedQuestions);
-      throw new Error(`Failed to process questions: ${processingError}`);
+      setSectionsLoading(false);
     }
   };
 
   const loadExistingData = async () => {
-    console.log('🔍 Loading existing appraisal data...');
+    console.log('🔍 AppraisalForm: Loading existing appraisal data...');
     
     // Check for existing appraisal
     const { data: existingAppraisal, error: appraisalError } = await supabase
@@ -255,11 +112,11 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
       .maybeSingle();
 
     if (appraisalError) {
-      console.error('❌ Appraisal error:', appraisalError);
+      console.error('❌ AppraisalForm: Appraisal error:', appraisalError);
       throw new Error(`Failed to load appraisal: ${appraisalError.message}`);
     }
 
-    console.log('📋 Existing appraisal:', existingAppraisal ? 'Found' : 'Not found');
+    console.log('📋 AppraisalForm: Existing appraisal:', existingAppraisal ? 'Found' : 'Not found');
     setAppraisalData(existingAppraisal);
 
     // Load existing responses if appraisal exists
@@ -270,14 +127,13 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
         .eq('appraisal_id', existingAppraisal.id);
 
       if (responsesError) {
-        console.error('❌ Responses error:', responsesError);
-        // Don't throw - just log and continue with empty responses
+        console.error('❌ AppraisalForm: Responses error:', responsesError);
       } else {
         const responsesMap: Record<string, AppraisalResponse> = {};
         responsesData?.forEach(response => {
           responsesMap[response.question_id] = response;
         });
-        console.log('✅ Responses loaded:', Object.keys(responsesMap).length);
+        console.log('✅ AppraisalForm: Responses loaded:', Object.keys(responsesMap).length);
         setResponses(responsesMap);
       }
     }
@@ -384,7 +240,7 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
         onComplete();
       }
     } catch (error: any) {
-      console.error('Error saving appraisal:', error);
+      console.error('❌ AppraisalForm: Error saving appraisal:', error);
       toast({
         title: "Error",
         description: `Failed to save appraisal: ${error.message}`,
@@ -409,7 +265,8 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
     return getCompletionPercentage() === 100;
   };
 
-  if (loading) {
+  // Show loading state
+  if (sectionsLoading || questionsLoading) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -418,19 +275,20 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
     );
   }
 
-  if (error) {
+  // Show error state
+  if (questionsError) {
     return (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center text-red-600">
             <AlertCircle className="h-5 w-5 mr-2" />
-            Error Loading Appraisal
+            Error Loading Questions
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-gray-600 mb-4">{error}</p>
+          <p className="text-gray-600 mb-4">{questionsError}</p>
           <div className="flex space-x-2">
-            <Button onClick={() => loadData()} variant="outline">
+            <Button onClick={() => refetchQuestions()} variant="outline">
               Try Again
             </Button>
             <Button onClick={() => window.location.reload()} variant="outline">
@@ -442,68 +300,30 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
     );
   }
 
-  if (questions.length === 0 && !loading) {
+  // Show no questions state with auto-assign option
+  if (questions.length === 0) {
     return (
-      <div className="space-y-6">
-        {/* TEMPORARILY COMMENTED OUT FOR DEBUGGING
-        <AutoQuestionAssignment 
-          employeeId={employeeId} 
-          cycleId={cycleId}
-          onAssignmentComplete={() => {
-            console.log('Questions assigned, reloading all data...');
-            loadData();
-          }}
-        />
-        */}
-        <Card>
-          <CardHeader>
-            <CardTitle>🐛 Debug: No Questions Found</CardTitle>
-            <CardDescription>
-              No appraisal questions have been assigned for this cycle yet.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-600 mb-4">
-              AutoQuestionAssignment temporarily disabled for debugging.
-            </p>
-            <div className="flex space-x-2">
-              <Button onClick={() => loadData()} variant="outline" disabled={loading}>
-                {loading ? 'Loading...' : 'Refresh Data'}
-              </Button>
-              <Button 
-                onClick={() => {
-                  console.log('🧪 Setting mock questions for testing...');
-                  const mockQuestions: Question[] = [
-                    {
-                      id: 'mock-1',
-                      question_text: 'How would you rate your overall performance this quarter?',
-                      question_type: 'rating',
-                      weight: 1.0,
-                      is_required: true,
-                      section_id: 'mock-section',
-                      section_name: 'Mock Performance'
-                    },
-                    {
-                      id: 'mock-2',
-                      question_text: 'What were your key achievements?',
-                      question_type: 'text',
-                      weight: 1.0,
-                      is_required: false,
-                      section_id: 'mock-section',
-                      section_name: 'Mock Performance'
-                    }
-                  ];
-                  setQuestions(mockQuestions);
-                  console.log('✅ Mock questions set:', mockQuestions);
-                }} 
-                variant="secondary"
-              >
-                🧪 Test with Mock Questions
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>No Questions Assigned</CardTitle>
+          <CardDescription>
+            No appraisal questions have been assigned for this cycle yet.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-gray-600 mb-4">
+            Would you like to automatically assign default questions to get started?
+          </p>
+          <div className="flex space-x-2">
+            <Button onClick={autoAssignQuestions} variant="default">
+              Auto-Assign Questions
+            </Button>
+            <Button onClick={() => refetchQuestions()} variant="outline">
+              Refresh
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -518,7 +338,9 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
     }
     acc[sectionName].push(question);
     return acc;
-  }, {} as Record<string, Question[]>);
+  }, {} as Record<string, typeof questions>);
+
+  console.log('✅ AppraisalForm: Rendering form with', questions.length, 'questions in', Object.keys(questionsBySection).length, 'sections');
 
   return (
     <div className="space-y-6">
@@ -553,116 +375,94 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
       </Card>
 
       {/* Questions by Section */}
-      {Object.entries(questionsBySection).map(([sectionName, sectionQuestions]) => {
-        try {
-          return (
-            <Card key={sectionName}>
-              <CardHeader>
-                <CardTitle className="text-lg">{sectionName}</CardTitle>
-                <CardDescription>
-                  {sectionQuestions.length} question{sectionQuestions.length !== 1 ? 's' : ''} in this section
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {sectionQuestions.map((question, index) => {
-                  try {
-                    const response = responses[question.id] || {} as AppraisalResponse;
-                    const currentRating = mode === 'employee' ? response.emp_rating : response.mgr_rating;
-                    const currentComment = mode === 'employee' ? response.emp_comment : response.mgr_comment;
+      {Object.entries(questionsBySection).map(([sectionName, sectionQuestions]) => (
+        <Card key={sectionName}>
+          <CardHeader>
+            <CardTitle className="text-lg">{sectionName}</CardTitle>
+            <CardDescription>
+              {sectionQuestions.length} question{sectionQuestions.length !== 1 ? 's' : ''} in this section
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {sectionQuestions.map((question, index) => {
+              const response = responses[question.id] || {} as AppraisalResponse;
+              const currentRating = mode === 'employee' ? response.emp_rating : response.mgr_rating;
+              const currentComment = mode === 'employee' ? response.emp_comment : response.mgr_comment;
 
-                    return (
-                      <div key={question.id} className="space-y-4">
-                        <div className="flex justify-between items-start">
-                          <h4 className="font-medium text-gray-900">
-                            {index + 1}. {question.question_text}
-                          </h4>
-                          <div className="flex items-center space-x-2">
-                            {question.is_required && (
-                              <Badge variant="outline" className="text-xs">Required</Badge>
-                            )}
-                            <Badge variant="secondary" className="text-xs">
-                              Weight: {question.weight}
-                            </Badge>
-                          </div>
+              return (
+                <div key={question.id} className="space-y-4">
+                  <div className="flex justify-between items-start">
+                    <h4 className="font-medium text-gray-900">
+                      {index + 1}. {question.question_text}
+                    </h4>
+                    <div className="flex items-center space-x-2">
+                      {question.is_required && (
+                        <Badge variant="outline" className="text-xs">Required</Badge>
+                      )}
+                      <Badge variant="secondary" className="text-xs">
+                        Weight: {question.weight}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* Rating */}
+                  <div className="space-y-2">
+                    <Label>Rating (1-5 scale)</Label>
+                    <RadioGroup
+                      value={currentRating?.toString() || ''}
+                      onValueChange={(value) => handleRatingChange(question.id, parseInt(value))}
+                      className="flex space-x-4"
+                      disabled={isReadOnly}
+                    >
+                      {[1, 2, 3, 4, 5].map(rating => (
+                        <div key={rating} className="flex items-center space-x-2">
+                          <RadioGroupItem value={rating.toString()} id={`${question.id}-${rating}`} />
+                          <Label htmlFor={`${question.id}-${rating}`}>{rating}</Label>
                         </div>
+                      ))}
+                    </RadioGroup>
+                  </div>
 
-                        {/* Rating */}
-                        <div className="space-y-2">
-                          <Label>Rating (1-5 scale)</Label>
-                          <RadioGroup
-                            value={currentRating?.toString() || ''}
-                            onValueChange={(value) => handleRatingChange(question.id, parseInt(value))}
-                            className="flex space-x-4"
-                            disabled={isReadOnly}
-                          >
-                            {[1, 2, 3, 4, 5].map(rating => (
-                              <div key={rating} className="flex items-center space-x-2">
-                                <RadioGroupItem value={rating.toString()} id={`${question.id}-${rating}`} />
-                                <Label htmlFor={`${question.id}-${rating}`}>{rating}</Label>
-                              </div>
-                            ))}
-                          </RadioGroup>
-                        </div>
+                  {/* Comment */}
+                  <div className="space-y-2">
+                    <Label>Comments</Label>
+                    <Textarea
+                      placeholder="Add your comments..."
+                      value={currentComment || ''}
+                      onChange={(e) => handleCommentChange(question.id, e.target.value)}
+                      disabled={isReadOnly}
+                      rows={3}
+                    />
+                  </div>
 
-                        {/* Comment */}
-                        <div className="space-y-2">
-                          <Label>Comments</Label>
-                          <Textarea
-                            placeholder="Add your comments..."
-                            value={currentComment || ''}
-                            onChange={(e) => handleCommentChange(question.id, e.target.value)}
-                            disabled={isReadOnly}
-                            rows={3}
-                          />
-                        </div>
+                  {/* Show other person's feedback if available */}
+                  {mode === 'manager' && response.emp_rating && (
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-sm font-medium text-gray-700">Employee Self-Assessment:</p>
+                      <p className="text-sm">Rating: {response.emp_rating}/5</p>
+                      {response.emp_comment && (
+                        <p className="text-sm mt-1">"{response.emp_comment}"</p>
+                      )}
+                    </div>
+                  )}
 
-                        {/* Show other person's feedback if available */}
-                        {mode === 'manager' && response.emp_rating && (
-                          <div className="bg-gray-50 p-3 rounded-lg">
-                            <p className="text-sm font-medium text-gray-700">Employee Self-Assessment:</p>
-                            <p className="text-sm">Rating: {response.emp_rating}/5</p>
-                            {response.emp_comment && (
-                              <p className="text-sm mt-1">"{response.emp_comment}"</p>
-                            )}
-                          </div>
-                        )}
+                  {mode === 'employee' && response.mgr_rating && (
+                    <div className="bg-blue-50 p-3 rounded-lg">
+                      <p className="text-sm font-medium text-blue-700">Manager Assessment:</p>
+                      <p className="text-sm">Rating: {response.mgr_rating}/5</p>
+                      {response.mgr_comment && (
+                        <p className="text-sm mt-1">"{response.mgr_comment}"</p>
+                      )}
+                    </div>
+                  )}
 
-                        {mode === 'employee' && response.mgr_rating && (
-                          <div className="bg-blue-50 p-3 rounded-lg">
-                            <p className="text-sm font-medium text-blue-700">Manager Assessment:</p>
-                            <p className="text-sm">Rating: {response.mgr_rating}/5</p>
-                            {response.mgr_comment && (
-                              <p className="text-sm mt-1">"{response.mgr_comment}"</p>
-                            )}
-                          </div>
-                        )}
-
-                        {index < sectionQuestions.length - 1 && <Separator />}
-                      </div>
-                    );
-                  } catch (questionError) {
-                    console.error('❌ Error rendering question:', questionError, question);
-                    return (
-                      <div key={question?.id || `error-${index}`} className="bg-red-50 p-3 rounded-lg">
-                        <p className="text-red-600 text-sm">Error rendering question {index + 1}</p>
-                      </div>
-                    );
-                  }
-                })}
-              </CardContent>
-            </Card>
-          );
-        } catch (sectionError) {
-          console.error('❌ Error rendering section:', sectionError, sectionName);
-          return (
-            <Card key={sectionName}>
-              <CardContent>
-                <p className="text-red-600">Error rendering section: {sectionName}</p>
-              </CardContent>
-            </Card>
-          );
-        }
-      })}
+                  {index < sectionQuestions.length - 1 && <Separator />}
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      ))}
 
       {/* Action Buttons */}
       {!isReadOnly && (
