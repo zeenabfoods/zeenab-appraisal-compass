@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -255,6 +254,14 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
     const requiredQuestions = questions.filter(q => q.is_required);
     const completedQuestions = requiredQuestions.filter(q => {
       const response = responses[q.id];
+      
+      // For text-type questions, check if comment exists
+      if (q.question_type === 'text') {
+        const hasComment = mode === 'employee' ? response?.emp_comment : response?.mgr_comment;
+        return hasComment && hasComment.trim().length > 0;
+      }
+      
+      // For rating-type questions, check if rating exists
       const hasRating = mode === 'employee' ? response?.emp_rating : response?.mgr_rating;
       return hasRating && hasRating > 0;
     });
@@ -389,6 +396,14 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
               const currentRating = mode === 'employee' ? response.emp_rating : response.mgr_rating;
               const currentComment = mode === 'employee' ? response.emp_comment : response.mgr_comment;
 
+              // Add debugging console log
+              console.log('Question type check:', {
+                id: question.id,
+                text: question.question_text?.substring(0, 50) + '...',
+                type: question.question_type,
+                expected: question.question_type === 'text' ? 'text-only' : 'rating'
+              });
+
               return (
                 <div key={question.id} className="space-y-4">
                   <div className="flex justify-between items-start">
@@ -402,44 +417,72 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
                       <Badge variant="secondary" className="text-xs">
                         Weight: {question.weight}
                       </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        Type: {question.question_type || 'rating'}
+                      </Badge>
                     </div>
                   </div>
 
-                  {/* Rating */}
-                  <div className="space-y-2">
-                    <Label>Rating (1-5 scale)</Label>
-                    <RadioGroup
-                      value={currentRating?.toString() || ''}
-                      onValueChange={(value) => handleRatingChange(question.id, parseInt(value))}
-                      className="flex space-x-4"
-                      disabled={isReadOnly}
-                    >
-                      {[1, 2, 3, 4, 5].map(rating => (
-                        <div key={rating} className="flex items-center space-x-2">
-                          <RadioGroupItem value={rating.toString()} id={`${question.id}-${rating}`} />
-                          <Label htmlFor={`${question.id}-${rating}`}>{rating}</Label>
+                  {/* Conditional rendering based on question type */}
+                  {question.question_type === 'text' ? (
+                    // Text-only questions: Show only textarea, larger and more prominent
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Your Response</Label>
+                      <Textarea
+                        placeholder="Enter your detailed response..."
+                        value={currentComment || ''}
+                        onChange={(e) => handleCommentChange(question.id, e.target.value)}
+                        disabled={isReadOnly}
+                        rows={6}
+                        className="min-h-[120px] resize-y"
+                      />
+                    </div>
+                  ) : (
+                    // Rating questions: Show both rating and comment
+                    <>
+                      {/* Rating */}
+                      <div className="space-y-2">
+                        <Label>Rating (1-5 scale)</Label>
+                        <RadioGroup
+                          value={currentRating?.toString() || ''}
+                          onValueChange={(value) => handleRatingChange(question.id, parseInt(value))}
+                          className="flex space-x-4"
+                          disabled={isReadOnly}
+                        >
+                          {[1, 2, 3, 4, 5].map(rating => (
+                            <div key={rating} className="flex items-center space-x-2">
+                              <RadioGroupItem value={rating.toString()} id={`${question.id}-${rating}`} />
+                              <Label htmlFor={`${question.id}-${rating}`}>{rating}</Label>
+                            </div>
+                          ))}
+                        </RadioGroup>
+                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                          <span>Poor</span>
+                          <span>Excellent</span>
                         </div>
-                      ))}
-                    </RadioGroup>
-                  </div>
+                      </div>
 
-                  {/* Comment */}
-                  <div className="space-y-2">
-                    <Label>Comments</Label>
-                    <Textarea
-                      placeholder="Add your comments..."
-                      value={currentComment || ''}
-                      onChange={(e) => handleCommentChange(question.id, e.target.value)}
-                      disabled={isReadOnly}
-                      rows={3}
-                    />
-                  </div>
+                      {/* Comment for rating questions */}
+                      <div className="space-y-2">
+                        <Label>Comments</Label>
+                        <Textarea
+                          placeholder="Add your comments..."
+                          value={currentComment || ''}
+                          onChange={(e) => handleCommentChange(question.id, e.target.value)}
+                          disabled={isReadOnly}
+                          rows={3}
+                        />
+                      </div>
+                    </>
+                  )}
 
                   {/* Show other person's feedback if available */}
                   {mode === 'manager' && response.emp_rating && (
                     <div className="bg-gray-50 p-3 rounded-lg">
                       <p className="text-sm font-medium text-gray-700">Employee Self-Assessment:</p>
-                      <p className="text-sm">Rating: {response.emp_rating}/5</p>
+                      {question.question_type !== 'text' && (
+                        <p className="text-sm">Rating: {response.emp_rating}/5</p>
+                      )}
                       {response.emp_comment && (
                         <p className="text-sm mt-1">"{response.emp_comment}"</p>
                       )}
@@ -449,7 +492,9 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
                   {mode === 'employee' && response.mgr_rating && (
                     <div className="bg-blue-50 p-3 rounded-lg">
                       <p className="text-sm font-medium text-blue-700">Manager Assessment:</p>
-                      <p className="text-sm">Rating: {response.mgr_rating}/5</p>
+                      {question.question_type !== 'text' && (
+                        <p className="text-sm">Rating: {response.mgr_rating}/5</p>
+                      )}
                       {response.mgr_comment && (
                         <p className="text-sm mt-1">"{response.mgr_comment}"</p>
                       )}
