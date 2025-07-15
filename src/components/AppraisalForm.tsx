@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,7 +11,7 @@ import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Send, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Save, Send, Clock, CheckCircle, AlertCircle, Lock, Eye } from 'lucide-react';
 import { useAppraisalQuestions } from '@/hooks/useAppraisalQuestions';
 
 interface Section {
@@ -47,6 +48,7 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
   const [appraisalData, setAppraisalData] = useState<any>(null);
   const [sectionsLoading, setSectionsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [submissionAttempted, setSubmissionAttempted] = useState(false);
 
   // Use the dedicated hook for question loading
   const { 
@@ -138,7 +140,58 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
     }
   };
 
+  // Determine if form is in read-only mode
+  const isReadOnlyMode = () => {
+    if (mode === 'hr') return true;
+    if (!appraisalData) return false;
+    
+    const restrictedStatuses = ['submitted', 'manager_review', 'committee_review', 'completed'];
+    
+    if (mode === 'employee') {
+      // Employees can't edit after submission
+      return restrictedStatuses.includes(appraisalData.status);
+    } else if (mode === 'manager') {
+      // Managers can't edit once it moves to committee or is completed
+      return ['committee_review', 'completed'].includes(appraisalData.status);
+    }
+    
+    return false;
+  };
+
+  // Get read-only reason for display
+  const getReadOnlyReason = () => {
+    if (mode === 'hr') return 'HR Review Mode - View Only';
+    if (!appraisalData) return '';
+    
+    if (mode === 'employee') {
+      switch (appraisalData.status) {
+        case 'submitted': return 'Appraisal has been submitted and is under manager review';
+        case 'manager_review': return 'Appraisal is currently under manager review';
+        case 'committee_review': return 'Appraisal is under committee review';
+        case 'completed': return 'Appraisal has been completed';
+        default: return '';
+      }
+    } else if (mode === 'manager') {
+      switch (appraisalData.status) {
+        case 'committee_review': return 'Appraisal is under committee review';
+        case 'completed': return 'Appraisal has been completed';
+        default: return '';
+      }
+    }
+    
+    return '';
+  };
+
   const handleRatingChange = (questionId: string, rating: number) => {
+    if (isReadOnlyMode()) {
+      toast({
+        title: "Cannot Edit",
+        description: getReadOnlyReason(),
+        variant: "destructive",
+      });
+      return;
+    }
+
     setResponses(prev => ({
       ...prev,
       [questionId]: {
@@ -150,6 +203,15 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
   };
 
   const handleCommentChange = (questionId: string, comment: string) => {
+    if (isReadOnlyMode()) {
+      toast({
+        title: "Cannot Edit",
+        description: getReadOnlyReason(),
+        variant: "destructive",
+      });
+      return;
+    }
+
     setResponses(prev => ({
       ...prev,
       [questionId]: {
@@ -162,6 +224,20 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
 
   const saveAppraisal = async (submit = false) => {
     if (!profile) return;
+    
+    // Prevent multiple rapid submissions
+    if (submit && submissionAttempted) {
+      toast({
+        title: "Submission in Progress",
+        description: "Please wait for the current submission to complete.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (submit) {
+      setSubmissionAttempted(true);
+    }
     
     setSaving(true);
     try {
@@ -185,7 +261,13 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
           .select()
           .single();
 
-        if (appraisalError) throw appraisalError;
+        if (appraisalError) {
+          // Check if this is a submission lock error
+          if (submit && appraisalError.message.includes('row-level security')) {
+            throw new Error('This appraisal has already been submitted and cannot be modified.');
+          }
+          throw appraisalError;
+        }
         appraisalId = newAppraisal.id;
         setAppraisalData(newAppraisal);
       } else if (submit) {
@@ -205,7 +287,13 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
           .update(updateData)
           .eq('id', appraisalId);
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          // Check if this is a submission lock error
+          if (updateError.message.includes('row-level security')) {
+            throw new Error('This appraisal has already been submitted and cannot be modified.');
+          }
+          throw updateError;
+        }
       }
 
       // Save responses
@@ -227,7 +315,13 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
             onConflict: 'appraisal_id,question_id'
           });
         
-        if (error) throw error;
+        if (error) {
+          // Check if this is a submission lock error
+          if (submit && error.message.includes('row-level security')) {
+            throw new Error('This appraisal has already been submitted and cannot be modified.');
+          }
+          throw error;
+        }
       }
 
       toast({
@@ -242,11 +336,14 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
       console.error('❌ AppraisalForm: Error saving appraisal:', error);
       toast({
         title: "Error",
-        description: `Failed to save appraisal: ${error.message}`,
+        description: error.message || `Failed to save appraisal`,
         variant: "destructive",
       });
     } finally {
       setSaving(false);
+      if (submit) {
+        setSubmissionAttempted(false);
+      }
     }
   };
 
@@ -334,7 +431,8 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
     );
   }
 
-  const isReadOnly = mode === 'hr' || (appraisalData?.status === 'completed');
+  const isReadOnly = isReadOnlyMode();
+  const readOnlyReason = getReadOnlyReason();
   const completionPercentage = getCompletionPercentage();
 
   // Group questions by section
@@ -352,11 +450,12 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
   return (
     <div className="space-y-6">
       {/* Header */}
-      <Card>
+      <Card className={isReadOnly ? 'border-gray-300 bg-gray-50' : ''}>
         <CardHeader>
           <div className="flex justify-between items-start">
             <div>
-              <CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                {isReadOnly && <Lock className="h-5 w-5 text-gray-500" />}
                 {mode === 'manager' ? 'Manager Review' : 'Performance Appraisal'}
               </CardTitle>
               <CardDescription>
@@ -365,6 +464,12 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
                   : 'Complete your performance evaluation for this cycle'
                 }
               </CardDescription>
+              {isReadOnly && readOnlyReason && (
+                <div className="mt-2 flex items-center gap-2 text-sm text-amber-700 bg-amber-50 px-3 py-2 rounded-md border border-amber-200">
+                  <Eye className="h-4 w-4" />
+                  <span>{readOnlyReason}</span>
+                </div>
+              )}
             </div>
             <div className="text-right">
               <Badge variant={appraisalData?.status === 'completed' ? 'default' : 'secondary'}>
@@ -383,7 +488,7 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
 
       {/* Questions by Section */}
       {Object.entries(questionsBySection).map(([sectionName, sectionQuestions]) => (
-        <Card key={sectionName}>
+        <Card key={sectionName} className={isReadOnly ? 'border-gray-300 bg-gray-50' : ''}>
           <CardHeader>
             <CardTitle className="text-lg">{sectionName}</CardTitle>
             <CardDescription>
@@ -395,14 +500,6 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
               const response = responses[question.id] || {} as AppraisalResponse;
               const currentRating = mode === 'employee' ? response.emp_rating : response.mgr_rating;
               const currentComment = mode === 'employee' ? response.emp_comment : response.mgr_comment;
-
-              // Add debugging console log
-              console.log('Question type check:', {
-                id: question.id,
-                text: question.question_text?.substring(0, 50) + '...',
-                type: question.question_type,
-                expected: question.question_type === 'text' ? 'text-only' : 'rating'
-              });
 
               return (
                 <div key={question.id} className="space-y-4">
@@ -429,12 +526,13 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">Your Response</Label>
                       <Textarea
-                        placeholder="Enter your detailed response..."
+                        placeholder={isReadOnly ? "No response provided" : "Enter your detailed response..."}
                         value={currentComment || ''}
                         onChange={(e) => handleCommentChange(question.id, e.target.value)}
                         disabled={isReadOnly}
+                        readOnly={isReadOnly}
                         rows={6}
-                        className="min-h-[120px] resize-y"
+                        className={`min-h-[120px] resize-y ${isReadOnly ? 'bg-gray-100 border-gray-300 text-gray-700 cursor-not-allowed' : ''}`}
                       />
                     </div>
                   ) : (
@@ -451,8 +549,18 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
                         >
                           {[1, 2, 3, 4, 5].map(rating => (
                             <div key={rating} className="flex items-center space-x-2">
-                              <RadioGroupItem value={rating.toString()} id={`${question.id}-${rating}`} />
-                              <Label htmlFor={`${question.id}-${rating}`}>{rating}</Label>
+                              <RadioGroupItem 
+                                value={rating.toString()} 
+                                id={`${question.id}-${rating}`}
+                                disabled={isReadOnly}
+                                className={isReadOnly ? 'cursor-not-allowed opacity-50' : ''}
+                              />
+                              <Label 
+                                htmlFor={`${question.id}-${rating}`}
+                                className={isReadOnly ? 'cursor-not-allowed text-gray-500' : 'cursor-pointer'}
+                              >
+                                {rating}
+                              </Label>
                             </div>
                           ))}
                         </RadioGroup>
@@ -466,11 +574,13 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
                       <div className="space-y-2">
                         <Label>Comments</Label>
                         <Textarea
-                          placeholder="Add your comments..."
+                          placeholder={isReadOnly ? "No comments provided" : "Add your comments..."}
                           value={currentComment || ''}
                           onChange={(e) => handleCommentChange(question.id, e.target.value)}
                           disabled={isReadOnly}
+                          readOnly={isReadOnly}
                           rows={3}
+                          className={isReadOnly ? 'bg-gray-100 border-gray-300 text-gray-700 cursor-not-allowed' : ''}
                         />
                       </div>
                     </>
@@ -523,12 +633,25 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
           
           <Button
             onClick={() => saveAppraisal(true)}
-            disabled={saving || !canSubmit()}
+            disabled={saving || !canSubmit() || submissionAttempted}
           >
             <Send className="h-4 w-4 mr-2" />
-            {mode === 'employee' ? 'Submit Appraisal' : 'Complete Review'}
+            {submissionAttempted ? 'Submitting...' : (mode === 'employee' ? 'Submit Appraisal' : 'Complete Review')}
           </Button>
         </div>
+      )}
+
+      {/* Read-only mode info */}
+      {isReadOnly && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="flex items-center gap-3 p-4">
+            <Eye className="h-5 w-5 text-amber-600" />
+            <div>
+              <p className="text-sm font-medium text-amber-800">Read-Only Mode</p>
+              <p className="text-xs text-amber-700">{readOnlyReason}</p>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
