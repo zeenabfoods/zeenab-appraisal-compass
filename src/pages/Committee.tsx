@@ -22,7 +22,7 @@ export default function Committee() {
     queryFn: async () => {
       console.log('🔍 Fetching committee appraisals...');
       
-      // Fetch appraisals with status 'committee_review' and proper joins
+      // Fixed query to properly fetch appraisals with complete data including scores
       const { data, error } = await supabase
         .from('appraisals')
         .select(`
@@ -34,7 +34,20 @@ export default function Committee() {
             position,
             department:departments!profiles_department_id_fkey(name)
           ),
-          cycle:appraisal_cycles(name, year, quarter)
+          cycle:appraisal_cycles(name, year, quarter),
+          responses:appraisal_responses(
+            id,
+            emp_rating,
+            mgr_rating,
+            committee_rating,
+            emp_comment,
+            mgr_comment,
+            committee_comment,
+            question:appraisal_questions(
+              question_text,
+              weight
+            )
+          )
         `)
         .eq('status', 'committee_review')
         .order('manager_reviewed_at', { ascending: false });
@@ -47,18 +60,39 @@ export default function Committee() {
       console.log('✅ Committee appraisals fetched:', data?.length || 0);
       console.log('📋 Committee visible appraisals:', data);
       
-      // Log individual appraisal details for debugging
-      data?.forEach((appraisal, index) => {
-        console.log(`📝 Appraisal ${index + 1}:`, {
+      // Calculate scores for each appraisal and log debug info
+      const enrichedData = data?.map(appraisal => {
+        const responses = appraisal.responses || [];
+        let totalScore = 0;
+        let totalWeight = 0;
+        
+        responses.forEach(response => {
+          // Use manager rating as authoritative for committee review
+          const score = response.mgr_rating || response.emp_rating || 0;
+          const weight = response.question?.weight || 1;
+          totalScore += score * weight;
+          totalWeight += weight;
+        });
+        
+        const calculatedScore = totalWeight > 0 ? Math.round((totalScore / totalWeight) * 20) : null; // Convert to 100 scale
+        
+        console.log(`📝 Appraisal for ${appraisal.employee?.first_name} ${appraisal.employee?.last_name}:`, {
           id: appraisal.id,
-          employee: `${appraisal.employee?.first_name} ${appraisal.employee?.last_name}`,
           status: appraisal.status,
           cycle: appraisal.cycle?.name,
-          manager_reviewed_at: appraisal.manager_reviewed_at
+          manager_reviewed_at: appraisal.manager_reviewed_at,
+          responses_count: responses.length,
+          calculated_score: calculatedScore,
+          overall_score: appraisal.overall_score
         });
-      });
+        
+        return {
+          ...appraisal,
+          calculated_score: calculatedScore
+        };
+      }) || [];
       
-      return data || [];
+      return enrichedData;
     }
   });
 
@@ -158,6 +192,12 @@ export default function Committee() {
     }
   };
 
+  // Helper function to format cycle name consistently
+  const formatCycleName = (cycle: any) => {
+    if (!cycle) return 'Unknown Cycle';
+    return `${cycle.name} (Q${cycle.quarter} ${cycle.year})`;
+  };
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -230,7 +270,7 @@ export default function Committee() {
                     <SelectContent>
                       {committeeAppraisals.map((appraisal) => (
                         <SelectItem key={appraisal.id} value={appraisal.id}>
-                          {appraisal.employee?.first_name} {appraisal.employee?.last_name} - {appraisal.cycle?.name}
+                          {appraisal.employee?.first_name} {appraisal.employee?.last_name} - {formatCycleName(appraisal.cycle)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -282,10 +322,7 @@ export default function Committee() {
                           <TableCell>{appraisal.employee?.department?.name || 'Not assigned'}</TableCell>
                           <TableCell>
                             <div>
-                              <p className="font-medium">{appraisal.cycle?.name}</p>
-                              <p className="text-sm text-gray-500">
-                                {appraisal.cycle?.year} Q{appraisal.cycle?.quarter}
-                              </p>
+                              <p className="font-medium">{formatCycleName(appraisal.cycle)}</p>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -301,13 +338,17 @@ export default function Committee() {
                             )}
                           </TableCell>
                           <TableCell>
-                            {appraisal.overall_score ? (
+                            {appraisal.overall_score || appraisal.calculated_score ? (
                               <div className="flex items-center space-x-1">
                                 <TrendingUp className="h-4 w-4 text-blue-500" />
-                                <span className="font-medium">{appraisal.overall_score}/100</span>
+                                <Badge variant="default" className="bg-blue-100 text-blue-800">
+                                  {appraisal.overall_score || appraisal.calculated_score}/100
+                                </Badge>
                               </div>
                             ) : (
-                              <span className="text-sm text-gray-400">Not scored</span>
+                              <Badge variant="secondary">
+                                Pending
+                              </Badge>
                             )}
                           </TableCell>
                           <TableCell>
