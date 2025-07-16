@@ -1,7 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import { v4 as uuidv4 } from 'uuid';
 import { useAuthContext } from '@/components/AuthProvider';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
@@ -62,6 +62,16 @@ import { CalendarIcon } from "lucide-react"
 import { format } from "date-fns"
 import { useToast } from "@/hooks/use-toast";
 import { formatCycleName } from '@/utils/cycleFormatting';
+
+// Browser-native UUID generation with fallback
+const generateId = () => {
+  try {
+    return window.crypto.randomUUID();
+  } catch (e) {
+    console.warn('crypto.randomUUID() not available, using fallback');
+    return Date.now().toString(36) + Math.random().toString(36).substring(2);
+  }
+};
 
 interface AppraisalQuestion {
   id: string;
@@ -159,17 +169,15 @@ export function AppraisalForm() {
         throw error;
       }
 
-      return data as AppraisalData;
+      // Add empty responses array to satisfy the interface
+      const appraisalWithResponses = {
+        ...data,
+        responses: []
+      } as AppraisalData;
+
+      return appraisalWithResponses;
     },
     enabled: !!appraisalId,
-    onSuccess: (data) => {
-      setAppraisalData(data);
-      setGoals(data?.goals || '');
-      setTrainingNeeds(data?.training_needs || '');
-      setNoteworthy(data?.noteworthy || '');
-      setEmpComments(data?.emp_comments || '');
-      setMgrComments(data?.mgr_comments || '');
-    }
   });
 
   // Fetch appraisal responses
@@ -200,10 +208,18 @@ export function AppraisalForm() {
       return data as AppraisalResponse[];
     },
     enabled: !!appraisalId,
-    onSuccess: (data) => {
-      setResponses(data);
-    }
   });
+
+  useEffect(() => {
+    if (appraisalQuery) {
+      setAppraisalData(appraisalQuery);
+      setGoals(appraisalQuery?.goals || '');
+      setTrainingNeeds(appraisalQuery?.training_needs || '');
+      setNoteworthy(appraisalQuery?.noteworthy || '');
+      setEmpComments(appraisalQuery?.emp_comments || '');
+      setMgrComments(appraisalQuery?.mgr_comments || '');
+    }
+  }, [appraisalQuery]);
 
   useEffect(() => {
     if (responsesQuery) {
@@ -211,8 +227,8 @@ export function AppraisalForm() {
     }
   }, [responsesQuery]);
 
-  const updateResponseMutation = useMutation(
-    async (updatedResponse: AppraisalResponse) => {
+  const updateResponseMutation = useMutation({
+    mutationFn: async (updatedResponse: AppraisalResponse) => {
       if (!updatedResponse.id) {
         // If the response doesn't have an ID, it's a new response
         const { data, error } = await supabase
@@ -258,20 +274,18 @@ export function AppraisalForm() {
         return data as AppraisalResponse;
       }
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['appraisal-responses', appraisalId] });
-      },
-      onError: (error) => {
-        console.error("Error updating appraisal response:", error);
-        toast({
-          title: "Error",
-          description: "Failed to update appraisal response. Please try again.",
-          variant: "destructive"
-        });
-      }
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appraisal-responses', appraisalId] });
+    },
+    onError: (error) => {
+      console.error("Error updating appraisal response:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update appraisal response. Please try again.",
+        variant: "destructive"
+      });
     }
-  );
+  });
 
   const handleResponseChange = (responseId: string, field: string, value: any) => {
     setResponses((prevResponses) =>
@@ -415,6 +429,9 @@ export function AppraisalForm() {
     );
   }
 
+  // Verify ID generation works
+  console.log('Generated ID:', generateId());
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -450,7 +467,7 @@ export function AppraisalForm() {
         {/* Appraisal Form */}
         <div className="grid md:grid-cols-2 gap-6">
           {responses?.map((response) => (
-            <Card key={response.id || uuidv4()}>
+            <Card key={response.id || generateId()}>
               <CardHeader>
                 <CardTitle>{response.question?.question_text}</CardTitle>
                 <p className="text-sm text-gray-500">
@@ -461,7 +478,6 @@ export function AppraisalForm() {
                 <div className="space-y-2">
                   <Label htmlFor={`employee-rating-${response.id}`}>Your Rating</Label>
                   <Select
-                    id={`employee-rating-${response.id}`}
                     value={response.emp_rating !== null ? response.emp_rating.toString() : ''}
                     onValueChange={(value) =>
                       handleResponseChange(response.id || '', 'emp_rating', parseInt(value))
