@@ -20,7 +20,9 @@ export default function Committee() {
   const { data: committeeAppraisals, isLoading } = useQuery({
     queryKey: ['committee-appraisals'],
     queryFn: async () => {
-      console.log('Fetching committee appraisals...');
+      console.log('🔍 Fetching committee appraisals...');
+      
+      // Fetch appraisals with status 'committee_review' and proper joins
       const { data, error } = await supabase
         .from('appraisals')
         .select(`
@@ -35,13 +37,27 @@ export default function Committee() {
           cycle:appraisal_cycles(name, year, quarter)
         `)
         .eq('status', 'committee_review')
-        .order('created_at', { ascending: false });
+        .order('manager_reviewed_at', { ascending: false });
       
       if (error) {
-        console.error('Error fetching committee appraisals:', error);
+        console.error('❌ Error fetching committee appraisals:', error);
         throw error;
       }
-      console.log('Committee appraisals fetched:', data);
+      
+      console.log('✅ Committee appraisals fetched:', data?.length || 0);
+      console.log('📋 Committee visible appraisals:', data);
+      
+      // Log individual appraisal details for debugging
+      data?.forEach((appraisal, index) => {
+        console.log(`📝 Appraisal ${index + 1}:`, {
+          id: appraisal.id,
+          employee: `${appraisal.employee?.first_name} ${appraisal.employee?.last_name}`,
+          status: appraisal.status,
+          cycle: appraisal.cycle?.name,
+          manager_reviewed_at: appraisal.manager_reviewed_at
+        });
+      });
+      
       return data || [];
     }
   });
@@ -50,6 +66,8 @@ export default function Committee() {
   const { data: committeeStats } = useQuery({
     queryKey: ['committee-stats'],
     queryFn: async () => {
+      console.log('📊 Fetching committee statistics...');
+      
       const { data: pending, error: pendingError } = await supabase
         .from('appraisals')
         .select('id')
@@ -60,18 +78,24 @@ export default function Committee() {
         .select('id')
         .eq('status', 'hr_review');
 
-      if (pendingError || completedError) throw pendingError || completedError;
+      if (pendingError || completedError) {
+        console.error('❌ Error fetching committee stats:', pendingError || completedError);
+        throw pendingError || completedError;
+      }
 
-      return {
+      const stats = {
         pending: pending?.length || 0,
         completed: completed?.length || 0
       };
+      
+      console.log('📊 Committee stats:', stats);
+      return stats;
     }
   });
 
   const deleteAppraisalMutation = useMutation({
     mutationFn: async (appraisalId: string) => {
-      console.log('Deleting appraisal with ID:', appraisalId);
+      console.log('🗑️ Deleting appraisal with ID:', appraisalId);
       
       // Delete related appraisal responses first
       const { error: responsesError } = await supabase
@@ -80,7 +104,7 @@ export default function Committee() {
         .eq('appraisal_id', appraisalId);
       
       if (responsesError) {
-        console.error('Error deleting appraisal responses:', responsesError);
+        console.error('❌ Error deleting appraisal responses:', responsesError);
         throw responsesError;
       }
 
@@ -91,7 +115,7 @@ export default function Committee() {
         .eq('related_appraisal_id', appraisalId);
       
       if (notificationsError) {
-        console.error('Error deleting notifications:', notificationsError);
+        console.error('❌ Error deleting notifications:', notificationsError);
         // Don't throw here as notifications might not exist
       }
 
@@ -102,14 +126,14 @@ export default function Committee() {
         .eq('id', appraisalId);
       
       if (error) {
-        console.error('Error deleting appraisal:', error);
+        console.error('❌ Error deleting appraisal:', error);
         throw error;
       }
 
-      console.log('Appraisal deleted successfully');
+      console.log('✅ Appraisal deleted successfully');
     },
     onSuccess: () => {
-      console.log('Delete mutation successful, invalidating queries...');
+      console.log('✅ Delete mutation successful, invalidating queries...');
       queryClient.invalidateQueries({ queryKey: ['committee-appraisals'] });
       queryClient.invalidateQueries({ queryKey: ['committee-stats'] });
       toast({
@@ -118,7 +142,7 @@ export default function Committee() {
       });
     },
     onError: (error: any) => {
-      console.error('Delete mutation failed:', error);
+      console.error('❌ Delete mutation failed:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete appraisal",
@@ -128,7 +152,7 @@ export default function Committee() {
   });
 
   const handleDeleteAppraisal = (appraisalId: string) => {
-    console.log('Delete button clicked for appraisal:', appraisalId);
+    console.log('🗑️ Delete button clicked for appraisal:', appraisalId);
     if (confirm('Are you sure you want to delete this appraisal? This action cannot be undone and will remove all related data.')) {
       deleteAppraisalMutation.mutate(appraisalId);
     }
@@ -143,6 +167,8 @@ export default function Committee() {
       </DashboardLayout>
     );
   }
+
+  console.log('🎨 Rendering Committee page with', committeeAppraisals?.length || 0, 'appraisals');
 
   return (
     <DashboardLayout>
@@ -324,6 +350,10 @@ export default function Committee() {
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No Committee Reviews</h3>
                   <p className="text-gray-600 text-center">
                     There are no appraisals pending committee review at this time.
+                    <br />
+                    <span className="text-sm text-gray-500 mt-2 block">
+                      Appraisals will appear here after managers complete their reviews.
+                    </span>
                   </p>
                 </CardContent>
               </Card>

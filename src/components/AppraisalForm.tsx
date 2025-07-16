@@ -118,6 +118,13 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
     }
 
     console.log('📋 AppraisalForm: Existing appraisal:', existingAppraisal ? 'Found' : 'Not found');
+    console.log('🔍 Workflow Debug - Current Status:', { 
+      currentStatus: existingAppraisal?.status, 
+      mode,
+      isReadOnly: isReadOnlyMode(),
+      visibleToCommittee: existingAppraisal?.status === 'committee_review'
+    });
+    
     setAppraisalData(existingAppraisal);
 
     // Load existing responses if appraisal exists
@@ -145,14 +152,15 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
     if (mode === 'hr') return true;
     if (!appraisalData) return false;
     
-    const restrictedStatuses = ['submitted', 'manager_review', 'committee_review', 'completed'];
-    
     if (mode === 'employee') {
       // Employees can't edit after submission
+      const restrictedStatuses = ['submitted', 'manager_review', 'committee_review', 'completed'];
       return restrictedStatuses.includes(appraisalData.status);
     } else if (mode === 'manager') {
       // Managers can't edit once it moves to committee or is completed
-      return ['committee_review', 'completed'].includes(appraisalData.status);
+      // Also can't edit if it's still in draft (employee hasn't submitted yet)
+      const restrictedStatuses = ['committee_review', 'completed'];
+      return restrictedStatuses.includes(appraisalData.status) || appraisalData.status === 'draft';
     }
     
     return false;
@@ -173,6 +181,7 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
       }
     } else if (mode === 'manager') {
       switch (appraisalData.status) {
+        case 'draft': return 'Employee has not submitted their self-assessment yet';
         case 'committee_review': return 'Appraisal is under committee review';
         case 'completed': return 'Appraisal has been completed';
         default: return '';
@@ -245,13 +254,20 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
 
       // Create appraisal if it doesn't exist
       if (!appraisalId) {
+        let newStatus = 'draft';
+        if (submit) {
+          newStatus = mode === 'employee' ? 'submitted' : 'committee_review'; // Manager goes directly to committee
+        }
+
+        console.log('🔄 Creating new appraisal with status:', newStatus);
+
         const { data: newAppraisal, error: appraisalError } = await supabase
           .from('appraisals')
           .insert({
             employee_id: employeeId,
             cycle_id: cycleId,
             manager_id: mode === 'manager' ? profile.id : null,
-            status: submit ? (mode === 'employee' ? 'submitted' : 'manager_review') : 'draft',
+            status: newStatus,
             ...(submit && mode === 'employee' && { employee_submitted_at: new Date().toISOString() }),
             ...(submit && mode === 'manager' && { 
               manager_reviewed_at: new Date().toISOString(),
@@ -277,10 +293,12 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
           updateData.status = 'submitted';
           updateData.employee_submitted_at = new Date().toISOString();
         } else if (mode === 'manager') {
-          updateData.status = 'committee_review';
+          updateData.status = 'committee_review'; // Skip HR, go directly to committee
           updateData.manager_reviewed_at = new Date().toISOString();
           updateData.manager_reviewed_by = profile.id;
         }
+
+        console.log('🔄 Updating appraisal status to:', updateData.status);
 
         const { error: updateError } = await supabase
           .from('appraisals')
@@ -294,6 +312,9 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
           }
           throw updateError;
         }
+
+        // Update local state
+        setAppraisalData(prev => ({ ...prev, ...updateData }));
       }
 
       // Save responses
@@ -326,7 +347,7 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
 
       toast({
         title: "Success",
-        description: submit ? (mode === 'employee' ? "Appraisal submitted successfully" : "Review completed successfully") : "Progress saved",
+        description: submit ? (mode === 'employee' ? "Appraisal submitted successfully" : "Review completed and sent to committee") : "Progress saved",
       });
 
       if (submit && onComplete) {
@@ -366,7 +387,17 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
   };
 
   const canSubmit = () => {
-    return getCompletionPercentage() === 100;
+    // Employee can submit if they've completed all required questions
+    if (mode === 'employee') {
+      return getCompletionPercentage() === 100;
+    }
+    
+    // Manager can submit if employee has submitted and manager has completed review
+    if (mode === 'manager') {
+      return appraisalData?.status === 'submitted' && getCompletionPercentage() === 100;
+    }
+    
+    return false;
   };
 
   // Show loading state
@@ -475,7 +506,13 @@ export function AppraisalForm({ cycleId, employeeId, mode, onComplete }: Apprais
               <Badge variant={appraisalData?.status === 'completed' ? 'default' : 'secondary'}>
                 {appraisalData?.status || 'Draft'}
               </Badge>
-              {!isReadOnly && (
+              {!isReadOnly && mode === 'manager' && appraisalData?.status === 'submitted' && (
+                <div className="mt-2">
+                  <Progress value={completionPercentage} className="w-32" />
+                  <p className="text-xs text-gray-500 mt-1">{Math.round(completionPercentage)}% Complete</p>
+                </div>
+              )}
+              {!isReadOnly && mode === 'employee' && (
                 <div className="mt-2">
                   <Progress value={completionPercentage} className="w-32" />
                   <p className="text-xs text-gray-500 mt-1">{Math.round(completionPercentage)}% Complete</p>
