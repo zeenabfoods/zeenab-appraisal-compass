@@ -122,18 +122,6 @@ export default function AppraisalPage() {
     }
   };
 
-  const getAppraisalMode = () => {
-    if (!profile || !appraisal) return 'employee';
-    
-    if (appraisal.employee_id === profile.id) {
-      return 'employee';
-    } else if (profile.role === 'hr' || profile.role === 'admin') {
-      return 'hr';
-    } else {
-      return 'manager';
-    }
-  };
-
   if (loading) {
     return (
       <DashboardLayout>
@@ -160,11 +148,7 @@ export default function AppraisalPage() {
     );
   }
 
-  console.log('✅ AppraisalPage: About to render AppraisalForm with:', {
-    cycleId: appraisal.cycle_id,
-    employeeId: appraisal.employee_id,
-    mode: getAppraisalMode()
-  });
+  console.log('✅ AppraisalPage: About to render AppraisalForm');
 
   return (
     <DashboardLayout>
@@ -194,12 +178,7 @@ export default function AppraisalPage() {
 
         {/* Appraisal Form - Only render when we have the required data */}
         {appraisal.cycle_id && appraisal.employee_id ? (
-          <AppraisalForm
-            cycleId={appraisal.cycle_id}
-            employeeId={appraisal.employee_id}
-            mode={getAppraisalMode()}
-            onComplete={handleComplete}
-          />
+          <AppraisalForm />
         ) : (
           <Card>
             <CardContent className="p-6">

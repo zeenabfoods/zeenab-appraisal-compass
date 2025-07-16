@@ -29,7 +29,7 @@ export default function ManagerAppraisals() {
   // Fetch all team members with their appraisal status
   const { data: teamMembers, isLoading } = useQuery({
     queryKey: ['manager-team-members', profile?.id],
-    queryFn: async () => {
+    queryFn: async (): Promise<TeamMember[]> => {
       if (!profile?.id) return [];
       
       console.log('🔍 Fetching team members for manager:', profile.id);
@@ -71,7 +71,7 @@ export default function ManagerAppraisals() {
         return (teamData || []).map(member => ({
           ...member,
           department_name: member.department?.name || 'No Department'
-        }));
+        })) as TeamMember[];
       }
 
       console.log('📊 Active cycle:', activeCycle.name);

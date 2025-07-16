@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -145,7 +144,7 @@ export function AppraisalForm() {
   // Fetch appraisal data
   const { data: appraisalQuery, isLoading } = useQuery({
     queryKey: ['appraisal', appraisalId],
-    queryFn: async (): Promise<AppraisalData> => {
+    queryFn: async () => {
       if (!appraisalId) throw new Error("Appraisal ID is required");
 
       const { data, error } = await supabase
@@ -169,13 +168,12 @@ export function AppraisalForm() {
         throw error;
       }
 
-      // Add empty responses array to satisfy the interface
-      const appraisalWithResponses = {
-        ...data,
-        responses: []
-      } as AppraisalData;
+      // Ensure we have the proper structure
+      if (!data.employee || !data.cycle) {
+        throw new Error("Missing required appraisal data");
+      }
 
-      return appraisalWithResponses;
+      return data as AppraisalData;
     },
     enabled: !!appraisalId,
   });
@@ -428,9 +426,6 @@ export function AppraisalForm() {
       </DashboardLayout>
     );
   }
-
-  // Verify ID generation works
-  console.log('Generated ID:', generateId());
 
   return (
     <DashboardLayout>
