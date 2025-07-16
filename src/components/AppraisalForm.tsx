@@ -92,6 +92,7 @@ interface AppraisalResponse {
   question?: AppraisalQuestion;
 }
 
+// Updated interface to make responses optional since it comes from a separate query
 interface AppraisalData {
   id?: string;
   employee_id: string;
@@ -104,7 +105,6 @@ interface AppraisalData {
   mgr_comments: string;
   overall_score: number | null;
   performance_band: string;
-  responses: AppraisalResponse[];
   employee_submitted_at: string | null;
   manager_reviewed_at: string | null;
   cycle: {
@@ -173,7 +173,7 @@ export function AppraisalForm() {
         throw new Error("Missing required appraisal data");
       }
 
-      return data as AppraisalData;
+      return data;
     },
     enabled: !!appraisalId,
   });
@@ -210,7 +210,7 @@ export function AppraisalForm() {
 
   useEffect(() => {
     if (appraisalQuery) {
-      setAppraisalData(appraisalQuery);
+      setAppraisalData(appraisalQuery as AppraisalData);
       setGoals(appraisalQuery?.goals || '');
       setTrainingNeeds(appraisalQuery?.training_needs || '');
       setNoteworthy(appraisalQuery?.noteworthy || '');
