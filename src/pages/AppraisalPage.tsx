@@ -116,7 +116,7 @@ export default function AppraisalPage() {
 
   if (loading) {
     return (
-      <DashboardLayout pageTitle="Loading Appraisal...">
+      <DashboardLayout pageTitle="Loading Appraisal..." showSearch={false}>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="flex items-center space-x-3">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
@@ -129,7 +129,7 @@ export default function AppraisalPage() {
 
   if (!appraisal) {
     return (
-      <DashboardLayout pageTitle="Appraisal Not Found">
+      <DashboardLayout pageTitle="Appraisal Not Found" showSearch={false}>
         <div className="flex flex-col items-center justify-center min-h-[400px] space-y-6">
           <FileText className="h-16 w-16 text-gray-400" />
           <div className="text-center">
@@ -152,41 +152,26 @@ export default function AppraisalPage() {
   return (
     <DashboardLayout pageTitle={pageTitle} showSearch={false}>
       <div className="space-y-6">
-        {/* Navigation and Status Section - NO duplicate title here */}
+        {/* Navigation and Status - Clean, no duplicate elements */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/my-appraisals')}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to My Appraisals
-            </Button>
-            <div>
-              <p className="text-gray-600">Performance Appraisal</p>
-            </div>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/my-appraisals')}
+            className="flex items-center space-x-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Back to My Appraisals</span>
+          </Button>
           <Badge className={getStatusColor(appraisal.status)}>
             {appraisal.status.replace('_', ' ').toUpperCase()}
           </Badge>
         </div>
 
-        {/* Appraisal Form */}
-        <Card className="bg-white shadow-sm">
-          <CardContent className="p-6">
-            {appraisal.cycle_id && appraisal.employee_id ? (
-              <AppraisalForm />
-            ) : (
-              <div className="flex items-center justify-center py-12">
-                <div className="flex items-center space-x-3">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600"></div>
-                  <span className="text-gray-600">Loading appraisal details...</span>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Clean Appraisal Form Container - No duplicate headers */}
+        <div className="w-full">
+          <AppraisalForm />
+        </div>
       </div>
     </DashboardLayout>
   );

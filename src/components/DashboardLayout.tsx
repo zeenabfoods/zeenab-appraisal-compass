@@ -22,7 +22,7 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
   // Development debugging - verify single header instance
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
-      console.log('🔍 DashboardLayout: Rendering hierarchy check');
+      console.log('🔍 DashboardLayout: Rendering with pageTitle:', pageTitle);
       
       // Check for duplicate headers after render
       setTimeout(() => {
@@ -83,15 +83,15 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
   };
 
   return (
-    <div className="dashboard-layout min-h-screen flex w-full bg-gradient-to-br from-orange-50/50 via-white to-red-50/50" style={{contain: 'layout style paint'}}>
-      {/* Sidebar - Fixed positioning with proper containment */}
+    <div className="min-h-screen flex w-full bg-gradient-to-br from-orange-50/50 via-white to-red-50/50">
+      {/* Fixed Sidebar */}
       <div className="fixed left-0 top-0 h-full w-64 z-30">
         <SimpleSidebar />
       </div>
       
-      {/* Main content - Properly offset and contained */}
+      {/* Main Content Area - Properly offset */}
       <div className="flex-1 flex flex-col min-w-0 ml-64">
-        {/* SINGLE SOURCE OF TRUTH: Main Header */}
+        {/* SINGLE HEADER - This is the only header in the app */}
         <header 
           data-testid="main-header"
           className="sticky top-0 backdrop-blur-md bg-white/90 shadow-sm border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-6 z-20 shrink-0"
@@ -112,7 +112,7 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
           </div>
           
           <div className="flex items-center space-x-2 md:space-x-4">
-            {/* SINGLE SOURCE OF TRUTH: Search Bar */}
+            {/* SINGLE SEARCH BAR */}
             {showSearch && (
               <div className="relative hidden sm:block" data-testid="search-bar">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -126,7 +126,7 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
             {/* Notification Bell */}
             <NotificationBell onClick={handleNotificationClick} />
             
-            {/* SINGLE SOURCE OF TRUTH: User Profile */}
+            {/* SINGLE USER PROFILE */}
             <div className="flex items-center space-x-3 border-l pl-3 md:pl-4 border-gray-200" data-testid="user-profile">
               <div className="flex items-center space-x-2">
                 <User className="h-5 w-5 text-gray-400" />
@@ -158,8 +158,8 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
           </div>
         </header>
 
-        {/* ISOLATED CONTENT AREA - No duplicate headers allowed */}
-        <main className="content-area flex-1 p-4 md:p-6 overflow-auto relative z-10" style={{gridArea: 'main'}}>
+        {/* CLEAN CONTENT AREA - No nested layouts allowed */}
+        <main className="flex-1 p-4 md:p-6 overflow-auto">
           <div className="max-w-full">
             {children}
           </div>
