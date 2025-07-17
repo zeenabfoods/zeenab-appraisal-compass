@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { CommitteeReviewDetail } from '@/components/CommitteeReviewDetail';
@@ -17,12 +16,13 @@ export default function Committee() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  console.log('🏛️ Committee page: Rendering with single header only');
+
   const { data: committeeAppraisals, isLoading } = useQuery({
     queryKey: ['committee-appraisals'],
     queryFn: async () => {
       console.log('🔍 Fetching committee appraisals...');
       
-      // Fixed query to properly fetch appraisals with complete data including scores
       const { data, error } = await supabase
         .from('appraisals')
         .select(`
@@ -58,33 +58,20 @@ export default function Committee() {
       }
       
       console.log('✅ Committee appraisals fetched:', data?.length || 0);
-      console.log('📋 Committee visible appraisals:', data);
       
-      // Calculate scores for each appraisal and log debug info
       const enrichedData = data?.map(appraisal => {
         const responses = appraisal.responses || [];
         let totalScore = 0;
         let totalWeight = 0;
         
         responses.forEach(response => {
-          // Use manager rating as authoritative for committee review
           const score = response.mgr_rating || response.emp_rating || 0;
           const weight = response.question?.weight || 1;
           totalScore += score * weight;
           totalWeight += weight;
         });
         
-        const calculatedScore = totalWeight > 0 ? Math.round((totalScore / totalWeight) * 20) : null; // Convert to 100 scale
-        
-        console.log(`📝 Appraisal for ${appraisal.employee?.first_name} ${appraisal.employee?.last_name}:`, {
-          id: appraisal.id,
-          status: appraisal.status,
-          cycle: appraisal.cycle?.name,
-          manager_reviewed_at: appraisal.manager_reviewed_at,
-          responses_count: responses.length,
-          calculated_score: calculatedScore,
-          overall_score: appraisal.overall_score
-        });
+        const calculatedScore = totalWeight > 0 ? Math.round((totalScore / totalWeight) * 20) : null;
         
         return {
           ...appraisal,
@@ -96,7 +83,6 @@ export default function Committee() {
     }
   });
 
-  // Get committee analytics
   const { data: committeeStats } = useQuery({
     queryKey: ['committee-stats'],
     queryFn: async () => {
@@ -131,7 +117,6 @@ export default function Committee() {
     mutationFn: async (appraisalId: string) => {
       console.log('🗑️ Deleting appraisal with ID:', appraisalId);
       
-      // Delete related appraisal responses first
       const { error: responsesError } = await supabase
         .from('appraisal_responses')
         .delete()
@@ -142,7 +127,6 @@ export default function Committee() {
         throw responsesError;
       }
 
-      // Delete related notifications
       const { error: notificationsError } = await supabase
         .from('notifications')
         .delete()
@@ -150,10 +134,8 @@ export default function Committee() {
       
       if (notificationsError) {
         console.error('❌ Error deleting notifications:', notificationsError);
-        // Don't throw here as notifications might not exist
       }
 
-      // Finally delete the appraisal
       const { error } = await supabase
         .from('appraisals')
         .delete()
@@ -192,7 +174,6 @@ export default function Committee() {
     }
   };
 
-  // Helper function to format cycle name consistently
   const formatCycleName = (cycle: any) => {
     if (!cycle) return 'Unknown Cycle';
     return `${cycle.name} (Q${cycle.quarter} ${cycle.year})`;
@@ -200,7 +181,7 @@ export default function Committee() {
 
   if (isLoading) {
     return (
-      <DashboardLayout>
+      <DashboardLayout pageTitle="Committee Review" showSearch={false}>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
         </div>
@@ -208,10 +189,10 @@ export default function Committee() {
     );
   }
 
-  console.log('🎨 Rendering Committee page with', committeeAppraisals?.length || 0, 'appraisals');
+  console.log('🎨 Rendering Committee page with', committeeAppraisals?.length || 0, 'appraisals - SINGLE HEADER ONLY');
 
   return (
-    <DashboardLayout>
+    <DashboardLayout pageTitle="Committee Review" showSearch={false}>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
@@ -219,7 +200,6 @@ export default function Committee() {
             <p className="text-gray-600">Review appraisals that require committee attention</p>
           </div>
           
-          {/* Committee Stats */}
           <div className="flex gap-4">
             <div className="bg-orange-50 p-3 rounded-lg">
               <div className="flex items-center space-x-2">
@@ -242,7 +222,6 @@ export default function Committee() {
           </div>
         </div>
 
-        {/* Show detailed review interface when an appraisal is selected */}
         {selectedAppraisalId ? (
           <div className="space-y-4">
             <Button 
@@ -256,7 +235,6 @@ export default function Committee() {
           </div>
         ) : (
           <>
-            {/* Quick Select Dropdown */}
             {committeeAppraisals && committeeAppraisals.length > 0 && (
               <Card>
                 <CardHeader>
@@ -279,7 +257,6 @@ export default function Committee() {
               </Card>
             )}
 
-            {/* Table view of available appraisals */}
             {committeeAppraisals && committeeAppraisals.length > 0 ? (
               <Card>
                 <CardHeader>

@@ -19,40 +19,60 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
   const { profile, signOut } = useAuthContext();
   const navigate = useNavigate();
 
-  // Development debugging - verify single header instance
+  // Critical: Enhanced debugging to catch duplicate header issues
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
-      console.log('🔍 DashboardLayout: Rendering with pageTitle:', pageTitle);
+      console.log('🔍 DashboardLayout: Rendering SINGLE header with pageTitle:', pageTitle);
       
-      // Check for duplicate headers after render
+      // Enhanced duplicate detection
       setTimeout(() => {
         const headers = document.querySelectorAll('[data-testid="main-header"]');
         const searchBars = document.querySelectorAll('[data-testid="search-bar"]');
+        const userProfiles = document.querySelectorAll('[data-testid="user-profile"]');
         
-        console.log('📊 Layout verification:', {
+        console.log('📊 CRITICAL Layout verification:', {
           headerCount: headers.length,
           searchBarCount: searchBars.length,
+          userProfileCount: userProfiles.length,
           pageTitle,
           timestamp: new Date().toISOString()
         });
 
         if (headers.length > 1) {
-          console.error('❌ DUPLICATE HEADER DETECTED:', headers.length);
+          console.error('🚨 CRITICAL: DUPLICATE HEADER DETECTED:', headers.length);
           headers.forEach((header, index) => {
+            console.error(`Header ${index + 1}:`, header);
             if (index > 0) {
-              (header as HTMLElement).style.outline = '3px solid red';
-              (header as HTMLElement).style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
+              (header as HTMLElement).style.outline = '5px solid red';
+              (header as HTMLElement).style.backgroundColor = 'rgba(255, 0, 0, 0.3)';
+              (header as HTMLElement).setAttribute('data-debug', 'DUPLICATE-HEADER');
             }
           });
         }
 
         if (searchBars.length > 1) {
-          console.error('❌ DUPLICATE SEARCH BAR DETECTED:', searchBars.length);
+          console.error('🚨 CRITICAL: DUPLICATE SEARCH BAR DETECTED:', searchBars.length);
           searchBars.forEach((search, index) => {
             if (index > 0) {
-              (search as HTMLElement).style.outline = '2px solid orange';
+              (search as HTMLElement).style.outline = '3px solid orange';
+              (search as HTMLElement).setAttribute('data-debug', 'DUPLICATE-SEARCH');
             }
           });
+        }
+
+        if (userProfiles.length > 1) {
+          console.error('🚨 CRITICAL: DUPLICATE USER PROFILE DETECTED:', userProfiles.length);
+          userProfiles.forEach((profile, index) => {
+            if (index > 0) {
+              (profile as HTMLElement).style.outline = '3px solid purple';
+              (profile as HTMLElement).setAttribute('data-debug', 'DUPLICATE-PROFILE');
+            }
+          });
+        }
+
+        // Log clean success
+        if (headers.length === 1 && searchBars.length <= 1 && userProfiles.length === 1) {
+          console.log('✅ LAYOUT CLEAN: Single header, single profile, clean rendering');
         }
       }, 100);
     }
@@ -82,6 +102,8 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
     navigate('/notifications');
   };
 
+  console.log('🎯 DashboardLayout: About to render SINGLE header layout');
+
   return (
     <div className="min-h-screen flex w-full bg-gradient-to-br from-orange-50/50 via-white to-red-50/50">
       {/* Fixed Sidebar */}
@@ -91,7 +113,7 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
       
       {/* Main Content Area - Properly offset */}
       <div className="flex-1 flex flex-col min-w-0 ml-64">
-        {/* SINGLE HEADER - This is the only header in the app */}
+        {/* 🎯 CRITICAL: This is the ONLY header in the entire application */}
         <header 
           data-testid="main-header"
           className="sticky top-0 backdrop-blur-md bg-white/90 shadow-sm border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-6 z-20 shrink-0"
@@ -112,7 +134,7 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
           </div>
           
           <div className="flex items-center space-x-2 md:space-x-4">
-            {/* SINGLE SEARCH BAR */}
+            {/* SINGLE SEARCH BAR - Only rendered when showSearch is true */}
             {showSearch && (
               <div className="relative hidden sm:block" data-testid="search-bar">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -126,7 +148,7 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
             {/* Notification Bell */}
             <NotificationBell onClick={handleNotificationClick} />
             
-            {/* SINGLE USER PROFILE */}
+            {/* SINGLE USER PROFILE - This is the only user profile in the app */}
             <div className="flex items-center space-x-3 border-l pl-3 md:pl-4 border-gray-200" data-testid="user-profile">
               <div className="flex items-center space-x-2">
                 <User className="h-5 w-5 text-gray-400" />
@@ -158,7 +180,7 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
           </div>
         </header>
 
-        {/* CLEAN CONTENT AREA - No nested layouts allowed */}
+        {/* 🎯 CLEAN MAIN CONTENT - This is where page content renders WITHOUT any additional headers */}
         <main className="flex-1 p-4 md:p-6 overflow-auto">
           <div className="max-w-full">
             {children}

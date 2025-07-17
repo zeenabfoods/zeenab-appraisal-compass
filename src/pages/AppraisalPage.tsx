@@ -5,7 +5,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { AppraisalForm } from '@/components/AppraisalForm';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -32,7 +31,7 @@ export default function AppraisalPage() {
   const [appraisal, setAppraisal] = useState<Appraisal | null>(null);
   const [loading, setLoading] = useState(true);
 
-  console.log('🏁 AppraisalPage: Rendered with ID:', id, 'Profile:', profile?.id);
+  console.log('🔍 AppraisalPage: Rendered with ID:', id, 'Profile:', profile?.id);
 
   useEffect(() => {
     if (id && profile) {
@@ -42,11 +41,11 @@ export default function AppraisalPage() {
 
   const loadAppraisal = async () => {
     if (!id || !profile) {
-      console.log('🏁 AppraisalPage: Missing required data:', { id, profile: !!profile });
+      console.log('❌ AppraisalPage: Missing required data:', { id, profile: !!profile });
       return;
     }
 
-    console.log('🏁 AppraisalPage: Loading appraisal with ID:', id);
+    console.log('🔍 AppraisalPage: Loading appraisal with ID:', id);
 
     try {
       const { data, error } = await supabase
@@ -63,7 +62,7 @@ export default function AppraisalPage() {
         throw error;
       }
       
-      console.log('🏁 AppraisalPage: Loaded appraisal data:', data);
+      console.log('✅ AppraisalPage: Loaded appraisal data:', data);
 
       // Check if user has access to this appraisal
       if (data.employee_id !== profile.id && 
@@ -77,7 +76,7 @@ export default function AppraisalPage() {
           .single();
 
         if (!employeeData || employeeData.line_manager_id !== profile.id) {
-          console.warn('🏁 AppraisalPage: Access denied for user:', profile.id);
+          console.warn('❌ AppraisalPage: Access denied for user:', profile.id);
           toast({
             title: "Access Denied",
             description: "You don't have permission to view this appraisal",
@@ -147,12 +146,13 @@ export default function AppraisalPage() {
 
   const pageTitle = appraisal.cycle?.name || `Q${appraisal.cycle?.quarter} ${appraisal.cycle?.year}`;
 
-  console.log('✅ AppraisalPage: About to render AppraisalForm');
+  console.log('✅ AppraisalPage: About to render - NO DUPLICATE HEADERS');
 
   return (
     <DashboardLayout pageTitle={pageTitle} showSearch={false}>
-      <div className="space-y-6">
-        {/* Navigation and Status - Clean, no duplicate elements */}
+      {/* CLEAN CONTENT - No nested headers, no duplicates */}
+      <div className="space-y-4">
+        {/* Simple navigation bar */}
         <div className="flex items-center justify-between">
           <Button
             variant="outline"
@@ -168,7 +168,7 @@ export default function AppraisalPage() {
           </Badge>
         </div>
 
-        {/* Clean Appraisal Form Container - No duplicate headers */}
+        {/* CRITICAL: AppraisalForm rendered WITHOUT any wrapper that could create headers */}
         <div className="w-full">
           <AppraisalForm />
         </div>
