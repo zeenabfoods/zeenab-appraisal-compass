@@ -47,8 +47,11 @@ export default function MyAppraisals() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="flex items-center space-x-3">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+            <span className="text-gray-600">Loading appraisals...</span>
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -56,28 +59,30 @@ export default function MyAppraisals() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 max-w-full">
-        <div className="flex justify-between items-center bg-white p-4 rounded-lg border shadow-sm">
+      <div className="space-y-6">
+        {/* Page Header */}
+        <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">My Appraisals</h1>
             <p className="text-gray-600">Track your performance appraisal progress</p>
           </div>
-          <Button onClick={() => navigate('/appraisal/new')} className="flex-shrink-0">
+          <Button onClick={() => navigate('/appraisal/new')}>
             <Plus className="h-4 w-4 mr-2" />
             Start New Appraisal
           </Button>
         </div>
 
+        {/* Appraisals List */}
         {appraisals && appraisals.length > 0 ? (
           <div className="grid gap-4">
             {appraisals.map((appraisal) => (
-              <Card key={appraisal.id} className="hover:shadow-md transition-shadow bg-white">
+              <Card key={appraisal.id} className="hover:shadow-md transition-shadow">
                 <CardHeader className="pb-3">
                   <div className="flex justify-between items-start">
                     <div className="flex items-center space-x-3">
-                      <FileText className="h-5 w-5 text-gray-500 flex-shrink-0" />
-                      <div className="min-w-0">
-                        <CardTitle className="text-lg truncate">
+                      <FileText className="h-5 w-5 text-gray-500" />
+                      <div>
+                        <CardTitle className="text-lg">
                           {appraisal.cycle?.name || `Q${appraisal.quarter} ${appraisal.year}`}
                         </CardTitle>
                         <p className="text-sm text-gray-600">
@@ -85,22 +90,22 @@ export default function MyAppraisals() {
                         </p>
                       </div>
                     </div>
-                    <Badge className={`${getStatusColor(appraisal.status || 'draft')} flex-shrink-0`}>
+                    <Badge className={getStatusColor(appraisal.status || 'draft')}>
                       {(appraisal.status || 'draft').replace('_', ' ').toUpperCase()}
                     </Badge>
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="flex justify-between items-center">
-                    <div className="text-sm text-gray-600 min-w-0 flex-1">
+                    <div className="text-sm text-gray-600">
                       <div className="flex items-center space-x-1">
-                        <Calendar className="h-4 w-4 flex-shrink-0" />
-                        <span className="truncate">Created: {new Date(appraisal.created_at || '').toLocaleDateString()}</span>
+                        <Calendar className="h-4 w-4" />
+                        <span>Created: {new Date(appraisal.created_at || '').toLocaleDateString()}</span>
                       </div>
                       {appraisal.submitted_at && (
                         <div className="flex items-center space-x-1 mt-1">
-                          <Calendar className="h-4 w-4 flex-shrink-0" />
-                          <span className="truncate">Submitted: {new Date(appraisal.submitted_at).toLocaleDateString()}</span>
+                          <Calendar className="h-4 w-4" />
+                          <span>Submitted: {new Date(appraisal.submitted_at).toLocaleDateString()}</span>
                         </div>
                       )}
                     </div>
@@ -108,7 +113,6 @@ export default function MyAppraisals() {
                       variant="outline" 
                       size="sm"
                       onClick={() => navigate(`/appraisal/${appraisal.id}`)}
-                      className="flex-shrink-0 ml-4"
                     >
                       <Eye className="h-4 w-4 mr-2" />
                       {appraisal.status === 'draft' ? 'Continue' : 'View'}
@@ -119,7 +123,7 @@ export default function MyAppraisals() {
             ))}
           </div>
         ) : (
-          <Card className="bg-white">
+          <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <FileText className="h-12 w-12 text-gray-400 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No Appraisals Yet</h3>

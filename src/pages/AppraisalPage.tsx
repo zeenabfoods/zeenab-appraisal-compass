@@ -117,9 +117,11 @@ export default function AppraisalPage() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
-          <span className="ml-2">Loading appraisal...</span>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="flex items-center space-x-3">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+            <span className="text-gray-600">Loading appraisal...</span>
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -128,13 +130,16 @@ export default function AppraisalPage() {
   if (!appraisal) {
     return (
       <DashboardLayout>
-        <div className="text-center py-12">
-          <FileText className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Appraisal Not Found</h3>
-          <p className="text-gray-600 mb-4">The requested appraisal could not be found.</p>
-          <Button onClick={() => navigate('/my-appraisals')}>
-            Return to My Appraisals
-          </Button>
+        <div className="flex flex-col items-center justify-center min-h-[400px] space-y-6">
+          <FileText className="h-16 w-16 text-gray-400" />
+          <div className="text-center">
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Appraisal Not Found</h3>
+            <p className="text-gray-600 mb-6">The requested appraisal could not be found.</p>
+            <Button onClick={() => navigate('/my-appraisals')}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Return to My Appraisals
+            </Button>
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -144,48 +149,45 @@ export default function AppraisalPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 max-w-full overflow-hidden">
-        {/* Header - Fixed positioning to prevent overlap */}
-        <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm border">
+      <div className="space-y-6">
+        {/* Navigation and Title Section */}
+        <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Button
               variant="outline"
               size="sm"
               onClick={() => navigate('/my-appraisals')}
-              className="flex-shrink-0"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to My Appraisals
             </Button>
-            <div className="min-w-0">
-              <h1 className="text-2xl font-bold text-gray-900 truncate">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
                 {appraisal.cycle?.name || `Q${appraisal.cycle?.quarter} ${appraisal.cycle?.year}`}
               </h1>
               <p className="text-gray-600">Performance Appraisal</p>
             </div>
           </div>
-          <Badge className={`${getStatusColor(appraisal.status)} flex-shrink-0`}>
+          <Badge className={getStatusColor(appraisal.status)}>
             {appraisal.status.replace('_', ' ').toUpperCase()}
           </Badge>
         </div>
 
-        {/* Appraisal Form Container - Ensure proper spacing */}
-        <div className="bg-white rounded-lg shadow-sm border min-h-96">
-          {appraisal.cycle_id && appraisal.employee_id ? (
-            <div className="p-6">
+        {/* Appraisal Form */}
+        <Card className="bg-white shadow-sm">
+          <CardContent className="p-6">
+            {appraisal.cycle_id && appraisal.employee_id ? (
               <AppraisalForm />
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600 mr-2"></div>
-                  <span>Loading appraisal details...</span>
+            ) : (
+              <div className="flex items-center justify-center py-12">
+                <div className="flex items-center space-x-3">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600"></div>
+                  <span className="text-gray-600">Loading appraisal details...</span>
                 </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   );
