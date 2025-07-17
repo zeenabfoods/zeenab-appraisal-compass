@@ -103,6 +103,32 @@
   }
 }
 
+/* CSS Containment for Layout Isolation */
+.dashboard-layout {
+  contain: layout style paint;
+  isolation: isolate;
+}
+
+.content-area {
+  grid-area: main;
+  contain: layout style;
+  position: relative;
+  z-index: 1;
+}
+
+/* Prevent layout bleeding between components */
+.content-area > * {
+  contain: style;
+}
+
+/* Debug styles for development */
+@media (prefers-color-scheme: dark) {
+  [data-debug="duplicate"] {
+    outline: 2px solid #ef4444 !important;
+    background-color: rgba(239, 68, 68, 0.1) !important;
+  }
+}
+
 /* Custom notification animations */
 @keyframes notification-glow {
   0%, 100% {

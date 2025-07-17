@@ -116,7 +116,7 @@ export default function AppraisalPage() {
 
   if (loading) {
     return (
-      <DashboardLayout>
+      <DashboardLayout pageTitle="Loading Appraisal...">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="flex items-center space-x-3">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
@@ -129,7 +129,7 @@ export default function AppraisalPage() {
 
   if (!appraisal) {
     return (
-      <DashboardLayout>
+      <DashboardLayout pageTitle="Appraisal Not Found">
         <div className="flex flex-col items-center justify-center min-h-[400px] space-y-6">
           <FileText className="h-16 w-16 text-gray-400" />
           <div className="text-center">
@@ -145,12 +145,14 @@ export default function AppraisalPage() {
     );
   }
 
+  const pageTitle = appraisal.cycle?.name || `Q${appraisal.cycle?.quarter} ${appraisal.cycle?.year}`;
+
   console.log('✅ AppraisalPage: About to render AppraisalForm');
 
   return (
-    <DashboardLayout>
+    <DashboardLayout pageTitle={pageTitle} showSearch={false}>
       <div className="space-y-6">
-        {/* Navigation and Title Section */}
+        {/* Navigation and Status Section - NO duplicate title here */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Button
@@ -162,9 +164,6 @@ export default function AppraisalPage() {
               Back to My Appraisals
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                {appraisal.cycle?.name || `Q${appraisal.cycle?.quarter} ${appraisal.cycle?.year}`}
-              </h1>
               <p className="text-gray-600">Performance Appraisal</p>
             </div>
           </div>

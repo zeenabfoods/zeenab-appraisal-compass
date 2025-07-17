@@ -46,7 +46,7 @@ export default function MyAppraisals() {
 
   if (isLoading) {
     return (
-      <DashboardLayout>
+      <DashboardLayout pageTitle="My Appraisals">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="flex items-center space-x-3">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
@@ -58,12 +58,11 @@ export default function MyAppraisals() {
   }
 
   return (
-    <DashboardLayout>
+    <DashboardLayout pageTitle="My Appraisals" showSearch={true}>
       <div className="space-y-6">
-        {/* Page Header */}
+        {/* Page Header - NO duplicate header here */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">My Appraisals</h1>
             <p className="text-gray-600">Track your performance appraisal progress</p>
           </div>
           <Button onClick={() => navigate('/appraisal/new')}>
