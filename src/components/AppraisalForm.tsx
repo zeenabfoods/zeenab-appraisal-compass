@@ -152,7 +152,7 @@ export function AppraisalForm() {
         .select(`
           *,
           cycle:appraisal_cycles(name, quarter, year),
-          employee:profiles(
+          employee:profiles!appraisals_employee_id_fkey(
             first_name,
             last_name,
             position,
@@ -437,22 +437,22 @@ export function AppraisalForm() {
               <div className="flex items-center space-x-4">
                 <div className="bg-blue-100 p-3 rounded-full">
                   <CardTitle className="text-blue-600 text-lg font-semibold">
-                    {appraisalQuery?.employee?.first_name} {appraisalQuery?.employee?.last_name}
+                    {appraisalData?.employee?.first_name} {appraisalData?.employee?.last_name}
                   </CardTitle>
                 </div>
                 <div>
-                  <p className="text-gray-600 text-lg">{appraisalQuery?.employee?.position}</p>
+                  <p className="text-gray-600 text-lg">{appraisalData?.employee?.position}</p>
                   <p className="text-sm text-gray-500">
-                    {appraisalQuery?.employee?.email} • {appraisalQuery?.employee?.department?.name}
+                    {appraisalData?.employee?.email} • {appraisalData?.employee?.department?.name}
                   </p>
                 </div>
               </div>
               <div className="text-right">
                 <Badge className="bg-blue-100 text-blue-800 text-sm px-3 py-1">
-                  {appraisalQuery?.status}
+                  {appraisalData?.status}
                 </Badge>
                 <p className="text-sm text-gray-500 mt-2">
-                  {formatCycleName(appraisalQuery?.cycle)}
+                  {formatCycleName(appraisalData?.cycle)}
                 </p>
               </div>
             </div>
