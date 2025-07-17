@@ -42,13 +42,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <div className="min-h-screen flex w-full bg-gradient-to-br from-orange-50/50 via-white to-red-50/50">
-      {/* Sidebar - Always visible */}
-      <SimpleSidebar />
+      {/* Sidebar - Fixed positioning */}
+      <div className="fixed left-0 top-0 h-full w-64 z-30">
+        <SimpleSidebar />
+      </div>
       
-      {/* Main content - Always offset by sidebar width */}
+      {/* Main content - Properly offset and styled to prevent overlaps */}
       <div className="flex-1 flex flex-col min-w-0 ml-64">
-        {/* Header */}
-        <header className="sticky top-0 backdrop-blur-md bg-white/80 shadow-sm border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-6 relative z-10 shrink-0">
+        {/* Header - Fixed with proper z-index */}
+        <header className="sticky top-0 backdrop-blur-md bg-white/90 shadow-sm border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-6 z-20 shrink-0">
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 rounded-lg overflow-hidden shadow-md">
@@ -109,9 +111,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </header>
 
-        {/* Main Content */}
-        <main className="flex-1 p-4 md:p-6 overflow-auto">
-          {children}
+        {/* Main Content - Properly contained with scroll handling */}
+        <main className="flex-1 p-4 md:p-6 overflow-auto relative z-10">
+          <div className="max-w-full">
+            {children}
+          </div>
         </main>
       </div>
     </div>

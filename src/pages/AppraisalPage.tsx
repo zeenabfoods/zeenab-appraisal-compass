@@ -102,14 +102,6 @@ export default function AppraisalPage() {
     }
   };
 
-  const handleComplete = () => {
-    toast({
-      title: "Success",
-      description: "Appraisal completed successfully",
-    });
-    navigate('/my-appraisals');
-  };
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'draft': return 'bg-gray-100 text-gray-800';
@@ -152,43 +144,48 @@ export default function AppraisalPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+      <div className="space-y-6 max-w-full overflow-hidden">
+        {/* Header - Fixed positioning to prevent overlap */}
+        <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm border">
           <div className="flex items-center space-x-4">
             <Button
               variant="outline"
               size="sm"
               onClick={() => navigate('/my-appraisals')}
+              className="flex-shrink-0"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to My Appraisals
             </Button>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold text-gray-900 truncate">
                 {appraisal.cycle?.name || `Q${appraisal.cycle?.quarter} ${appraisal.cycle?.year}`}
               </h1>
               <p className="text-gray-600">Performance Appraisal</p>
             </div>
           </div>
-          <Badge className={getStatusColor(appraisal.status)}>
+          <Badge className={`${getStatusColor(appraisal.status)} flex-shrink-0`}>
             {appraisal.status.replace('_', ' ').toUpperCase()}
           </Badge>
         </div>
 
-        {/* Appraisal Form - Only render when we have the required data */}
-        {appraisal.cycle_id && appraisal.employee_id ? (
-          <AppraisalForm />
-        ) : (
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600 mr-2"></div>
-                <span>Loading appraisal details...</span>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* Appraisal Form Container - Ensure proper spacing */}
+        <div className="bg-white rounded-lg shadow-sm border min-h-96">
+          {appraisal.cycle_id && appraisal.employee_id ? (
+            <div className="p-6">
+              <AppraisalForm />
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600 mr-2"></div>
+                  <span>Loading appraisal details...</span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
     </DashboardLayout>
   );
