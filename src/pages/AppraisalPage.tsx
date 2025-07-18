@@ -150,7 +150,6 @@ export default function AppraisalPage() {
 
   return (
     <DashboardLayout pageTitle={pageTitle} showSearch={false}>
-      {/* CLEAN CONTENT - NO headers, titles, or navigation bars */}
       <div className="space-y-4">
         {/* Simple status and navigation */}
         <div className="flex items-center justify-between">
@@ -168,9 +167,9 @@ export default function AppraisalPage() {
           </Badge>
         </div>
 
-        {/* CRITICAL: AppraisalForm rendered WITHOUT any wrapper headers */}
+        {/* Pass the appraisal ID to AppraisalForm */}
         <div className="w-full">
-          <AppraisalForm />
+          <AppraisalForm appraisalId={id} />
         </div>
       </div>
     </DashboardLayout>

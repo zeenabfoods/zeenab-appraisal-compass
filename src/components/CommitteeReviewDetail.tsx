@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,7 +27,7 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
 
   console.log('🔍 CommitteeReviewDetail: Loading appraisal ID:', appraisalId);
 
-  // Fetch appraisal details with employee info and responses
+  // Fetch appraisal details with employee info and responses - Fixed the relationship issue
   const { data: appraisalData, isLoading, error } = useQuery({
     queryKey: ['committee-appraisal-detail', appraisalId],
     queryFn: async () => {
@@ -42,7 +43,7 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
               last_name, 
               email, 
               position,
-              department:departments(name)
+              department:departments!profiles_department_id_fkey(name)
             ),
             cycle:appraisal_cycles(name, year, quarter),
             responses:appraisal_responses(

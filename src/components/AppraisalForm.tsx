@@ -1,8 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthContext } from '@/components/AuthProvider';
-import { DashboardLayout } from '@/components/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -11,54 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from "@/components/ui/scroll-area"
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer"
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
-import { Switch } from "@/components/ui/switch"
-import { Slider } from "@/components/ui/slider"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
-import { CalendarIcon } from "lucide-react"
-import { format } from "date-fns"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { formatCycleName } from '@/utils/cycleFormatting';
 
@@ -92,7 +45,6 @@ interface AppraisalResponse {
   question?: AppraisalQuestion;
 }
 
-// Updated interface to make responses optional since it comes from a separate query
 interface AppraisalData {
   id?: string;
   employee_id: string;
@@ -123,8 +75,14 @@ interface AppraisalData {
   };
 }
 
-export function AppraisalForm() {
-  const { appraisalId } = useParams<{ appraisalId: string }>();
+interface AppraisalFormProps {
+  appraisalId?: string;
+}
+
+export function AppraisalForm({ appraisalId: propsAppraisalId }: AppraisalFormProps) {
+  const { appraisalId: paramAppraisalId } = useParams<{ appraisalId: string }>();
+  const appraisalId = propsAppraisalId || paramAppraisalId;
+  
   const navigate = useNavigate();
   const { profile } = useAuthContext();
   const { toast } = useToast();
@@ -138,14 +96,17 @@ export function AppraisalForm() {
   const [empComments, setEmpComments] = useState('');
   const [mgrComments, setMgrComments] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+
+  console.log('🔍 AppraisalForm: Rendered with appraisalId:', appraisalId);
 
   // Fetch appraisal data
   const { data: appraisalQuery, isLoading } = useQuery({
     queryKey: ['appraisal', appraisalId],
     queryFn: async () => {
       if (!appraisalId) throw new Error("Appraisal ID is required");
+
+      console.log('📋 AppraisalForm: Fetching appraisal data for ID:', appraisalId);
 
       const { data, error } = await supabase
         .from('appraisals')
@@ -157,16 +118,18 @@ export function AppraisalForm() {
             last_name,
             position,
             email,
-            department:departments(name)
+            department:departments!profiles_department_id_fkey(name)
           )
         `)
         .eq('id', appraisalId)
         .single();
 
       if (error) {
-        console.error("Error fetching appraisal:", error);
+        console.error("❌ AppraisalForm: Error fetching appraisal:", error);
         throw error;
       }
+
+      console.log('✅ AppraisalForm: Appraisal data loaded:', data);
 
       // Ensure we have the proper structure
       if (!data.employee || !data.cycle) {
@@ -184,6 +147,8 @@ export function AppraisalForm() {
     queryFn: async () => {
       if (!appraisalId) throw new Error("Appraisal ID is required");
 
+      console.log('📋 AppraisalForm: Fetching responses for appraisal:', appraisalId);
+
       const { data, error } = await supabase
         .from('appraisal_responses')
         .select(`
@@ -199,10 +164,11 @@ export function AppraisalForm() {
         .eq('appraisal_id', appraisalId);
 
       if (error) {
-        console.error("Error fetching appraisal responses:", error);
+        console.error("❌ AppraisalForm: Error fetching appraisal responses:", error);
         throw error;
       }
 
+      console.log('✅ AppraisalForm: Responses loaded:', data?.length || 0);
       return data as AppraisalResponse[];
     },
     enabled: !!appraisalId,
@@ -210,6 +176,7 @@ export function AppraisalForm() {
 
   useEffect(() => {
     if (appraisalQuery) {
+      console.log('📋 AppraisalForm: Setting appraisal data from query');
       setAppraisalData(appraisalQuery as AppraisalData);
       setGoals(appraisalQuery?.goals || '');
       setTrainingNeeds(appraisalQuery?.training_needs || '');
@@ -221,9 +188,15 @@ export function AppraisalForm() {
 
   useEffect(() => {
     if (responsesQuery) {
+      console.log('📋 AppraisalForm: Setting responses from query');
       setResponses(responsesQuery);
     }
   }, [responsesQuery]);
+
+  // Check if the appraisal is in read-only mode
+  const isReadOnly = appraisalData?.status !== 'draft' || appraisalData?.employee_id !== profile?.id;
+
+  console.log('🔒 AppraisalForm: Read-only mode:', isReadOnly, 'Status:', appraisalData?.status, 'Employee matches profile:', appraisalData?.employee_id === profile?.id);
 
   const updateResponseMutation = useMutation({
     mutationFn: async (updatedResponse: AppraisalResponse) => {
@@ -297,6 +270,8 @@ export function AppraisalForm() {
   };
 
   const handleSaveResponse = async (response: AppraisalResponse) => {
+    if (isReadOnly) return;
+    
     try {
       await updateResponseMutation.mutateAsync(response);
       toast({
@@ -336,6 +311,8 @@ export function AppraisalForm() {
   };
 
   const handleSaveChanges = async () => {
+    if (isReadOnly) return;
+    
     setIsSubmitting(true);
     try {
       if (!appraisalId) throw new Error("Appraisal ID is required");
@@ -373,6 +350,8 @@ export function AppraisalForm() {
   };
 
   const handleSubmit = async () => {
+    if (isReadOnly) return;
+    
     setIsSubmitting(true);
     try {
       if (!appraisalId) throw new Error("Appraisal ID is required");
@@ -396,7 +375,7 @@ export function AppraisalForm() {
         title: "Success",
         description: "Appraisal submitted successfully."
       });
-      navigate('/dashboard');
+      navigate('/my-appraisals');
     } catch (error) {
       console.error("Error submitting appraisal:", error);
       toast({
@@ -419,59 +398,96 @@ export function AppraisalForm() {
 
   if (isLoading || !appraisalQuery) {
     return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center h-64">
+        <div className="flex flex-col items-center space-y-3">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+          <span className="text-gray-600">Loading appraisal...</span>
         </div>
-      </DashboardLayout>
+      </div>
+    );
+  }
+
+  if (!appraisalData) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Appraisal Not Found</h3>
+        <p className="text-gray-600 text-center mb-4">The requested appraisal could not be found.</p>
+        <Button onClick={() => navigate('/my-appraisals')}>
+          Return to My Appraisals
+        </Button>
+      </div>
     );
   }
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        {/* Appraisal Details Header */}
-        <Card className="border-l-4 border-l-blue-500">
-          <CardHeader>
-            <div className="flex justify-between items-start">
-              <div className="flex items-center space-x-4">
-                <div className="bg-blue-100 p-3 rounded-full">
-                  <CardTitle className="text-blue-600 text-lg font-semibold">
-                    {appraisalData?.employee?.first_name} {appraisalData?.employee?.last_name}
-                  </CardTitle>
-                </div>
-                <div>
-                  <p className="text-gray-600 text-lg">{appraisalData?.employee?.position}</p>
-                  <p className="text-sm text-gray-500">
-                    {appraisalData?.employee?.email} • {appraisalData?.employee?.department?.name}
-                  </p>
+    <div className="space-y-6">
+      {/* Appraisal Details Header */}
+      <Card className="border-l-4 border-l-blue-500">
+        <CardHeader>
+          <div className="flex justify-between items-start">
+            <div className="flex items-center space-x-4">
+              <div className="bg-blue-100 p-3 rounded-full">
+                <div className="text-blue-600 text-lg font-semibold">
+                  {appraisalData?.employee?.first_name} {appraisalData?.employee?.last_name}
                 </div>
               </div>
-              <div className="text-right">
-                <Badge className="bg-blue-100 text-blue-800 text-sm px-3 py-1">
-                  {appraisalData?.status}
-                </Badge>
-                <p className="text-sm text-gray-500 mt-2">
-                  {formatCycleName(appraisalData?.cycle)}
+              <div>
+                <p className="text-gray-600 text-lg">{appraisalData?.employee?.position}</p>
+                <p className="text-sm text-gray-500">
+                  {appraisalData?.employee?.email} • {appraisalData?.employee?.department?.name}
                 </p>
               </div>
             </div>
-          </CardHeader>
-        </Card>
+            <div className="text-right">
+              <Badge className="bg-blue-100 text-blue-800 text-sm px-3 py-1">
+                {appraisalData?.status}
+              </Badge>
+              <p className="text-sm text-gray-500 mt-2">
+                {formatCycleName(appraisalData?.cycle)}
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
 
-        {/* Appraisal Form */}
-        <div className="grid md:grid-cols-2 gap-6">
-          {responses?.map((response) => (
-            <Card key={response.id || generateId()}>
-              <CardHeader>
-                <CardTitle>{response.question?.question_text}</CardTitle>
-                <p className="text-sm text-gray-500">
-                  Section: {response.question?.appraisal_question_sections?.name}
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor={`employee-rating-${response.id}`}>Your Rating</Label>
+      {/* Show read-only message if applicable */}
+      {isReadOnly && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="p-4">
+            <div className="text-orange-800">
+              <p className="font-medium">Read-Only Mode</p>
+              <p className="text-sm">
+                This appraisal is in read-only mode. 
+                {appraisalData?.status !== 'draft' 
+                  ? ' It has been submitted and cannot be edited.' 
+                  : ' You can only view the details.'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Appraisal Form */}
+      <div className="grid md:grid-cols-2 gap-6">
+        {responses?.map((response) => (
+          <Card key={response.id || generateId()}>
+            <CardHeader>
+              <CardTitle>{response.question?.question_text}</CardTitle>
+              <p className="text-sm text-gray-500">
+                Section: {response.question?.appraisal_question_sections?.name}
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor={`employee-rating-${response.id}`}>Your Rating</Label>
+                {isReadOnly ? (
+                  <div className="p-2 bg-gray-100 rounded border">
+                    {response.emp_rating 
+                      ? `${response.emp_rating} - ${['Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][response.emp_rating - 1]}`
+                      : 'Not Rated'
+                    }
+                  </div>
+                ) : (
                   <Select
                     value={response.emp_rating !== null ? response.emp_rating.toString() : ''}
                     onValueChange={(value) =>
@@ -489,9 +505,15 @@ export function AppraisalForm() {
                       <SelectItem value="5">5 - Excellent</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor={`employee-comment-${response.id}`}>Your Comment</Label>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor={`employee-comment-${response.id}`}>Your Comment</Label>
+                {isReadOnly ? (
+                  <div className="p-2 bg-gray-100 rounded border min-h-[80px]">
+                    {response.emp_comment || 'No comment provided'}
+                  </div>
+                ) : (
                   <Textarea
                     id={`employee-comment-${response.id}`}
                     placeholder="Enter your comment"
@@ -500,76 +522,121 @@ export function AppraisalForm() {
                       handleResponseChange(response.id || '', 'emp_comment', e.target.value)
                     }
                   />
-                </div>
+                )}
+              </div>
+              {!isReadOnly && (
                 <Button onClick={() => handleSaveResponse(response)} disabled={isSubmitting}>
                   Save Response
                 </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+              )}
 
-        {/* Additional Sections */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Additional Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="goals">Goals</Label>
+              {/* Show manager ratings if available */}
+              {response.mgr_rating && (
+                <div className="pt-4 border-t">
+                  <div className="space-y-2">
+                    <Label>Manager Rating</Label>
+                    <div className="p-2 bg-blue-50 rounded border">
+                      {response.mgr_rating} - {['Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][response.mgr_rating - 1]}
+                    </div>
+                  </div>
+                  {response.mgr_comment && (
+                    <div className="space-y-2 mt-2">
+                      <Label>Manager Comment</Label>
+                      <div className="p-2 bg-blue-50 rounded border">
+                        {response.mgr_comment}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Additional Sections */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Additional Information</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="goals">Goals</Label>
+              {isReadOnly ? (
+                <div className="p-2 bg-gray-100 rounded border min-h-[80px]">
+                  {goals || 'No goals specified'}
+                </div>
+              ) : (
                 <Textarea
                   id="goals"
                   placeholder="Enter your goals"
                   value={goals}
                   onChange={(e) => handleInputChange('goals', e.target.value)}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="training-needs">Training Needs</Label>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="training-needs">Training Needs</Label>
+              {isReadOnly ? (
+                <div className="p-2 bg-gray-100 rounded border min-h-[80px]">
+                  {trainingNeeds || 'No training needs specified'}
+                </div>
+              ) : (
                 <Textarea
                   id="training-needs"
                   placeholder="Enter your training needs"
                   value={trainingNeeds}
                   onChange={(e) => handleInputChange('training_needs', e.target.value)}
                 />
-              </div>
+              )}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="noteworthy">Noteworthy Achievements</Label>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="noteworthy">Noteworthy Achievements</Label>
+            {isReadOnly ? (
+              <div className="p-2 bg-gray-100 rounded border min-h-[80px]">
+                {noteworthy || 'No achievements noted'}
+              </div>
+            ) : (
               <Textarea
                 id="noteworthy"
                 placeholder="Enter any noteworthy achievements"
                 value={noteworthy}
                 onChange={(e) => handleInputChange('noteworthy', e.target.value)}
               />
-            </div>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="employee-comments">Additional Comments</Label>
+            )}
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="employee-comments">Additional Comments</Label>
+              {isReadOnly ? (
+                <div className="p-2 bg-gray-100 rounded border min-h-[80px]">
+                  {empComments || 'No additional comments'}
+                </div>
+              ) : (
                 <Textarea
                   id="employee-comments"
                   placeholder="Enter any additional comments"
                   value={empComments}
                   onChange={(e) => handleInputChange('emp_comments', e.target.value)}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="manager-comments">Manager Comments</Label>
-                <Textarea
-                  id="manager-comments"
-                  placeholder="Enter any comments for the manager"
-                  value={mgrComments}
-                  onChange={(e) => handleInputChange('mgr_comments', e.target.value)}
-                />
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="manager-comments">Manager Comments</Label>
+              <div className="p-2 bg-gray-100 rounded border min-h-[80px]">
+                {mgrComments || 'No manager comments'}
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Action Buttons */}
+      {/* Action Buttons - only show if not read-only */}
+      {!isReadOnly && (
         <div className="flex justify-between">
-          <Button variant="outline" onClick={() => navigate('/dashboard')}>
+          <Button variant="outline" onClick={() => navigate('/my-appraisals')}>
             Cancel
           </Button>
           <div>
@@ -581,26 +648,26 @@ export function AppraisalForm() {
             </Button>
           </div>
         </div>
+      )}
 
-        {/* Confirm Submit Dialog */}
-        <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Are you sure you want to submit?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This action cannot be undone. Please ensure all information is correct
-                before submitting.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={handleCancelSubmit}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleSubmit} disabled={isSubmitting}>
-                Submit
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
-    </DashboardLayout>
+      {/* Confirm Submit Dialog */}
+      <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to submit?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. Please ensure all information is correct
+              before submitting.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelSubmit}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSubmit} disabled={isSubmitting}>
+              Submit
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 }
