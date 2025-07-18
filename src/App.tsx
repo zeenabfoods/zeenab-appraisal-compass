@@ -1,4 +1,5 @@
 
+import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -23,38 +24,49 @@ import AppraisalPage from "./pages/AppraisalPage";
 import NewAppraisalPage from "./pages/NewAppraisalPage";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+// Create QueryClient with proper configuration
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 3,
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AuthProvider>
-            <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-              <Route path="/manager-appraisals" element={<ProtectedRoute><ManagerAppraisals /></ProtectedRoute>} />
-              <Route path="/my-appraisals" element={<ProtectedRoute><MyAppraisals /></ProtectedRoute>} />
-              <Route path="/appraisal/new" element={<ProtectedRoute><NewAppraisalPage /></ProtectedRoute>} />
-              <Route path="/appraisal/:id" element={<ProtectedRoute><AppraisalPage /></ProtectedRoute>} />
-              <Route path="/employee-management" element={<ProtectedRoute><EmployeeManagement /></ProtectedRoute>} />
-              <Route path="/department-management" element={<ProtectedRoute><DepartmentManagement /></ProtectedRoute>} />
-              <Route path="/appraisal-cycles" element={<ProtectedRoute><AppraisalCycles /></ProtectedRoute>} />
-              <Route path="/question-templates" element={<ProtectedRoute><QuestionTemplates /></ProtectedRoute>} />
-              <Route path="/employee-questions" element={<ProtectedRoute><EmployeeQuestions /></ProtectedRoute>} />
-              <Route path="/employee-questions/:employeeId" element={<ProtectedRoute><EmployeeQuestionsView /></ProtectedRoute>} />
-              <Route path="/committee" element={<ProtectedRoute><Committee /></ProtectedRoute>} />
-              <Route path="/company-reports" element={<ProtectedRoute><CompanyReports /></ProtectedRoute>} />
-              <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </AuthProvider>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <React.StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AuthProvider>
+              <Routes>
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+                <Route path="/manager-appraisals" element={<ProtectedRoute><ManagerAppraisals /></ProtectedRoute>} />
+                <Route path="/my-appraisals" element={<ProtectedRoute><MyAppraisals /></ProtectedRoute>} />
+                <Route path="/appraisal/new" element={<ProtectedRoute><NewAppraisalPage /></ProtectedRoute>} />
+                <Route path="/appraisal/:id" element={<ProtectedRoute><AppraisalPage /></ProtectedRoute>} />
+                <Route path="/employee-management" element={<ProtectedRoute><EmployeeManagement /></ProtectedRoute>} />
+                <Route path="/department-management" element={<ProtectedRoute><DepartmentManagement /></ProtectedRoute>} />
+                <Route path="/appraisal-cycles" element={<ProtectedRoute><AppraisalCycles /></ProtectedRoute>} />
+                <Route path="/question-templates" element={<ProtectedRoute><QuestionTemplates /></ProtectedRoute>} />
+                <Route path="/employee-questions" element={<ProtectedRoute><EmployeeQuestions /></ProtectedRoute>} />
+                <Route path="/employee-questions/:employeeId" element={<ProtectedRoute><EmployeeQuestionsView /></ProtectedRoute>} />
+                <Route path="/committee" element={<ProtectedRoute><Committee /></ProtectedRoute>} />
+                <Route path="/company-reports" element={<ProtectedRoute><CompanyReports /></ProtectedRoute>} />
+                <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </AuthProvider>
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </React.StrictMode>
   );
 }
 
