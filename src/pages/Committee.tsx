@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { CommitteeReviewDetail } from '@/components/CommitteeReviewDetail';
@@ -8,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Users, Calendar, Clock, CheckCircle, TrendingUp, Eye, Trash2 } from 'lucide-react';
+import { Users, Calendar, Clock, CheckCircle, TrendingUp, Eye, Trash2, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Committee() {
@@ -18,69 +19,76 @@ export default function Committee() {
 
   console.log('🏛️ Committee page: Rendering with SINGLE header only via DashboardLayout');
 
-  const { data: committeeAppraisals, isLoading } = useQuery({
+  const { data: committeeAppraisals, isLoading, error } = useQuery({
     queryKey: ['committee-appraisals'],
     queryFn: async () => {
       console.log('🔍 Fetching committee appraisals...');
       
-      const { data, error } = await supabase
-        .from('appraisals')
-        .select(`
-          *,
-          employee:profiles!appraisals_employee_id_fkey(
-            first_name, 
-            last_name, 
-            email,
-            position,
-            department:departments!profiles_department_id_fkey(name)
-          ),
-          cycle:appraisal_cycles(name, year, quarter),
-          responses:appraisal_responses(
-            id,
-            emp_rating,
-            mgr_rating,
-            committee_rating,
-            emp_comment,
-            mgr_comment,
-            committee_comment,
-            question:appraisal_questions(
-              question_text,
-              weight
+      try {
+        const { data, error } = await supabase
+          .from('appraisals')
+          .select(`
+            *,
+            employee:profiles!appraisals_employee_id_fkey(
+              first_name, 
+              last_name, 
+              email,
+              position,
+              department:departments!profiles_department_id_fkey(name)
+            ),
+            cycle:appraisal_cycles(name, year, quarter),
+            responses:appraisal_responses(
+              id,
+              emp_rating,
+              mgr_rating,
+              committee_rating,
+              emp_comment,
+              mgr_comment,
+              committee_comment,
+              question:appraisal_questions(
+                question_text,
+                weight
+              )
             )
-          )
-        `)
-        .eq('status', 'committee_review')
-        .order('manager_reviewed_at', { ascending: false });
-      
-      if (error) {
-        console.error('❌ Error fetching committee appraisals:', error);
-        throw error;
+          `)
+          .eq('status', 'committee_review')
+          .order('manager_reviewed_at', { ascending: false });
+        
+        if (error) {
+          console.error('❌ Error fetching committee appraisals:', error);
+          throw error;
+        }
+        
+        console.log('✅ Committee appraisals fetched:', data?.length || 0);
+        
+        const enrichedData = data?.map(appraisal => {
+          const responses = appraisal.responses || [];
+          let totalScore = 0;
+          let totalWeight = 0;
+          
+          responses.forEach(response => {
+            const score = response.mgr_rating || response.emp_rating || 0;
+            const weight = response.question?.weight || 1;
+            totalScore += score * weight;
+            totalWeight += weight;
+          });
+          
+          const calculatedScore = totalWeight > 0 ? Math.round((totalScore / totalWeight) * 20) : null;
+          
+          return {
+            ...appraisal,
+            calculated_score: calculatedScore
+          };
+        }) || [];
+        
+        return enrichedData;
+      } catch (err: any) {
+        console.error('❌ Committee appraisals query failed:', err);
+        throw err;
       }
-      
-      console.log('✅ Committee appraisals fetched:', data?.length || 0);
-      
-      const enrichedData = data?.map(appraisal => {
-        const responses = appraisal.responses || [];
-        let totalScore = 0;
-        let totalWeight = 0;
-        
-        responses.forEach(response => {
-          const score = response.mgr_rating || response.emp_rating || 0;
-          const weight = response.question?.weight || 1;
-          totalScore += score * weight;
-          totalWeight += weight;
-        });
-        
-        const calculatedScore = totalWeight > 0 ? Math.round((totalScore / totalWeight) * 20) : null;
-        
-        return {
-          ...appraisal,
-          calculated_score: calculatedScore
-        };
-      }) || [];
-      
-      return enrichedData;
-    }
+    },
+    retry: 2,
+    retryDelay: 1000
   });
 
   const { data: committeeStats } = useQuery({
@@ -88,29 +96,35 @@ export default function Committee() {
     queryFn: async () => {
       console.log('📊 Fetching committee statistics...');
       
-      const { data: pending, error: pendingError } = await supabase
-        .from('appraisals')
-        .select('id')
-        .eq('status', 'committee_review');
+      try {
+        const { data: pending, error: pendingError } = await supabase
+          .from('appraisals')
+          .select('id')
+          .eq('status', 'committee_review');
 
-      const { data: completed, error: completedError } = await supabase
-        .from('appraisals')
-        .select('id')
-        .eq('status', 'hr_review');
+        const { data: completed, error: completedError } = await supabase
+          .from('appraisals')
+          .select('id')
+          .eq('status', 'hr_review');
 
-      if (pendingError || completedError) {
-        console.error('❌ Error fetching committee stats:', pendingError || completedError);
-        throw pendingError || completedError;
+        if (pendingError || completedError) {
+          console.error('❌ Error fetching committee stats:', pendingError || completedError);
+          throw pendingError || completedError;
+        }
+
+        const stats = {
+          pending: pending?.length || 0,
+          completed: completed?.length || 0
+        };
+        
+        console.log('📊 Committee stats:', stats);
+        return stats;
+      } catch (err: any) {
+        console.error('❌ Committee stats query failed:', err);
+        return { pending: 0, completed: 0 };
       }
-
-      const stats = {
-        pending: pending?.length || 0,
-        completed: completed?.length || 0
-      };
-      
-      console.log('📊 Committee stats:', stats);
-      return stats;
-    }
+    },
+    retry: 1
   });
 
   const deleteAppraisalMutation = useMutation({
@@ -174,6 +188,11 @@ export default function Committee() {
     }
   };
 
+  const handleAppraisalSelect = (appraisalId: string) => {
+    console.log('👆 Committee: Selected appraisal ID:', appraisalId);
+    setSelectedAppraisalId(appraisalId);
+  };
+
   const formatCycleName = (cycle: any) => {
     if (!cycle) return 'Unknown Cycle';
     return `${cycle.name} (Q${cycle.quarter} ${cycle.year})`;
@@ -183,8 +202,34 @@ export default function Committee() {
     return (
       <DashboardLayout pageTitle="Committee Review" showSearch={false}>
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+          <div className="flex flex-col items-center space-y-3">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+            <span className="text-gray-600">Loading committee appraisals...</span>
+          </div>
         </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout pageTitle="Committee Review" showSearch={false}>
+        <Card className="border-red-200">
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <AlertTriangle className="h-12 w-12 text-red-400 mb-4" />
+            <h3 className="text-lg font-medium text-red-900 mb-2">Failed to Load Committee Data</h3>
+            <p className="text-red-600 text-center mb-4">
+              {error?.message || 'Unable to load committee appraisals'}
+            </p>
+            <Button 
+              variant="outline" 
+              onClick={() => window.location.reload()}
+              className="text-red-600 border-red-600 hover:bg-red-50"
+            >
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
       </DashboardLayout>
     );
   }
@@ -193,7 +238,6 @@ export default function Committee() {
 
   return (
     <DashboardLayout pageTitle="Committee Review" showSearch={false}>
-      {/* CLEAN CONTENT - NO additional headers, titles, or navigation */}
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
@@ -241,13 +285,17 @@ export default function Committee() {
                   <CardTitle>Quick Select</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Select value={selectedAppraisalId} onValueChange={setSelectedAppraisalId}>
+                  <Select value={selectedAppraisalId} onValueChange={handleAppraisalSelect}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select an employee to review" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-white border shadow-lg z-50">
                       {committeeAppraisals.map((appraisal) => (
-                        <SelectItem key={appraisal.id} value={appraisal.id}>
+                        <SelectItem 
+                          key={appraisal.id} 
+                          value={appraisal.id}
+                          className="hover:bg-gray-100"
+                        >
                           {appraisal.employee?.first_name} {appraisal.employee?.last_name} - {formatCycleName(appraisal.cycle)}
                         </SelectItem>
                       ))}
@@ -338,7 +386,7 @@ export default function Committee() {
                               <Button 
                                 size="sm"
                                 variant="outline" 
-                                onClick={() => setSelectedAppraisalId(appraisal.id)}
+                                onClick={() => handleAppraisalSelect(appraisal.id)}
                                 className="flex items-center space-x-1"
                               >
                                 <Eye className="h-4 w-4" />

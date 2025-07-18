@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
-import { Users, BarChart3, Clock, Target, Send, CheckCircle } from 'lucide-react';
+import { Users, BarChart3, Clock, Target, Send, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { CommitteeScoreComparison } from './CommitteeScoreComparison';
 import { CommitteeAnalytics } from './CommitteeAnalytics';
@@ -20,46 +20,67 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
   const [committeeComments, setCommitteeComments] = useState('');
   const [committeeScores, setCommitteeScores] = useState<Record<string, number>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadingError, setLoadingError] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  console.log('🔍 CommitteeReviewDetail: Loading appraisal ID:', appraisalId);
+
   // Fetch appraisal details with employee info and responses
-  const { data: appraisalData, isLoading } = useQuery({
+  const { data: appraisalData, isLoading, error } = useQuery({
     queryKey: ['committee-appraisal-detail', appraisalId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('appraisals')
-        .select(`
-          *,
-          employee:profiles!appraisals_employee_id_fkey(
-            first_name, 
-            last_name, 
-            email, 
-            position,
-            department:departments(name)
-          ),
-          cycle:appraisal_cycles(name, year, quarter),
-          responses:appraisal_responses(
-            *,
-            question:appraisal_questions(
-              question_text,
-              section:appraisal_question_sections(name)
-            )
-          )
-        `)
-        .eq('id', appraisalId)
-        .single();
+      console.log('📋 CommitteeReviewDetail: Fetching appraisal details...');
       
-      if (error) throw error;
-      return data;
-    }
+      try {
+        const { data, error } = await supabase
+          .from('appraisals')
+          .select(`
+            *,
+            employee:profiles!appraisals_employee_id_fkey(
+              first_name, 
+              last_name, 
+              email, 
+              position,
+              department:departments(name)
+            ),
+            cycle:appraisal_cycles(name, year, quarter),
+            responses:appraisal_responses(
+              *,
+              question:appraisal_questions(
+                question_text,
+                section:appraisal_question_sections(name)
+              )
+            )
+          `)
+          .eq('id', appraisalId)
+          .single();
+        
+        if (error) {
+          console.error('❌ CommitteeReviewDetail: Database error:', error);
+          throw error;
+        }
+
+        console.log('✅ CommitteeReviewDetail: Appraisal data loaded:', data);
+        return data;
+      } catch (err: any) {
+        console.error('❌ CommitteeReviewDetail: Query failed:', err);
+        setLoadingError(err.message || 'Failed to load appraisal data');
+        throw err;
+      }
+    },
+    retry: 2,
+    retryDelay: 1000,
+    enabled: !!appraisalId
   });
 
-  // Fetch appraisal history for the employee
+  // Fetch appraisal history for the employee - make this optional
   const { data: appraisalHistory } = useQuery({
     queryKey: ['employee-appraisal-history', appraisalData?.employee_id],
     queryFn: async () => {
       if (!appraisalData?.employee_id) return [];
+      
+      console.log('📊 CommitteeReviewDetail: Fetching appraisal history...');
       
       const { data, error } = await supabase
         .from('appraisals')
@@ -69,20 +90,29 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
         `)
         .eq('employee_id', appraisalData.employee_id)
         .neq('id', appraisalId)
-        .eq('status', 'completed')
-        .order('created_at', { ascending: false });
+        .in('status', ['completed', 'hr_review'])
+        .order('created_at', { ascending: false })
+        .limit(10);
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ CommitteeReviewDetail: History query error:', error);
+        return [];
+      }
+      
+      console.log('✅ CommitteeReviewDetail: History loaded:', data?.length || 0);
       return data || [];
     },
-    enabled: !!appraisalData?.employee_id
+    enabled: !!appraisalData?.employee_id,
+    retry: 1
   });
 
-  // Fetch performance analytics
+  // Fetch performance analytics - make this optional and lightweight
   const { data: analytics } = useQuery({
     queryKey: ['employee-analytics', appraisalData?.employee_id],
     queryFn: async () => {
       if (!appraisalData?.employee_id) return null;
+      
+      console.log('📈 CommitteeReviewDetail: Fetching analytics...');
       
       const { data, error } = await supabase
         .from('performance_analytics')
@@ -92,15 +122,22 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
         .limit(1)
         .maybeSingle();
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ CommitteeReviewDetail: Analytics query error:', error);
+        return null;
+      }
+      
+      console.log('✅ CommitteeReviewDetail: Analytics loaded:', !!data);
       return data;
     },
-    enabled: !!appraisalData?.employee_id
+    enabled: !!appraisalData?.employee_id,
+    retry: 0
   });
 
   // Submit committee review
   const submitReviewMutation = useMutation({
     mutationFn: async () => {
+      console.log('🚀 CommitteeReviewDetail: Submitting review...');
       setIsSubmitting(true);
       
       // Calculate final scores
@@ -123,9 +160,8 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
 
           if (responseError) throw responseError;
           
-          // Weight calculation (assuming weight from question)
-          const weight = 1; // Default weight, you can get this from question data
-          totalWeightedScore += committeeScore * 20; // Convert to 100 scale
+          const weight = 1;
+          totalWeightedScore += committeeScore * 20;
           totalWeight += weight;
         }
       }
@@ -155,6 +191,7 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
 
       if (appraisalError) throw appraisalError;
       
+      console.log('✅ CommitteeReviewDetail: Review submitted successfully');
       setIsSubmitting(false);
     },
     onSuccess: () => {
@@ -171,7 +208,7 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
         description: "Failed to submit committee review. Please try again.",
         variant: "destructive",
       });
-      console.error('Committee review error:', error);
+      console.error('❌ CommitteeReviewDetail: Review submission error:', error);
     }
   });
 
@@ -188,11 +225,36 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
     return scoredResponses === responses.length && committeeComments.trim().length > 0;
   };
 
+  // Handle loading states
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+        <div className="flex flex-col items-center space-y-3">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+          <span className="text-gray-600">Loading appraisal details...</span>
+        </div>
       </div>
+    );
+  }
+
+  if (error || loadingError) {
+    return (
+      <Card className="border-red-200">
+        <CardContent className="flex flex-col items-center justify-center py-12">
+          <AlertTriangle className="h-12 w-12 text-red-400 mb-4" />
+          <h3 className="text-lg font-medium text-red-900 mb-2">Failed to Load Appraisal</h3>
+          <p className="text-red-600 text-center mb-4">
+            {loadingError || error?.message || 'Unable to load appraisal details'}
+          </p>
+          <Button 
+            variant="outline" 
+            onClick={() => window.location.reload()}
+            className="text-red-600 border-red-600 hover:bg-red-50"
+          >
+            Try Again
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -200,6 +262,7 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
     return (
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12">
+          <AlertTriangle className="h-12 w-12 text-gray-400 mb-4" />
           <p className="text-gray-600">Appraisal not found</p>
         </CardContent>
       </Card>
@@ -225,7 +288,7 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
                 </CardTitle>
                 <p className="text-gray-600 text-lg">{employee?.email}</p>
                 <p className="text-sm text-gray-500">
-                  {employee?.position} • {employee?.department?.name}
+                  {employee?.position || 'Position not set'} • {employee?.department?.name || 'Department not assigned'}
                 </p>
               </div>
             </div>
@@ -234,10 +297,10 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
                 Committee Review
               </Badge>
               <p className="text-sm text-gray-500 mt-2">
-                <strong>{appraisalData.cycle?.name}</strong>
+                <strong>{appraisalData.cycle?.name || 'Unknown Cycle'}</strong>
               </p>
               <p className="text-xs text-gray-400">
-                Year: {appraisalData.cycle?.year} • Q{appraisalData.cycle?.quarter}
+                Year: {appraisalData.cycle?.year || '?'} • Q{appraisalData.cycle?.quarter || '?'}
               </p>
             </div>
           </div>
@@ -349,15 +412,15 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
                     <div key={appraisal.id} className="border rounded-lg p-4">
                       <div className="flex justify-between items-start">
                         <div>
-                          <h4 className="font-medium">{appraisal.cycle?.name}</h4>
+                          <h4 className="font-medium">{appraisal.cycle?.name || 'Unknown Cycle'}</h4>
                           <p className="text-sm text-gray-600">
-                            Year: {appraisal.cycle?.year} • Quarter: {appraisal.cycle?.quarter}
+                            Year: {appraisal.cycle?.year || '?'} • Quarter: {appraisal.cycle?.quarter || '?'}
                           </p>
                         </div>
                         <div className="text-right">
-                          <Badge variant="outline">{appraisal.performance_band}</Badge>
+                          <Badge variant="outline">{appraisal.performance_band || 'No Band'}</Badge>
                           <p className="text-sm font-medium mt-1">
-                            Score: {appraisal.overall_score}/100
+                            Score: {appraisal.overall_score || 'No Score'}/100
                           </p>
                         </div>
                       </div>
