@@ -1,8 +1,9 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, CartesianGrid, Legend } from 'recharts';
 import { TrendingUp, TrendingDown, Target, Award, AlertTriangle, CheckCircle } from 'lucide-react';
 
 interface AnalyticsProps {
@@ -25,18 +26,27 @@ export function CommitteeAnalytics({
   analytics, 
   responses 
 }: AnalyticsProps) {
-  // Calculate section performance
+  // Define the main sections we want to track
+  const mainSections = ['FINANCIAL SECTION', 'OPERATIONAL SECTION', 'BEHAVIOURAL SECTION'];
+  
+  // Calculate section performance for main sections only
   const sectionPerformance = responses.reduce((acc, response) => {
-    const sectionName = response.question?.section?.name || 'Other';
-    if (!acc[sectionName]) {
-      acc[sectionName] = { total: 0, count: 0, empTotal: 0, mgrTotal: 0 };
+    if (!response.question?.section?.name) return acc;
+    
+    const sectionName = response.question.section.name;
+    const mainSection = mainSections.find(section => sectionName.includes(section));
+    
+    if (!mainSection) return acc;
+    
+    if (!acc[mainSection]) {
+      acc[mainSection] = { total: 0, count: 0, empTotal: 0, mgrTotal: 0 };
     }
     
     const empScore = response.emp_rating || 0;
     const mgrScore = response.mgr_rating || 0;
     const avgScore = (empScore + mgrScore) / 2;
     
-    const sectionData = acc[sectionName] as SectionPerformanceData;
+    const sectionData = acc[mainSection] as SectionPerformanceData;
     sectionData.total += avgScore;
     sectionData.empTotal += empScore;
     sectionData.mgrTotal += mgrScore;
@@ -46,11 +56,19 @@ export function CommitteeAnalytics({
   }, {} as Record<string, SectionPerformanceData>);
 
   const sectionData = Object.entries(sectionPerformance).map(([name, data]: [string, SectionPerformanceData]) => ({
-    name,
+    name: name.replace(' SECTION', ''),
     current: Number((data.total / data.count).toFixed(1)),
     employee: Number((data.empTotal / data.count).toFixed(1)),
     manager: Number((data.mgrTotal / data.count).toFixed(1)),
     variance: Math.abs(Number(((data.empTotal - data.mgrTotal) / data.count).toFixed(1)))
+  }));
+
+  // Data for line chart showing weaknesses
+  const weaknessData = sectionData.map(section => ({
+    name: section.name,
+    score: section.current,
+    target: 4.0, // Target performance level
+    gap: Math.max(0, 4.0 - section.current)
   }));
 
   // Historical trend data
@@ -95,39 +113,39 @@ export function CommitteeAnalytics({
     <div className="space-y-6">
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
+        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Overall Score</p>
-                <p className="text-2xl font-bold">{currentScore}/100</p>
+                <p className="text-sm text-orange-600 font-medium">Overall Score</p>
+                <p className="text-2xl font-bold text-orange-800">{currentScore}/100</p>
               </div>
               <Award className="h-8 w-8 text-orange-500" />
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Performance Band</p>
-                <p className="text-lg font-semibold">{appraisalData.performance_band || 'TBD'}</p>
+                <p className="text-sm text-blue-600 font-medium">Performance Band</p>
+                <p className="text-lg font-semibold text-blue-800">{appraisalData.performance_band || 'TBD'}</p>
               </div>
               <Target className="h-8 w-8 text-blue-500" />
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Risk Level</p>
+                <p className="text-sm text-purple-600 font-medium">Risk Level</p>
                 <Badge className={
-                  riskLevel === 'high' ? 'bg-red-100 text-red-800' :
-                  riskLevel === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                  'bg-green-100 text-green-800'
+                  riskLevel === 'high' ? 'bg-red-100 text-red-800 border-red-200' :
+                  riskLevel === 'medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
+                  'bg-green-100 text-green-800 border-green-200'
                 }>
                   {riskLevel.toUpperCase()}
                 </Badge>
@@ -141,12 +159,12 @@ export function CommitteeAnalytics({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Completion</p>
-                <p className="text-2xl font-bold">{Math.round((responses.length / responses.length) * 100)}%</p>
+                <p className="text-sm text-green-600 font-medium">Completion</p>
+                <p className="text-2xl font-bold text-green-800">{Math.round((responses.length / responses.length) * 100)}%</p>
               </div>
               <CheckCircle className="h-8 w-8 text-green-500" />
             </div>
@@ -154,40 +172,127 @@ export function CommitteeAnalytics({
         </Card>
       </div>
 
-      {/* Section Performance Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Section Performance Breakdown</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ChartContainer
-            config={{
-              current: { label: "Current Average", color: "#8B5CF6" },
-              employee: { label: "Employee Rating", color: "#3B82F6" },
-              manager: { label: "Manager Rating", color: "#10B981" }
-            }}
-            className="h-80"
-          >
-            <ResponsiveContainer>
-              <BarChart data={sectionData}>
-                <XAxis dataKey="name" />
-                <YAxis domain={[0, 5]} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="employee" fill="#3B82F6" name="Employee" opacity={0.7} />
-                <Bar dataKey="manager" fill="#10B981" name="Manager" opacity={0.7} />
-                <Bar dataKey="current" fill="#8B5CF6" name="Average" />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </CardContent>
-      </Card>
+      {/* Section Performance Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Bar Chart */}
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart className="h-5 w-5 text-blue-600" />
+              Section Performance Breakdown
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer
+              config={{
+                current: { label: "Current Average", color: "#8B5CF6" },
+                employee: { label: "Employee Rating", color: "#3B82F6" },
+                manager: { label: "Manager Rating", color: "#10B981" }
+              }}
+              className="h-80"
+            >
+              <ResponsiveContainer>
+                <BarChart data={sectionData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis 
+                    dataKey="name" 
+                    tick={{ fontSize: 12 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis domain={[0, 5]} tick={{ fontSize: 12 }} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Legend />
+                  <Bar 
+                    dataKey="employee" 
+                    fill="#3B82F6" 
+                    name="Employee" 
+                    opacity={0.8}
+                    radius={[2, 2, 0, 0]}
+                  />
+                  <Bar 
+                    dataKey="manager" 
+                    fill="#10B981" 
+                    name="Manager" 
+                    opacity={0.8}
+                    radius={[2, 2, 0, 0]}
+                  />
+                  <Bar 
+                    dataKey="current" 
+                    fill="#8B5CF6" 
+                    name="Average"
+                    radius={[2, 2, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        {/* Performance Gap Line Chart */}
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingDown className="h-5 w-5 text-red-600" />
+              Performance Gap Analysis
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer
+              config={{
+                score: { label: "Current Score", color: "#F59E0B" },
+                target: { label: "Target", color: "#10B981" },
+                gap: { label: "Gap", color: "#EF4444" }
+              }}
+              className="h-80"
+            >
+              <ResponsiveContainer>
+                <LineChart data={weaknessData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis 
+                    dataKey="name" 
+                    tick={{ fontSize: 12 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis domain={[0, 5]} tick={{ fontSize: 12 }} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Legend />
+                  <Line 
+                    type="monotone" 
+                    dataKey="target" 
+                    stroke="#10B981" 
+                    strokeWidth={3}
+                    strokeDasharray="5 5"
+                    dot={{ fill: "#10B981", strokeWidth: 2, r: 6 }}
+                    name="Target Performance"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="score" 
+                    stroke="#F59E0B" 
+                    strokeWidth={4}
+                    dot={{ fill: "#F59E0B", strokeWidth: 2, r: 8 }}
+                    name="Current Performance"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Historical Trend */}
         {trendData.length > 0 && (
-          <Card>
+          <Card className="shadow-lg">
             <CardHeader>
-              <CardTitle>Performance Trend</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-green-600" />
+                Performance Trend
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <ChartContainer
@@ -197,16 +302,18 @@ export function CommitteeAnalytics({
                 className="h-64"
               >
                 <ResponsiveContainer>
-                  <LineChart data={trendData}>
-                    <XAxis dataKey="cycle" />
-                    <YAxis domain={[0, 100]} />
+                  <LineChart data={trendData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="cycle" tick={{ fontSize: 12 }} />
+                    <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <Line 
                       type="monotone" 
                       dataKey="score" 
                       stroke="#F59E0B" 
                       strokeWidth={3}
-                      dot={{ fill: "#F59E0B", strokeWidth: 2, r: 4 }}
+                      dot={{ fill: "#F59E0B", strokeWidth: 2, r: 6 }}
+                      name="Performance Score"
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -216,9 +323,12 @@ export function CommitteeAnalytics({
         )}
 
         {/* Score Distribution */}
-        <Card>
+        <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle>Performance Category</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-purple-600" />
+              Performance Category
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <ChartContainer
@@ -245,9 +355,9 @@ export function CommitteeAnalytics({
                       if (active && payload && payload.length) {
                         const data = payload[0].payload;
                         return (
-                          <div className="bg-white p-2 border rounded shadow">
-                            <p className="font-medium">{data.name}</p>
-                            <p className="text-sm">Current Performance Level</p>
+                          <div className="bg-white p-3 border rounded-lg shadow-lg">
+                            <p className="font-medium text-gray-800">{data.name}</p>
+                            <p className="text-sm text-gray-600">Current Performance Level</p>
                           </div>
                         );
                       }
@@ -264,7 +374,7 @@ export function CommitteeAnalytics({
                     className="w-3 h-3 rounded-full" 
                     style={{ backgroundColor: item.color }}
                   />
-                  <span className="text-sm font-medium">{item.name}</span>
+                  <span className="text-sm font-medium text-gray-700">{item.name}</span>
                 </div>
               ))}
             </div>
@@ -274,14 +384,20 @@ export function CommitteeAnalytics({
 
       {/* AI Insights */}
       {analytics?.recommendations && (
-        <Card>
+        <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle>AI-Generated Insights</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-blue-600" />
+              AI-Generated Insights
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h4 className="font-medium text-blue-900 mb-2">Recommendations</h4>
-              <p className="text-sm text-blue-800">
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border border-blue-200">
+              <h4 className="font-medium text-blue-900 mb-3 flex items-center gap-2">
+                <Target className="h-4 w-4" />
+                Recommendations
+              </h4>
+              <p className="text-sm text-blue-800 leading-relaxed">
                 {typeof analytics.recommendations === 'string' 
                   ? analytics.recommendations 
                   : JSON.stringify(analytics.recommendations)

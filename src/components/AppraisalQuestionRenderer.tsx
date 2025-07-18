@@ -13,6 +13,9 @@ interface Question {
   question_type: string;
   is_required: boolean;
   multiple_choice_options?: string[];
+  section?: {
+    name: string;
+  };
 }
 
 interface AppraisalQuestionRendererProps {
@@ -20,13 +23,19 @@ interface AppraisalQuestionRendererProps {
   value?: any;
   onChange: (questionId: string, value: any) => void;
   disabled?: boolean;
+  questionNumber?: number;
+  showSectionHeader?: boolean;
+  employeeName?: string;
 }
 
 export function AppraisalQuestionRenderer({ 
   question, 
   value, 
   onChange, 
-  disabled = false 
+  disabled = false,
+  questionNumber,
+  showSectionHeader = false,
+  employeeName = ''
 }: AppraisalQuestionRendererProps) {
   const [localValue, setLocalValue] = useState(value || '');
 
@@ -116,27 +125,45 @@ export function AppraisalQuestionRenderer({
     }
   };
 
+  // Special handling for non-rating sections
+  const isNonRatingSection = question.section?.name?.includes('GOALS FOR NEXT REVIEW') || 
+                            question.section?.name?.includes('TRAINING NEEDS') || 
+                            question.section?.name?.includes('EMPLOYEE\'S COMMENT');
+
   return (
-    <Card className="w-full">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base font-medium flex items-start justify-between">
-          <span className="flex-1">
-            {question.question_text}
-            {question.is_required && (
-              <span className="text-red-500 ml-1">*</span>
+    <div className="w-full">
+      {showSectionHeader && (
+        <div className="mb-6 mt-8 first:mt-0">
+          <h3 className="text-lg font-bold text-gray-900 bg-gray-50 px-4 py-3 rounded-lg border-l-4 border-orange-500">
+            {question.section?.name?.toUpperCase()} {employeeName}
+          </h3>
+        </div>
+      )}
+      
+      <Card className="w-full mb-4">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-medium flex items-start justify-between">
+            <span className="flex-1">
+              <span className="text-blue-600 font-semibold mr-2">
+                Q{questionNumber}.
+              </span>
+              {question.question_text}
+              {question.is_required && (
+                <span className="text-red-500 ml-1">*</span>
+              )}
+            </span>
+            {question.question_type === 'rating' && !isNonRatingSection && (
+              <div className="flex items-center text-sm text-gray-500 ml-4">
+                <Star className="h-4 w-4 mr-1" />
+                Scored
+              </div>
             )}
-          </span>
-          {question.question_type === 'rating' && (
-            <div className="flex items-center text-sm text-gray-500 ml-4">
-              <Star className="h-4 w-4 mr-1" />
-              Scored
-            </div>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {renderQuestionInput()}
-      </CardContent>
-    </Card>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {renderQuestionInput()}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

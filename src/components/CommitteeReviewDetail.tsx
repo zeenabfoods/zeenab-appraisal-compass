@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,6 +11,7 @@ import { Users, BarChart3, Clock, Target, Send, CheckCircle, AlertTriangle } fro
 import { useToast } from '@/hooks/use-toast';
 import { CommitteeScoreComparison } from './CommitteeScoreComparison';
 import { CommitteeAnalytics } from './CommitteeAnalytics';
+import { GroupedQuestionRenderer } from './GroupedQuestionRenderer';
 
 interface CommitteeReviewDetailProps {
   appraisalId: string;
@@ -27,7 +27,7 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
 
   console.log('🔍 CommitteeReviewDetail: Loading appraisal ID:', appraisalId);
 
-  // Fetch appraisal details with employee info and responses - Fixed the relationship issue
+  // Fetch appraisal details with employee info and responses
   const { data: appraisalData, isLoading, error } = useQuery({
     queryKey: ['committee-appraisal-detail', appraisalId],
     queryFn: async () => {
@@ -50,6 +50,8 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
               *,
               question:appraisal_questions(
                 question_text,
+                question_type,
+                is_required,
                 section:appraisal_question_sections(name)
               )
             )
@@ -273,6 +275,26 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
   const employee = appraisalData.employee;
   const responses = appraisalData.responses || [];
 
+  // Create questions from responses for the grouped renderer
+  const questions = responses.map(response => ({
+    id: response.id,
+    question_text: response.question?.question_text || '',
+    question_type: response.question?.question_type || 'rating',
+    is_required: response.question?.is_required || false,
+    section: response.question?.section
+  }));
+
+  // Create values object for displaying current responses
+  const responseValues = responses.reduce((acc, response) => {
+    acc[response.id] = {
+      emp_rating: response.emp_rating,
+      mgr_rating: response.mgr_rating,
+      emp_comment: response.emp_comment,
+      mgr_comment: response.mgr_comment
+    };
+    return acc;
+  }, {} as Record<string, any>);
+
   return (
     <div className="space-y-6">
       {/* Employee Header */}
@@ -322,9 +344,9 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
             <Clock className="h-4 w-4" />
             <span>History</span>
           </TabsTrigger>
-          <TabsTrigger value="goals" className="flex items-center space-x-2">
+          <TabsTrigger value="questions" className="flex items-center space-x-2">
             <CheckCircle className="h-4 w-4" />
-            <span>Goals & Comments</span>
+            <span>Questions Review</span>
           </TabsTrigger>
         </TabsList>
 
@@ -398,6 +420,30 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
           />
         </TabsContent>
 
+        <TabsContent value="questions" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <CheckCircle className="h-5 w-5" />
+                <span>Questions & Responses Review</span>
+              </CardTitle>
+              <p className="text-sm text-gray-600">
+                Review all questions organized by sections with employee and manager responses
+              </p>
+            </CardHeader>
+            <CardContent>
+              <GroupedQuestionRenderer
+                questions={questions}
+                values={responseValues}
+                onChange={() => {}} // Read-only display
+                disabled={true}
+                employeeName={`${employee?.first_name} ${employee?.last_name}`}
+                hideRatingsForTextSections={true}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="history" className="space-y-4">
           <Card>
             <CardHeader>
@@ -436,63 +482,6 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
               ) : (
                 <p className="text-gray-500 text-center py-8">No previous appraisals found</p>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="goals" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Target className="h-5 w-5" />
-                <span>Goals & Development Areas</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <h4 className="font-medium mb-2">Current Goals</h4>
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-700">
-                    {appraisalData.goals || 'No goals specified'}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-2">Training Needs</h4>
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-700">
-                    {appraisalData.training_needs || 'No training needs identified'}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-2">Noteworthy Achievements</h4>
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-700">
-                    {appraisalData.noteworthy || 'No achievements noted'}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-2">Employee Comments</h4>
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-700">
-                    {appraisalData.emp_comments || 'No employee comments'}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-2">Manager Comments</h4>
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-700">
-                    {appraisalData.mgr_comments || 'No manager comments'}
-                  </p>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
