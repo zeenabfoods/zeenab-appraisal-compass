@@ -16,7 +16,7 @@ export default function Committee() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  console.log('🏛️ Committee page: Rendering with single header only');
+  console.log('🏛️ Committee page: Rendering with SINGLE header only via DashboardLayout');
 
   const { data: committeeAppraisals, isLoading } = useQuery({
     queryKey: ['committee-appraisals'],
@@ -193,10 +193,10 @@ export default function Committee() {
 
   return (
     <DashboardLayout pageTitle="Committee Review" showSearch={false}>
+      {/* CLEAN CONTENT - NO additional headers, titles, or navigation */}
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Committee Review</h1>
             <p className="text-gray-600">Review appraisals that require committee attention</p>
           </div>
           

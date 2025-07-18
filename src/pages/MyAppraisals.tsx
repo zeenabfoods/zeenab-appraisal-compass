@@ -59,8 +59,8 @@ export default function MyAppraisals() {
 
   return (
     <DashboardLayout pageTitle="My Appraisals" showSearch={true}>
+      {/* CLEAN CONTENT - NO additional headers, titles, or navigation */}
       <div className="space-y-6">
-        {/* Clean page content - No duplicate headers or navigation */}
         <div className="flex justify-between items-center">
           <p className="text-gray-600">Track your performance appraisal progress</p>
           <Button onClick={() => navigate('/appraisal/new')}>

@@ -1,4 +1,3 @@
-
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useAuthContext } from '@/components/AuthProvider';
 import { useQuery } from '@tanstack/react-query';
@@ -26,7 +25,6 @@ export default function ManagerAppraisals() {
   const { profile } = useAuthContext();
   const navigate = useNavigate();
 
-  // Fetch all team members with their appraisal status
   const { data: teamMembers, isLoading } = useQuery({
     queryKey: ['manager-team-members', profile?.id],
     queryFn: async (): Promise<TeamMember[]> => {
@@ -153,7 +151,7 @@ export default function ManagerAppraisals() {
 
   if (isLoading) {
     return (
-      <DashboardLayout>
+      <DashboardLayout pageTitle="Team Management" showSearch={false}>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
         </div>
@@ -175,11 +173,10 @@ export default function ManagerAppraisals() {
   const pendingCount = totalMembers - completedCount;
 
   return (
-    <DashboardLayout>
+    <DashboardLayout pageTitle="Team Management" showSearch={false}>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Team Management</h1>
             <p className="text-gray-600">Manage appraisals for your team members</p>
           </div>
           

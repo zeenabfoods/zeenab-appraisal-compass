@@ -146,13 +146,13 @@ export default function AppraisalPage() {
 
   const pageTitle = appraisal.cycle?.name || `Q${appraisal.cycle?.quarter} ${appraisal.cycle?.year}`;
 
-  console.log('✅ AppraisalPage: About to render - NO DUPLICATE HEADERS');
+  console.log('✅ AppraisalPage: Rendering with SINGLE header via DashboardLayout');
 
   return (
     <DashboardLayout pageTitle={pageTitle} showSearch={false}>
-      {/* CLEAN CONTENT - No nested headers, no duplicates */}
+      {/* CLEAN CONTENT - NO headers, titles, or navigation bars */}
       <div className="space-y-4">
-        {/* Simple navigation bar */}
+        {/* Simple status and navigation */}
         <div className="flex items-center justify-between">
           <Button
             variant="outline"
@@ -168,7 +168,7 @@ export default function AppraisalPage() {
           </Badge>
         </div>
 
-        {/* CRITICAL: AppraisalForm rendered WITHOUT any wrapper that could create headers */}
+        {/* CRITICAL: AppraisalForm rendered WITHOUT any wrapper headers */}
         <div className="w-full">
           <AppraisalForm />
         </div>
