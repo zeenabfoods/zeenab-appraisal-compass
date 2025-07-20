@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { CommitteeReviewDetail } from '@/components/CommitteeReviewDetail';
@@ -538,7 +537,7 @@ export default function Committee() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge className={getPerformanceBandgeColor(appraisal.performance_band)}>
+                            <Badge className={getPerformanceBadgeColor(appraisal.performance_band)}>
                               {appraisal.performance_band || 'Not set'}
                             </Badge>
                           </TableCell>
