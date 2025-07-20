@@ -236,6 +236,11 @@ export default function Committee() {
     setSelectedAppraisalId(appraisalId);
   };
 
+  const handleViewCompletedAppraisal = (appraisalId: string) => {
+    console.log('👁️ Viewing completed appraisal:', appraisalId);
+    setSelectedAppraisalId(appraisalId);
+  };
+
   const formatCycleName = (cycle: any) => {
     if (!cycle) return 'Unknown Cycle';
     return `${cycle.name} (Q${cycle.quarter} ${cycle.year})`;
@@ -503,7 +508,8 @@ export default function Committee() {
                         <TableHead>Performance Band</TableHead>
                         <TableHead>Committee Review Date</TableHead>
                         <TableHead>Reviewed By</TableHead>
-                        <TableHead>Status</TableHead>
+                         <TableHead>Status</TableHead>
+                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -566,6 +572,17 @@ export default function Committee() {
                             <Badge className={appraisal.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}>
                               {appraisal.status === 'completed' ? 'Fully Completed' : 'Awaiting HR'}
                             </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Button 
+                              size="sm"
+                              variant="outline" 
+                              onClick={() => handleViewCompletedAppraisal(appraisal.id)}
+                              className="flex items-center space-x-1"
+                            >
+                              <Eye className="h-4 w-4" />
+                              <span>View</span>
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}

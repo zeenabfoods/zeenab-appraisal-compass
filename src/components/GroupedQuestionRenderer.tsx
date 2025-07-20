@@ -51,8 +51,17 @@ export function GroupedQuestionRenderer({
   ];
 
   const sortedSections = Object.keys(groupedQuestions).sort((a, b) => {
-    const aIndex = sectionOrder.findIndex(section => a.includes(section));
-    const bIndex = sectionOrder.findIndex(section => b.includes(section));
+    // Normalize section names for comparison
+    const normalizeSection = (section: string) => section.toUpperCase().trim();
+    const aNormalized = normalizeSection(a);
+    const bNormalized = normalizeSection(b);
+    
+    const aIndex = sectionOrder.findIndex(section => 
+      aNormalized.includes(section) || section.includes(aNormalized)
+    );
+    const bIndex = sectionOrder.findIndex(section => 
+      bNormalized.includes(section) || section.includes(bNormalized)
+    );
     
     if (aIndex === -1 && bIndex === -1) return a.localeCompare(b);
     if (aIndex === -1) return 1;

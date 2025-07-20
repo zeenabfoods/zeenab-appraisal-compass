@@ -188,7 +188,7 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
           committee_reviewed_by: (await supabase.auth.getUser()).data.user?.id,
           overall_score: finalScore,
           performance_band: performanceBand,
-          status: 'hr_review'
+          status: 'completed'
         })
         .eq('id', appraisalId);
 
