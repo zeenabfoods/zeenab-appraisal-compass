@@ -1,12 +1,9 @@
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Star, Type, CheckCircle } from 'lucide-react';
 
 interface Question {
   id: string;
@@ -46,38 +43,65 @@ export function AppraisalQuestionRenderer({
   };
 
   const renderRatingQuestion = () => (
-    <div className="space-y-3">
-      <div className="flex items-center space-x-2">
-        {[1, 2, 3, 4, 5].map((rating) => (
-          <Button
-            key={rating}
-            type="button"
-            variant={localValue === rating ? "default" : "outline"}
-            size="sm"
-            onClick={() => handleValueChange(rating)}
+    <div className="flex items-center justify-end space-x-2">
+      <div className="flex items-center space-x-1">
+        <span className="text-sm text-gray-600 mr-2">rating</span>
+        <span className="text-sm text-gray-600 mr-2">Weight: 1</span>
+        <span className="text-sm text-gray-600 mr-4">Required</span>
+        
+        {/* Toggle switch for rating */}
+        <div className="relative">
+          <input 
+            type="checkbox" 
+            className="sr-only"
+            checked={localValue > 0}
+            onChange={() => handleValueChange(localValue > 0 ? 0 : 3)}
             disabled={disabled}
-            className="w-12 h-10 font-semibold"
-          >
-            {rating}
-          </Button>
-        ))}
-      </div>
-      <div className="flex justify-between text-xs text-gray-500 px-2">
-        <span className="font-medium">Poor</span>
-        <span className="font-medium">Excellent</span>
+          />
+          <div className={`w-12 h-6 rounded-full transition-colors ${
+            localValue > 0 ? 'bg-gray-800' : 'bg-gray-300'
+          }`}>
+            <div className={`w-5 h-5 bg-white rounded-full transition-transform transform ${
+              localValue > 0 ? 'translate-x-6' : 'translate-x-0.5'
+            } mt-0.5`} />
+          </div>
+        </div>
+        
+        <div className="flex space-x-1 ml-4">
+          <button className="p-1 hover:bg-gray-200 rounded">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </button>
+          <button className="p-1 hover:bg-gray-200 rounded text-red-600">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );
 
   const renderTextQuestion = () => (
-    <Textarea
-      value={localValue}
-      onChange={(e) => handleValueChange(e.target.value)}
-      placeholder="Enter your response..."
-      disabled={disabled}
-      rows={4}
-      className="resize-none"
-    />
+    <div className="flex items-center justify-end space-x-2">
+      <span className="text-sm text-gray-600 mr-2">text</span>
+      <span className="text-sm text-gray-600 mr-2">Weight: 1</span>
+      <span className="text-sm text-gray-600 mr-4">Required</span>
+      
+      <div className="flex space-x-1">
+        <button className="p-1 hover:bg-gray-200 rounded">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+        </button>
+        <button className="p-1 hover:bg-gray-200 rounded text-red-600">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </button>
+      </div>
+    </div>
   );
 
   const renderYesNoQuestion = () => (
@@ -116,94 +140,56 @@ export function AppraisalQuestionRenderer({
     </RadioGroup>
   );
 
-  const renderQuestionInput = () => {
-    switch (question.question_type) {
-      case 'rating':
-        return renderRatingQuestion();
-      case 'text':
-        return renderTextQuestion();
-      case 'yes_no':
-        return renderYesNoQuestion();
-      case 'multiple_choice':
-        return renderMultipleChoiceQuestion();
-      default:
-        return <div className="text-gray-500 italic">Unsupported question type: {question.question_type}</div>;
-    }
-  };
-
-  // Get question type icon and display name
-  const getQuestionTypeInfo = () => {
-    switch (question.question_type) {
-      case 'rating':
-        return { icon: Star, label: 'Rating', color: 'bg-blue-100 text-blue-800' };
-      case 'text':
-        return { icon: Type, label: 'Text', color: 'bg-green-100 text-green-800' };
-      case 'yes_no':
-        return { icon: CheckCircle, label: 'Yes/No', color: 'bg-purple-100 text-purple-800' };
-      case 'multiple_choice':
-        return { icon: CheckCircle, label: 'Multiple Choice', color: 'bg-orange-100 text-orange-800' };
-      default:
-        return { icon: Star, label: question.question_type, color: 'bg-gray-100 text-gray-800' };
-    }
-  };
-
-  const typeInfo = getQuestionTypeInfo();
-  const TypeIcon = typeInfo.icon;
-
   return (
-    <div className="w-full">
-      {/* Legacy section header support - now handled by GroupedQuestionRenderer */}
-      {showSectionHeader && (
-        <div className="mb-6 mt-8 first:mt-0">
-          <h3 className="text-lg font-bold text-gray-900 bg-gray-50 px-4 py-3 rounded-lg border-l-4 border-orange-500">
-            {question.section?.name?.toUpperCase()} {employeeName}
-          </h3>
+    <div className="bg-white border border-gray-200 rounded-lg p-4">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <div className="flex items-start space-x-3">
+            <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm font-medium flex-shrink-0">
+              Q{questionNumber}
+            </span>
+            <div className="flex-1">
+              <p className="text-gray-900 font-medium leading-relaxed">
+                {question.question_text}
+                {question.is_required && (
+                  <span className="text-red-500 ml-1">*</span>
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="flex-shrink-0 ml-4">
+          {question.question_type === 'rating' && renderRatingQuestion()}
+          {question.question_type === 'text' && renderTextQuestion()}
+        </div>
+      </div>
+
+      {/* Render input area for text questions or other non-rating types */}
+      {question.question_type === 'text' && (
+        <div className="mt-4">
+          <Textarea
+            value={localValue}
+            onChange={(e) => handleValueChange(e.target.value)}
+            placeholder="Enter your response..."
+            disabled={disabled}
+            rows={3}
+            className="resize-none"
+          />
         </div>
       )}
-      
-      <Card className="w-full shadow-sm border-l-2 border-l-gray-200 hover:border-l-orange-300 transition-colors">
-        <CardHeader className="pb-4">
-          <div className="flex items-start justify-between">
-            <CardTitle className="text-base font-semibold leading-6 flex-1">
-              <div className="flex items-start space-x-3">
-                <span className="bg-orange-500 text-white px-2 py-1 rounded-md text-sm font-bold flex-shrink-0">
-                  Q{questionNumber}
-                </span>
-                <div className="flex-1">
-                  <span className="text-gray-900">
-                    {question.question_text}
-                  </span>
-                  {question.is_required && (
-                    <span className="text-red-500 ml-1 text-lg">*</span>
-                  )}
-                </div>
-              </div>
-            </CardTitle>
-          </div>
-          
-          {/* Question Metadata */}
-          <div className="flex items-center space-x-3 mt-3 pt-3 border-t border-gray-100">
-            <Badge variant="outline" className={`${typeInfo.color} border-0 font-medium`}>
-              <TypeIcon className="h-3 w-3 mr-1" />
-              {typeInfo.label}
-            </Badge>
-            
-            <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 font-medium">
-              Weight: 1
-            </Badge>
-            
-            {question.is_required && (
-              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 font-medium">
-                Required
-              </Badge>
-            )}
-          </div>
-        </CardHeader>
-        
-        <CardContent className="pt-0">
-          {renderQuestionInput()}
-        </CardContent>
-      </Card>
+
+      {question.question_type === 'yes_no' && (
+        <div className="mt-4">
+          {renderYesNoQuestion()}
+        </div>
+      )}
+
+      {question.question_type === 'multiple_choice' && (
+        <div className="mt-4">
+          {renderMultipleChoiceQuestion()}
+        </div>
+      )}
     </div>
   );
 }
