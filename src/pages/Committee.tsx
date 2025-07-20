@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { CommitteeReviewDetail } from '@/components/CommitteeReviewDetail';
@@ -8,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Users, Calendar, Clock, CheckCircle, TrendingUp, Eye, Trash2, AlertTriangle } from 'lucide-react';
+import { Users, Calendar, Clock, CheckCircle, TrendingUp, Eye, Trash2, AlertTriangle, History } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Committee() {
@@ -88,6 +89,50 @@ export default function Committee() {
     },
     retry: 2,
     retryDelay: 1000
+  });
+
+  // Fetch completed appraisals for reference
+  const { data: completedAppraisals } = useQuery({
+    queryKey: ['completed-committee-appraisals'],
+    queryFn: async () => {
+      console.log('🔍 Fetching completed committee appraisals...');
+      
+      try {
+        const { data, error } = await supabase
+          .from('appraisals')
+          .select(`
+            *,
+            employee:profiles!appraisals_employee_id_fkey(
+              first_name, 
+              last_name, 
+              email,
+              position,
+              department:departments!profiles_department_id_fkey(name)
+            ),
+            cycle:appraisal_cycles(name, year, quarter),
+            committee_reviewer:profiles!appraisals_committee_reviewed_by_fkey(
+              first_name,
+              last_name
+            )
+          `)
+          .in('status', ['hr_review', 'completed'])
+          .not('committee_reviewed_at', 'is', null)
+          .order('committee_reviewed_at', { ascending: false })
+          .limit(20);
+        
+        if (error) {
+          console.error('❌ Error fetching completed appraisals:', error);
+          throw error;
+        }
+        
+        console.log('✅ Completed committee appraisals fetched:', data?.length || 0);
+        return data || [];
+      } catch (err: any) {
+        console.error('❌ Completed appraisals query failed:', err);
+        return [];
+      }
+    },
+    retry: 1
   });
 
   const { data: committeeStats } = useQuery({
@@ -195,6 +240,18 @@ export default function Committee() {
   const formatCycleName = (cycle: any) => {
     if (!cycle) return 'Unknown Cycle';
     return `${cycle.name} (Q${cycle.quarter} ${cycle.year})`;
+  };
+
+  const getPerformanceBadgeColor = (band: string) => {
+    switch (band?.toLowerCase()) {
+      case 'exceptional': return 'bg-green-100 text-green-800';
+      case 'excellent': return 'bg-blue-100 text-blue-800';
+      case 'very good': return 'bg-indigo-100 text-indigo-800';
+      case 'good': return 'bg-yellow-100 text-yellow-800';
+      case 'fair': return 'bg-orange-100 text-orange-800';
+      case 'poor': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
   };
 
   if (isLoading) {
@@ -420,6 +477,101 @@ export default function Committee() {
                       Appraisals will appear here after managers complete their reviews.
                     </span>
                   </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Completed Appraisals Reference Table */}
+            {completedAppraisals && completedAppraisals.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <History className="h-5 w-5" />
+                    Previously Completed Appraisals ({completedAppraisals.length})
+                  </CardTitle>
+                  <p className="text-sm text-gray-600">
+                    Reference completed committee reviews for context and consistency
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Employee</TableHead>
+                        <TableHead>Position</TableHead>
+                        <TableHead>Cycle</TableHead>
+                        <TableHead>Final Score</TableHead>
+                        <TableHead>Performance Band</TableHead>
+                        <TableHead>Committee Review Date</TableHead>
+                        <TableHead>Reviewed By</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {completedAppraisals.map((appraisal) => (
+                        <TableRow key={appraisal.id} className="hover:bg-gray-50">
+                          <TableCell className="font-medium">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-400 to-blue-400 flex items-center justify-center text-white text-sm font-semibold">
+                                {appraisal.employee?.first_name?.[0]}{appraisal.employee?.last_name?.[0]}
+                              </div>
+                              <div>
+                                <p className="font-medium">
+                                  {appraisal.employee?.first_name} {appraisal.employee?.last_name}
+                                </p>
+                                <p className="text-sm text-gray-500">{appraisal.employee?.email}</p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>{appraisal.employee?.position || 'Not set'}</TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{formatCycleName(appraisal.cycle)}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-1">
+                              <TrendingUp className="h-4 w-4 text-green-500" />
+                              <Badge variant="default" className="bg-green-100 text-green-800">
+                                {appraisal.overall_score || 'N/A'}/100
+                              </Badge>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={getPerformanceBandgeColor(appraisal.performance_band)}>
+                              {appraisal.performance_band || 'Not set'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {appraisal.committee_reviewed_at ? (
+                              <div className="flex items-center space-x-1">
+                                <Calendar className="h-4 w-4 text-gray-400" />
+                                <span className="text-sm">
+                                  {new Date(appraisal.committee_reviewed_at).toLocaleDateString()}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-gray-400">N/A</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {appraisal.committee_reviewer ? (
+                              <span className="text-sm">
+                                {appraisal.committee_reviewer.first_name} {appraisal.committee_reviewer.last_name}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-gray-400">N/A</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={appraisal.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}>
+                              {appraisal.status === 'completed' ? 'Fully Completed' : 'Awaiting HR'}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </CardContent>
               </Card>
             )}
