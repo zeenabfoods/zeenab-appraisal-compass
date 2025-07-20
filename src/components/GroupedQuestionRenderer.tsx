@@ -70,24 +70,66 @@ export function GroupedQuestionRenderer({
     );
   };
 
+  // Global question counter for continuous numbering
+  let globalQuestionNumber = 1;
+
   return (
-    <div className="space-y-6">
-      {sortedSections.map((sectionName) => (
-        <div key={sectionName} className="space-y-4">
-          {groupedQuestions[sectionName].map((question, index) => (
-            <AppraisalQuestionRenderer
-              key={question.id}
-              question={question}
-              value={values[question.id]}
-              onChange={onChange}
-              disabled={disabled || isNonRatingSection(sectionName)}
-              questionNumber={index + 1}
-              showSectionHeader={index === 0}
-              employeeName={employeeName}
-            />
-          ))}
-        </div>
-      ))}
+    <div className="space-y-8">
+      {sortedSections.map((sectionName) => {
+        console.log('Section Data:', {
+          name: sectionName,
+          questionCount: groupedQuestions[sectionName].length,
+          types: groupedQuestions[sectionName].map(q => q.question_type)
+        });
+
+        return (
+          <div key={sectionName} className="space-y-6">
+            {/* Enhanced Section Header */}
+            <div className="border-l-4 border-l-orange-500 bg-gradient-to-r from-orange-50 to-transparent">
+              <div className="px-6 py-4">
+                <h2 className="text-xl font-bold text-gray-900 mb-2">
+                  {sectionName} {employeeName}
+                </h2>
+                <div className="flex items-center space-x-4 text-sm text-gray-600">
+                  <span className="flex items-center">
+                    <span className="font-medium">Questions:</span>
+                    <span className="ml-1 bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs font-medium">
+                      {groupedQuestions[sectionName].length}
+                    </span>
+                  </span>
+                  {!isNonRatingSection(sectionName) && (
+                    <span className="flex items-center">
+                      <span className="font-medium">Type:</span>
+                      <span className="ml-1 bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                        Scored
+                      </span>
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Questions */}
+            <div className="space-y-4 pl-4">
+              {groupedQuestions[sectionName].map((question) => {
+                const currentQuestionNumber = globalQuestionNumber++;
+                return (
+                  <AppraisalQuestionRenderer
+                    key={question.id}
+                    question={question}
+                    value={values[question.id]}
+                    onChange={onChange}
+                    disabled={disabled || isNonRatingSection(sectionName)}
+                    questionNumber={currentQuestionNumber}
+                    showSectionHeader={false} // We handle section headers above
+                    employeeName={employeeName}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
