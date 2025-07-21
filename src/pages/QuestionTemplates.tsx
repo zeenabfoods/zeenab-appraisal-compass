@@ -4,7 +4,7 @@ import { QuestionTemplateManager } from '@/components/QuestionTemplateManager';
 
 export default function QuestionTemplates() {
   return (
-    <DashboardLayout>
+    <DashboardLayout pageTitle="Question Templates">
       <QuestionTemplateManager />
     </DashboardLayout>
   );

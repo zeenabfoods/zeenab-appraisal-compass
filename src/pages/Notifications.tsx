@@ -4,7 +4,7 @@ import { NotificationCenter } from '@/components/NotificationCenter';
 
 export default function Notifications() {
   return (
-    <DashboardLayout>
+    <DashboardLayout pageTitle="Notifications">
       <NotificationCenter />
     </DashboardLayout>
   );

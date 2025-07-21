@@ -155,7 +155,7 @@ export default function DepartmentManagement() {
 
   if (isLoading) {
     return (
-      <DashboardLayout>
+      <DashboardLayout pageTitle="Department Management">
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
         </div>
@@ -164,7 +164,7 @@ export default function DepartmentManagement() {
   }
 
   return (
-    <DashboardLayout>
+    <DashboardLayout pageTitle="Department Management">
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>

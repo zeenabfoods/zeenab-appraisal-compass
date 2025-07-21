@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -112,7 +111,7 @@ export default function NewAppraisalPage() {
 
   if (loading) {
     return (
-      <DashboardLayout>
+      <DashboardLayout pageTitle="New Appraisal">
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
         </div>
@@ -121,7 +120,7 @@ export default function NewAppraisalPage() {
   }
 
   return (
-    <DashboardLayout>
+    <DashboardLayout pageTitle="New Appraisal">
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Start New Appraisal</h1>
