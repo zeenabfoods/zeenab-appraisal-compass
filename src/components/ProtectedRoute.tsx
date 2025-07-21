@@ -4,11 +4,10 @@ import { Navigate } from 'react-router-dom';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  allowedRoles?: string[];
 }
 
-export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const { user, profile, loading, authReady } = useAuthContext();
+export function ProtectedRoute({ children }: ProtectedRouteProps) {
+  const { user, loading, authReady } = useAuthContext();
 
   // Show loading while auth is initializing
   if (!authReady || loading) {
@@ -24,12 +23,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
 
   // Redirect to auth if no user after auth is ready
   if (!user) {
-    return <Navigate to="/" replace />;
-  }
-
-  // Check role permissions if allowedRoles is specified
-  if (allowedRoles && profile?.role && !allowedRoles.includes(profile.role)) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/auth" replace />;
   }
 
   return <>{children}</>;

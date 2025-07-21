@@ -4,7 +4,7 @@ import { EmployeeQuestionManager } from '@/components/EmployeeQuestionManager';
 
 export default function EmployeeQuestions() {
   return (
-    <DashboardLayout pageTitle="Employee Questions">
+    <DashboardLayout>
       <EmployeeQuestionManager />
     </DashboardLayout>
   );

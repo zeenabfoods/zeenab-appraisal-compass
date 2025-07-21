@@ -8,7 +8,7 @@ export default function EmployeeQuestionsView() {
 
   if (!employeeId) {
     return (
-      <DashboardLayout pageTitle="Employee Questions">
+      <DashboardLayout>
         <div className="flex items-center justify-center h-64">
           <p className="text-gray-600">Employee ID not provided</p>
         </div>
@@ -17,7 +17,7 @@ export default function EmployeeQuestionsView() {
   }
 
   return (
-    <DashboardLayout pageTitle="Employee Questions">
+    <DashboardLayout>
       <EmployeeAssignedQuestions employeeId={employeeId} />
     </DashboardLayout>
   );

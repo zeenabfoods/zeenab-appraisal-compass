@@ -1,3 +1,4 @@
+
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -36,7 +37,7 @@ export default function CompanyReports() {
 
   if (isLoading) {
     return (
-      <DashboardLayout pageTitle="Company Reports">
+      <DashboardLayout>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
         </div>
@@ -84,7 +85,7 @@ export default function CompanyReports() {
   });
 
   return (
-    <DashboardLayout pageTitle="Company Reports">
+    <DashboardLayout>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Company Reports</h1>

@@ -4,7 +4,7 @@ import { AppraisalCycleManager } from '@/components/AppraisalCycleManager';
 
 export default function AppraisalCycles() {
   return (
-    <DashboardLayout pageTitle="Appraisal Cycles">
+    <DashboardLayout>
       <AppraisalCycleManager />
     </DashboardLayout>
   );
