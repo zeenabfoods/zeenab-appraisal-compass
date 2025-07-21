@@ -1,192 +1,197 @@
 
-import { useAuthContext } from '@/components/AuthProvider';
+import { useState } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { 
+  Users, 
+  Calendar, 
+  FileText, 
+  BarChart3, 
+  Settings, 
+  Menu, 
+  X, 
+  Bell, 
+  LogOut, 
+  User,
+  CheckCircle,
+  ClipboardList
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { SimpleSidebar } from '@/components/SimpleSidebar';
-import { NotificationBell } from '@/components/NotificationBell';
-import { LogOut, User, Search } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
+import { supabase } from '@/integrations/supabase/client';
+import { useProfile } from '@/hooks/useProfile';
+import { useNotifications } from '@/hooks/useNotifications';
+import { NotificationsPopover } from './NotificationsPopover';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
+  pageTitle: string;
   showSearch?: boolean;
-  pageTitle?: string;
 }
 
-export function DashboardLayout({ children, showSearch = true, pageTitle = "Dashboard" }: DashboardLayoutProps) {
-  const { profile, signOut } = useAuthContext();
+export function DashboardLayout({ 
+  children, 
+  pageTitle,
+  showSearch = true 
+}: DashboardLayoutProps) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
-
-  // CRITICAL: Layout enforcement - throw error if duplicate headers exist
-  useEffect(() => {
-    const checkForDuplicates = () => {
-      const headers = document.querySelectorAll('[data-testid="app-header"]');
-      const allHeaders = document.querySelectorAll('header');
-      
-      console.log('🔍 HEADER AUDIT:', {
-        'App Headers': headers.length,
-        'All Headers': allHeaders.length,
-        'Expected': 1,
-        'PageTitle': pageTitle
-      });
-
-      if (headers.length > 1 || allHeaders.length > 1) {
-        console.error('🚨 DUPLICATE HEADER DETECTED - THROWING ERROR');
-        // Add visual debug indicators
-        allHeaders.forEach((h, i) => {
-          if (i > 0) {
-            (h as HTMLElement).style.outline = '3px solid red';
-            (h as HTMLElement).style.backgroundColor = 'rgba(255, 0, 0, 0.2)';
-          }
-        });
-        throw new Error(`Duplicate header rendered: ${allHeaders.length} headers found, expected 1`);
-      }
-
-      console.log('✅ Header check passed - single header confirmed');
-    };
-
-    // Check immediately and after DOM updates
-    checkForDuplicates();
-    const timer = setTimeout(checkForDuplicates, 100);
-    return () => clearTimeout(timer);
-  }, [pageTitle]);
-
-  // Debug protocol for development
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      const debugTimer = setTimeout(() => {
-        const headers = document.querySelectorAll('header, h1, h2');
-        console.table({
-          'Header Count': document.querySelectorAll('header').length,
-          'Main Titles': document.querySelectorAll('h1').length,
-          'Sub Headers': document.querySelectorAll('h2').length,
-          'Expected Headers': 1
-        });
-
-        // Visual debug for duplicates
-        headers.forEach((h, i) => {
-          if (i > 0 && h.tagName === 'HEADER') {
-            (h as HTMLElement).style.outline = '2px dashed red';
-            (h as HTMLElement).setAttribute('data-debug', 'DUPLICATE-HEADER');
-          }
-        });
-      }, 200);
-
-      return () => clearTimeout(debugTimer);
-    }
-  }, []);
-
-  if (!profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-white to-red-50">
-        <div className="text-center backdrop-blur-md bg-white/30 p-8 rounded-3xl border border-white/30 shadow-2xl">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const getRoleBadgeColor = (role: string) => {
-    switch (role) {
-      case 'admin': return 'bg-gradient-to-r from-red-100 to-red-200 text-red-800 border-red-300';
-      case 'hr': return 'bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border-purple-300';
-      case 'manager': return 'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 border-blue-300';
-      default: return 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 border-gray-300';
-    }
-  };
-
-  const handleNotificationClick = () => {
-    navigate('/notifications');
-  };
+  const { profile } = useProfile();
+  const { notifications } = useNotifications();
 
   console.log('🎯 DashboardLayout: Rendering SINGLE CONSOLIDATED header with title:', pageTitle);
 
-  return (
-    <div className="min-h-screen flex w-full bg-gradient-to-br from-orange-50/50 via-white to-red-50/50">
-      {/* Fixed Sidebar */}
-      <div className="fixed left-0 top-0 h-full w-64 z-30">
-        <SimpleSidebar />
-      </div>
-      
-      {/* Main Content Area - Properly offset */}
-      <div className="flex-1 flex flex-col min-w-0 ml-64">
-        {/* 🎯 SINGLE CONSOLIDATED HEADER - The ONLY header in the entire application */}
-        <header 
-          data-testid="app-header"
-          className="sticky top-0 backdrop-blur-md bg-white/90 shadow-sm border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-6 z-20 shrink-0"
-        >
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 rounded-lg overflow-hidden shadow-md">
-                <img 
-                  src="/lovable-uploads/382d6c71-33c6-4592-bd0f-0fb453a48ecf.png" 
-                  alt="Zeenab Logo" 
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              <h1 className="text-lg md:text-xl font-semibold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
-                {pageTitle}
-              </h1>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-2 md:space-x-4">
-            {/* INTEGRATED SEARCH BAR - Only rendered when showSearch is true */}
-            {showSearch && (
-              <div className="relative hidden sm:block" data-testid="integrated-search">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input 
-                  placeholder="Search appraisals..." 
-                  className="pl-10 w-64 md:w-80 backdrop-blur-sm bg-white/70 border-white/40"
-                />
-              </div>
-            )}
-            
-            {/* Notification Bell */}
-            <NotificationBell onClick={handleNotificationClick} />
-            
-            {/* USER PROFILE - Single instance */}
-            <div className="flex items-center space-x-3 border-l pl-3 md:pl-4 border-gray-200" data-testid="user-profile">
-              <div className="flex items-center space-x-2">
-                <User className="h-5 w-5 text-gray-400" />
-                <div className="text-sm hidden sm:block">
-                  <div className="flex items-center space-x-2">
-                    <span className="font-medium text-gray-700">
-                      {profile.first_name} {profile.last_name}
-                    </span>
-                    <Badge className={`${getRoleBadgeColor(profile.role)}`}>
-                      {profile.role.toUpperCase()}
-                    </Badge>
-                  </div>
-                  {profile.department && (
-                    <div className="text-xs text-gray-500 mt-1">
-                      Department: {profile.department.name}
-                    </div>
-                  )}
-                  {profile.position && (
-                    <div className="text-xs text-gray-500">
-                      Position: {profile.position}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <Button variant="ghost" size="sm" onClick={signOut} className="hover:bg-gray-100">
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </header>
+  const unreadCount = notifications?.filter(n => !n.is_read).length || 0;
 
-        {/* 🎯 CLEAN MAIN CONTENT - NO additional headers allowed here */}
-        <main className="flex-1 p-4 md:p-6 overflow-auto">
-          <div className="max-w-full">
-            {children}
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate('/');
+  };
+
+  // Navigation items based on user role
+  const getNavItems = () => {
+    const baseItems = [
+      { to: '/dashboard', icon: BarChart3, label: 'Dashboard' },
+    ];
+
+    if (profile?.role === 'hr' || profile?.role === 'admin') {
+      return [
+        ...baseItems,
+        { to: '/employees', icon: Users, label: 'Employees' },
+        { to: '/appraisal-cycles', icon: Calendar, label: 'Appraisal Cycles' },
+        { to: '/questions', icon: FileText, label: 'Questions' },
+        { to: '/committee', icon: ClipboardList, label: 'Committee Review' },
+        { to: '/hr-appraisals', icon: CheckCircle, label: 'Final Approvals' },
+        { to: '/settings', icon: Settings, label: 'Settings' },
+      ];
+    }
+
+    // Default navigation for other roles
+    return [
+      ...baseItems,
+      { to: '/my-appraisals', icon: FileText, label: 'My Appraisals' },
+      { to: '/settings', icon: Settings, label: 'Settings' },
+    ];
+  };
+
+  const navItems = getNavItems();
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+        <div className="px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="lg:hidden"
+              >
+                {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </Button>
+              
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-bold text-sm">ZA</span>
+                  </div>
+                  <span className="font-semibold text-gray-900">Zeenab Appraisal</span>
+                </div>
+                
+                <div className="hidden lg:block h-6 w-px bg-gray-300" />
+                
+                <h1 className="hidden lg:block text-xl font-semibold text-gray-900">
+                  {pageTitle}
+                </h1>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              <NotificationsPopover />
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="flex items-center space-x-2">
+                    <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm font-medium">
+                        {profile?.first_name?.[0]}{profile?.last_name?.[0]}
+                      </span>
+                    </div>
+                    <span className="hidden sm:block text-sm font-medium">
+                      {profile?.first_name} {profile?.last_name}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => navigate('/profile')}>
+                    <User className="h-4 w-4 mr-2" />
+                    Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex">
+        {/* Sidebar */}
+        <aside className={`${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        } fixed inset-y-0 left-0 z-40 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
+          <div className="flex flex-col h-full">
+            <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
+              <nav className="mt-5 flex-1 px-2 space-y-1">
+                {navItems.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({ isActive }) =>
+                      `group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
+                        isActive
+                          ? 'bg-orange-100 text-orange-700'
+                          : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                      }`
+                    }
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <item.icon className="mr-3 h-5 w-5 flex-shrink-0" />
+                    {item.label}
+                  </NavLink>
+                ))}
+              </nav>
+            </div>
+          </div>
+        </aside>
+
+        {/* Main content */}
+        <main className="flex-1 lg:ml-0">
+          <div className="py-6">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              {children}
+            </div>
           </div>
         </main>
       </div>
+
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black bg-opacity-50 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
     </div>
   );
 }

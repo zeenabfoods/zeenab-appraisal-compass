@@ -144,6 +144,7 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
       
       const responses = appraisalData?.responses || [];
       
+      // Update response ratings
       for (const response of responses) {
         const committeeScore = committeeScores[response.id];
         if (committeeScore) {
@@ -172,21 +173,26 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
       else if (finalScore >= 61) performanceBand = 'Good';
       else if (finalScore >= 51) performanceBand = 'Fair';
 
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      // Update appraisal with committee review and set status to hr_review
       const { error: appraisalError } = await supabase
         .from('appraisals')
         .update({
           committee_comments: committeeComments,
           committee_reviewed_at: new Date().toISOString(),
-          committee_reviewed_by: (await supabase.auth.getUser()).data.user?.id,
+          committee_reviewed_by: user.id,
           overall_score: finalScore,
           performance_band: performanceBand,
-          status: 'hr_review'
+          status: 'hr_review'  // This is the key fix - set status to hr_review
         })
         .eq('id', appraisalId);
 
       if (appraisalError) throw appraisalError;
       
-      console.log('✅ CommitteeReviewDetail: Review submitted successfully');
+      console.log('✅ CommitteeReviewDetail: Review submitted successfully with status hr_review');
       setIsSubmitting(false);
     },
     onSuccess: () => {
@@ -195,6 +201,7 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
         description: "The appraisal has been reviewed and forwarded to HR for final processing.",
       });
       queryClient.invalidateQueries({ queryKey: ['committee-appraisals'] });
+      queryClient.invalidateQueries({ queryKey: ['hr-appraisals'] });
     },
     onError: (error) => {
       setIsSubmitting(false);

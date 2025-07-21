@@ -1,72 +1,103 @@
 
-import React from "react";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/components/AuthProvider";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import ManagerAppraisals from "./pages/ManagerAppraisals";
-import MyAppraisals from "./pages/MyAppraisals";
-import EmployeeManagement from "./pages/EmployeeManagement";
-import DepartmentManagement from "./pages/DepartmentManagement";
-import AppraisalCycles from "./pages/AppraisalCycles";
-import QuestionTemplates from "./pages/QuestionTemplates";
-import EmployeeQuestions from "./pages/EmployeeQuestions";
-import EmployeeQuestionsView from "./pages/EmployeeQuestionsView";
-import Committee from "./pages/Committee";
-import CompanyReports from "./pages/CompanyReports";
-import Notifications from "./pages/Notifications";
-import AppraisalPage from "./pages/AppraisalPage";
-import NewAppraisalPage from "./pages/NewAppraisalPage";
-import NotFound from "./pages/NotFound";
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from '@/components/ui/toaster';
+import { AuthProvider } from '@/components/AuthProvider';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import Login from '@/pages/Login';
+import Dashboard from '@/pages/Dashboard';
+import Employees from '@/pages/Employees';
+import Questions from '@/pages/Questions';
+import AppraisalCycles from '@/pages/AppraisalCycles';
+import Settings from '@/pages/Settings';
+import EmployeeAppraisal from '@/pages/EmployeeAppraisal';
+import ManagerAppraisals from '@/pages/ManagerAppraisals';
+import Committee from '@/pages/Committee';
+import HRAppraisals from '@/pages/HRAppraisals';
+import Profile from '@/pages/Profile';
+import MyAppraisals from '@/pages/MyAppraisals';
 
-// Create QueryClient with proper configuration
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 3,
+      retry: 1,
       refetchOnWindowFocus: false,
-      staleTime: 5 * 60 * 1000, // 5 minutes
     },
   },
 });
 
 function App() {
+  console.log('🔍 HEADER AUDIT: App.tsx rendering - should show ONLY ONE header via DashboardLayout');
+
   return (
-    <React.StrictMode>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AuthProvider>
-              <Routes>
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-                <Route path="/manager-appraisals" element={<ProtectedRoute><ManagerAppraisals /></ProtectedRoute>} />
-                <Route path="/my-appraisals" element={<ProtectedRoute><MyAppraisals /></ProtectedRoute>} />
-                <Route path="/appraisal/new" element={<ProtectedRoute><NewAppraisalPage /></ProtectedRoute>} />
-                <Route path="/appraisal/:id" element={<ProtectedRoute><AppraisalPage /></ProtectedRoute>} />
-                <Route path="/employee-management" element={<ProtectedRoute><EmployeeManagement /></ProtectedRoute>} />
-                <Route path="/department-management" element={<ProtectedRoute><DepartmentManagement /></ProtectedRoute>} />
-                <Route path="/appraisal-cycles" element={<ProtectedRoute><AppraisalCycles /></ProtectedRoute>} />
-                <Route path="/question-templates" element={<ProtectedRoute><QuestionTemplates /></ProtectedRoute>} />
-                <Route path="/employee-questions" element={<ProtectedRoute><EmployeeQuestions /></ProtectedRoute>} />
-                <Route path="/employee-questions/:employeeId" element={<ProtectedRoute><EmployeeQuestionsView /></ProtectedRoute>} />
-                <Route path="/committee" element={<ProtectedRoute><Committee /></ProtectedRoute>} />
-                <Route path="/company-reports" element={<ProtectedRoute><CompanyReports /></ProtectedRoute>} />
-                <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </AuthProvider>
-          </BrowserRouter>
-        </TooltipProvider>
-      </QueryClientProvider>
-    </React.StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <Router>
+          <div className="App">
+            <Routes>
+              <Route path="/" element={<Login />} />
+              <Route path="/dashboard" element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/employees" element={
+                <ProtectedRoute allowedRoles={['hr', 'admin']}>
+                  <Employees />
+                </ProtectedRoute>
+              } />
+              <Route path="/questions" element={
+                <ProtectedRoute allowedRoles={['hr', 'admin']}>
+                  <Questions />
+                </ProtectedRoute>
+              } />
+              <Route path="/appraisal-cycles" element={
+                <ProtectedRoute allowedRoles={['hr', 'admin']}>
+                  <AppraisalCycles />
+                </ProtectedRoute>
+              } />
+              <Route path="/settings" element={
+                <ProtectedRoute>
+                  <Settings />
+                </ProtectedRoute>
+              } />
+              <Route path="/appraisal/:appraisalId" element={
+                <ProtectedRoute>
+                  <EmployeeAppraisal />
+                </ProtectedRoute>
+              } />
+              <Route path="/manager-appraisals" element={
+                <ProtectedRoute allowedRoles={['manager', 'hr', 'admin']}>
+                  <ManagerAppraisals />
+                </ProtectedRoute>
+              } />
+              <Route path="/committee" element={
+                <ProtectedRoute allowedRoles={['hr', 'admin']}>
+                  <Committee />
+                </ProtectedRoute>
+              } />
+              <Route path="/hr-appraisals" element={
+                <ProtectedRoute allowedRoles={['hr', 'admin']}>
+                  <HRAppraisals />
+                </ProtectedRoute>
+              } />
+              <Route path="/profile" element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              } />
+              <Route path="/my-appraisals" element={
+                <ProtectedRoute>
+                  <MyAppraisals />
+                </ProtectedRoute>
+              } />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </div>
+        </Router>
+        <Toaster />
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 

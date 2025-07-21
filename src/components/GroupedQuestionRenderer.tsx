@@ -51,7 +51,6 @@ export function GroupedQuestionRenderer({
   ];
 
   const sortedSections = Object.keys(groupedQuestions).sort((a, b) => {
-    // Normalize section names for comparison
     const normalizeSection = (section: string) => section.toUpperCase().trim();
     const aNormalized = normalizeSection(a);
     const bNormalized = normalizeSection(b);
@@ -89,55 +88,30 @@ export function GroupedQuestionRenderer({
         
         return (
           <div key={sectionName} className="space-y-6">
-            {/* Section Header - One header per section */}
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-5 h-5 flex-shrink-0">
-                    <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
-                  </div>
-                  <h2 className="text-lg font-bold text-gray-900">
-                    {sectionName} {employeeName ? `- ${employeeName}` : ''}
-                  </h2>
-                </div>
-                <div className="flex items-center space-x-4 text-sm text-gray-600">
-                  <span>Weight: 1</span>
-                  <span>Max: 5</span>
-                  <div className="flex space-x-1">
-                    <button className="p-1 hover:bg-gray-200 rounded" type="button">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    <button className="p-1 hover:bg-gray-200 rounded text-red-600" type="button">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
+            {/* Section Header */}
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">
+                {sectionName} {employeeName ? `- ${employeeName}` : ''}
+              </h2>
+              
+              {/* Questions under this section */}
+              <div className="space-y-4">
+                {sectionQuestions.map((question) => {
+                  const currentQuestionNumber = globalQuestionNumber++;
+                  return (
+                    <AppraisalQuestionRenderer
+                      key={question.id}
+                      question={question}
+                      value={values[question.id]}
+                      onChange={onChange}
+                      disabled={disabled || isNonRatingSection(sectionName)}
+                      questionNumber={currentQuestionNumber}
+                      showSectionHeader={false}
+                      employeeName=""
+                    />
+                  );
+                })}
               </div>
-            </div>
-
-            {/* Questions under this section */}
-            <div className="space-y-4 pl-4">
-              {sectionQuestions.map((question) => {
-                const currentQuestionNumber = globalQuestionNumber++;
-                return (
-                  <AppraisalQuestionRenderer
-                    key={question.id}
-                    question={question}
-                    value={values[question.id]}
-                    onChange={onChange}
-                    disabled={disabled || isNonRatingSection(sectionName)}
-                    questionNumber={currentQuestionNumber}
-                    showSectionHeader={false}
-                    employeeName=""
-                  />
-                );
-              })}
             </div>
           </div>
         );
