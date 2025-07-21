@@ -27,7 +27,6 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
 
   console.log('🔍 CommitteeReviewDetail: Loading appraisal ID:', appraisalId);
 
-  // Fetch appraisal details with employee info and responses
   const { data: appraisalData, isLoading, error } = useQuery({
     queryKey: ['committee-appraisal-detail', appraisalId],
     queryFn: async () => {
@@ -77,7 +76,6 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
     enabled: !!appraisalId
   });
 
-  // Fetch appraisal history for the employee - make this optional
   const { data: appraisalHistory } = useQuery({
     queryKey: ['employee-appraisal-history', appraisalData?.employee_id],
     queryFn: async () => {
@@ -109,7 +107,6 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
     retry: 1
   });
 
-  // Fetch performance analytics - make this optional and lightweight
   const { data: analytics } = useQuery({
     queryKey: ['employee-analytics', appraisalData?.employee_id],
     queryFn: async () => {
@@ -137,19 +134,16 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
     retry: 0
   });
 
-  // Submit committee review
   const submitReviewMutation = useMutation({
     mutationFn: async () => {
       console.log('🚀 CommitteeReviewDetail: Submitting review...');
       setIsSubmitting(true);
       
-      // Calculate final scores
       let totalWeightedScore = 0;
       let totalWeight = 0;
       
       const responses = appraisalData?.responses || [];
       
-      // Update individual response scores with committee ratings
       for (const response of responses) {
         const committeeScore = committeeScores[response.id];
         if (committeeScore) {
@@ -171,7 +165,6 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
       
       const finalScore = Math.round(totalWeightedScore / totalWeight);
       
-      // Calculate performance band
       let performanceBand = 'Poor';
       if (finalScore >= 91) performanceBand = 'Exceptional';
       else if (finalScore >= 81) performanceBand = 'Excellent';
@@ -179,7 +172,6 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
       else if (finalScore >= 61) performanceBand = 'Good';
       else if (finalScore >= 51) performanceBand = 'Fair';
 
-      // Update appraisal with committee review
       const { error: appraisalError } = await supabase
         .from('appraisals')
         .update({
@@ -188,7 +180,7 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
           committee_reviewed_by: (await supabase.auth.getUser()).data.user?.id,
           overall_score: finalScore,
           performance_band: performanceBand,
-          status: 'completed'
+          status: 'hr_review'
         })
         .eq('id', appraisalId);
 
@@ -228,7 +220,6 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
     return scoredResponses === responses.length && committeeComments.trim().length > 0;
   };
 
-  // Handle loading states
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -275,7 +266,6 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
   const employee = appraisalData.employee;
   const responses = appraisalData.responses || [];
 
-  // Create questions from responses for the grouped renderer
   const questions = responses.map(response => ({
     id: response.id,
     question_text: response.question?.question_text || '',
@@ -284,7 +274,6 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
     section: response.question?.section
   }));
 
-  // Create values object for displaying current responses
   const responseValues = responses.reduce((acc, response) => {
     acc[response.id] = {
       emp_rating: response.emp_rating,
@@ -297,7 +286,6 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
 
   return (
     <div className="space-y-6">
-      {/* Employee Header */}
       <Card className="border-l-4 border-l-purple-500">
         <CardHeader>
           <div className="flex justify-between items-start">
@@ -367,7 +355,6 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
             </CardContent>
           </Card>
 
-          {/* Committee Final Comments */}
           <Card>
             <CardHeader>
               <CardTitle>Committee Final Comments</CardTitle>
