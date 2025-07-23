@@ -95,6 +95,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           is_required: boolean
+          multiple_choice_options: string[]
           question_text: string
           question_type: string
           section_id: string | null
@@ -109,6 +110,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_required?: boolean
+          multiple_choice_options?: string[]
           question_text: string
           question_type?: string
           section_id?: string | null
@@ -123,6 +125,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_required?: boolean
+          multiple_choice_options?: string[]
           question_text?: string
           question_type?: string
           section_id?: string | null

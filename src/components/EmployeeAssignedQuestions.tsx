@@ -51,7 +51,7 @@ export function EmployeeAssignedQuestions({ employeeId }: EmployeeAssignedQuesti
           )
         `)
         .eq('employee_id', employeeId)
-        .in('status', ['pending', 'in_progress'])
+        .in('status', ['draft', 'submitted'])
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -259,7 +259,7 @@ export function EmployeeAssignedQuestions({ employeeId }: EmployeeAssignedQuesti
                     </div>
                     <div className="text-right">
                       <Badge className="bg-blue-100 text-blue-800 text-sm px-3 py-1">
-                        {currentAppraisal.status === 'pending' ? 'Pending' : 'In Progress'}
+                        {currentAppraisal.status === 'draft' ? 'Draft' : 'Submitted'}
                       </Badge>
                       <p className="text-sm text-gray-500 mt-2">
                         <strong>{currentAppraisal.cycle?.name || 'Unknown Cycle'}</strong>
