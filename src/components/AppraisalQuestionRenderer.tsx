@@ -11,6 +11,7 @@ interface Question {
   question_type: string;
   is_required: boolean;
   multiple_choice_options?: string[];
+  weight?: number;
   section?: {
     name: string;
   };
@@ -45,10 +46,6 @@ export function AppraisalQuestionRenderer({
   const renderRatingQuestion = () => (
     <div className="flex items-center justify-end space-x-2">
       <div className="flex items-center space-x-1">
-        <span className="text-sm text-gray-600 mr-2">rating</span>
-        <span className="text-sm text-gray-600 mr-2">Weight: 1</span>
-        <span className="text-sm text-gray-600 mr-4">Required</span>
-        
         {/* Toggle switch for rating */}
         <div className="relative">
           <input 
@@ -85,10 +82,6 @@ export function AppraisalQuestionRenderer({
 
   const renderTextQuestion = () => (
     <div className="flex items-center justify-end space-x-2">
-      <span className="text-sm text-gray-600 mr-2">text</span>
-      <span className="text-sm text-gray-600 mr-2">Weight: 1</span>
-      <span className="text-sm text-gray-600 mr-4">Required</span>
-      
       <div className="flex space-x-1">
         <button className="p-1 hover:bg-gray-200 rounded">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -141,33 +134,40 @@ export function AppraisalQuestionRenderer({
   );
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4">
-      <div className="flex items-start justify-between">
+    <div className="question-container mb-6 pb-4 border-b border-gray-200">
+      {/* Question Header with Number and Text */}
+      <div className="question-header flex items-start space-x-3 mb-2">
+        <span className="question-number text-gray-600 font-medium flex-shrink-0">
+          Q{questionNumber}.
+        </span>
         <div className="flex-1">
-          <div className="flex items-start space-x-3">
-            <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm font-medium flex-shrink-0">
-              Q{questionNumber}
-            </span>
-            <div className="flex-1">
-              <p className="text-gray-900 font-medium leading-relaxed">
-                {question.question_text}
-                {question.is_required && (
-                  <span className="text-red-500 ml-1">*</span>
-                )}
-              </p>
-            </div>
-          </div>
+          <p className="question-text text-gray-900 font-medium leading-relaxed">
+            {question.question_text}
+            {question.is_required && (
+              <span className="text-red-500 ml-1">*</span>
+            )}
+          </p>
         </div>
         
+        {/* Action buttons for rating/text questions */}
         <div className="flex-shrink-0 ml-4">
           {question.question_type === 'rating' && renderRatingQuestion()}
           {question.question_type === 'text' && renderTextQuestion()}
         </div>
       </div>
 
-      {/* Render input area for text questions or other non-rating types */}
+      {/* Question Metadata */}
+      <div className="question-meta text-sm text-gray-600 mb-4 ml-8">
+        <span>Type: {question.question_type}</span>
+        <span className="mx-2">|</span>
+        <span>Weight: {question.weight || 1}</span>
+        <span className="mx-2">|</span>
+        <span>Required: {question.is_required ? 'Yes' : 'No'}</span>
+      </div>
+
+      {/* Input Areas */}
       {question.question_type === 'text' && (
-        <div className="mt-4">
+        <div className="ml-8">
           <Textarea
             value={localValue}
             onChange={(e) => handleValueChange(e.target.value)}
@@ -180,13 +180,13 @@ export function AppraisalQuestionRenderer({
       )}
 
       {question.question_type === 'yes_no' && (
-        <div className="mt-4">
+        <div className="ml-8">
           {renderYesNoQuestion()}
         </div>
       )}
 
       {question.question_type === 'multiple_choice' && (
-        <div className="mt-4">
+        <div className="ml-8">
           {renderMultipleChoiceQuestion()}
         </div>
       )}
