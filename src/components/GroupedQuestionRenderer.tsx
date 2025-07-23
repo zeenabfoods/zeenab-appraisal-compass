@@ -79,18 +79,15 @@ export function GroupedQuestionRenderer({
     );
   };
 
-  // Global question counter for continuous numbering
-  let globalQuestionNumber = 1;
-
   return (
     <div className="space-y-8">
       {sortedSections.map((sectionName) => {
         const sectionQuestions = groupedQuestions[sectionName];
         
         return (
-          <div key={sectionName} className="space-y-6">
-            {/* Section Header - One header per section */}
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <div key={sectionName} className="border border-gray-200 rounded-lg">
+            {/* Section Header */}
+            <div className="bg-gray-50 border-b border-gray-200 p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className="w-5 h-5 flex-shrink-0">
@@ -121,23 +118,20 @@ export function GroupedQuestionRenderer({
               </div>
             </div>
 
-            {/* Questions under this section */}
-            <div className="space-y-4 pl-4">
-              {sectionQuestions.map((question) => {
-                const currentQuestionNumber = globalQuestionNumber++;
-                return (
-                  <AppraisalQuestionRenderer
-                    key={question.id}
-                    question={question}
-                    value={values[question.id]}
-                    onChange={onChange}
-                    disabled={disabled || isNonRatingSection(sectionName)}
-                    questionNumber={currentQuestionNumber}
-                    showSectionHeader={false}
-                    employeeName=""
-                  />
-                );
-              })}
+            {/* Questions List */}
+            <div className="p-4 space-y-4">
+              {sectionQuestions.map((question, index) => (
+                <AppraisalQuestionRenderer
+                  key={question.id}
+                  question={question}
+                  value={values[question.id]}
+                  onChange={onChange}
+                  disabled={disabled || isNonRatingSection(sectionName)}
+                  questionNumber={index + 1}
+                  showSectionHeader={false}
+                  employeeName=""
+                />
+              ))}
             </div>
           </div>
         );
