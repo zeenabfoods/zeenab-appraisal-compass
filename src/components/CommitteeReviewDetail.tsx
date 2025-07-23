@@ -51,6 +51,7 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
                 question_text,
                 question_type,
                 is_required,
+                multiple_choice_options,
                 section:appraisal_question_sections(name)
               )
             )
@@ -266,20 +267,25 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
   const employee = appraisalData.employee;
   const responses = appraisalData.responses || [];
 
+  // Transform responses into properly formatted questions for GroupedQuestionRenderer
   const questions = responses.map(response => ({
     id: response.id,
     question_text: response.question?.question_text || '',
     question_type: response.question?.question_type || 'rating',
     is_required: response.question?.is_required || false,
+    multiple_choice_options: response.question?.multiple_choice_options || [],
     section: response.question?.section
   }));
 
+  // Create proper response values format that GroupedQuestionRenderer expects
   const responseValues = responses.reduce((acc, response) => {
     acc[response.id] = {
       emp_rating: response.emp_rating,
       mgr_rating: response.mgr_rating,
+      committee_rating: response.committee_rating,
       emp_comment: response.emp_comment,
-      mgr_comment: response.mgr_comment
+      mgr_comment: response.mgr_comment,
+      committee_comment: response.committee_comment
     };
     return acc;
   }, {} as Record<string, any>);

@@ -4,6 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 interface Question {
   id: string;
@@ -50,6 +51,23 @@ export function AppraisalQuestionRenderer({
   const handleValueChange = (newValue: any) => {
     setLocalValue(newValue);
     onChange(question.id, newValue);
+  };
+
+  const renderRatingDisplay = (rating: number | null | undefined, label: string) => {
+    if (!rating) {
+      return <span className="text-sm text-gray-400">Not rated</span>;
+    }
+    
+    return (
+      <div className="flex items-center space-x-2">
+        <Badge variant="outline" className="px-2 py-1">
+          {rating}/5
+        </Badge>
+        <span className="text-sm text-gray-600">
+          {getRatingLabel(rating)}
+        </span>
+      </div>
+    );
   };
 
   const renderRatingInput = () => {
@@ -133,6 +151,10 @@ export function AppraisalQuestionRenderer({
     return labels[rating as keyof typeof labels] || 'Unknown';
   };
 
+  // Check if we're displaying committee review data (has employee and manager responses)
+  const isCommitteeReview = disabled && value && typeof value === 'object' && 
+    (value.emp_rating || value.mgr_rating || value.emp_comment || value.mgr_comment);
+
   return (
     <div className="question-item space-y-6">
       {/* Section Header */}
@@ -150,44 +172,114 @@ export function AppraisalQuestionRenderer({
         </h3>
       </div>
 
-      {/* Rating and Comment Grid */}
-      <div className="grid gap-2 mt-4">
-        {/* Your Rating */}
-        <div className="mb-3">
-          <Label className="font-bold text-sm mb-2 block">Your Rating:</Label>
-          {renderRatingInput()}
-        </div>
+      {/* Response Display for Committee Review */}
+      {isCommitteeReview ? (
+        <div className="grid gap-4 mt-4">
+          {/* Employee Response */}
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <h4 className="font-semibold text-blue-900 mb-3">Employee Response</h4>
+            <div className="space-y-3">
+              <div>
+                <Label className="font-medium text-sm text-blue-800">Rating:</Label>
+                <div className="mt-1">
+                  {renderRatingDisplay(value.emp_rating, 'Employee')}
+                </div>
+              </div>
+              <div>
+                <Label className="font-medium text-sm text-blue-800">Comment:</Label>
+                <div className="mt-1 p-3 bg-white rounded border">
+                  <p className="text-sm text-gray-700">
+                    {value.emp_comment || 'No comment provided'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
 
-        {/* Your Comment */}
-        <div className="mb-4">
-          <Label className="font-bold text-sm mb-2 block">Your Comment:</Label>
-          <Textarea
-            value={localValue}
-            onChange={(e) => handleValueChange(e.target.value)}
-            placeholder="Enter your comment..."
-            disabled={disabled}
-            rows={3}
-            className="resize-none p-3"
-          />
-        </div>
+          {/* Manager Response */}
+          <div className="bg-green-50 p-4 rounded-lg">
+            <h4 className="font-semibold text-green-900 mb-3">Manager Response</h4>
+            <div className="space-y-3">
+              <div>
+                <Label className="font-medium text-sm text-green-800">Rating:</Label>
+                <div className="mt-1">
+                  {renderRatingDisplay(value.mgr_rating, 'Manager')}
+                </div>
+              </div>
+              <div>
+                <Label className="font-medium text-sm text-green-800">Comment:</Label>
+                <div className="mt-1 p-3 bg-white rounded border">
+                  <p className="text-sm text-gray-700">
+                    {value.mgr_comment || 'No comment provided'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
 
-        {/* Manager Rating */}
-        <div className="mb-3">
-          <Label className="font-bold text-sm mb-2 block">Manager Rating:</Label>
-          <span className="text-sm text-gray-500">To be completed by manager</span>
+          {/* Committee Response (if available) */}
+          {(value.committee_rating || value.committee_comment) && (
+            <div className="bg-purple-50 p-4 rounded-lg">
+              <h4 className="font-semibold text-purple-900 mb-3">Committee Response</h4>
+              <div className="space-y-3">
+                <div>
+                  <Label className="font-medium text-sm text-purple-800">Rating:</Label>
+                  <div className="mt-1">
+                    {renderRatingDisplay(value.committee_rating, 'Committee')}
+                  </div>
+                </div>
+                <div>
+                  <Label className="font-medium text-sm text-purple-800">Comment:</Label>
+                  <div className="mt-1 p-3 bg-white rounded border">
+                    <p className="text-sm text-gray-700">
+                      {value.committee_comment || 'No comment provided'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
+      ) : (
+        /* Regular Rating and Comment Grid for active forms */
+        <div className="grid gap-2 mt-4">
+          {/* Your Rating */}
+          <div className="mb-3">
+            <Label className="font-bold text-sm mb-2 block">Your Rating:</Label>
+            {renderRatingInput()}
+          </div>
 
-        {/* Manager Comment */}
-        <div className="mb-4">
-          <Label className="font-bold text-sm mb-2 block">Manager Comment:</Label>
-          <Textarea
-            placeholder="Manager comment will appear here..."
-            disabled={true}
-            rows={3}
-            className="resize-none p-3 bg-gray-50"
-          />
+          {/* Your Comment */}
+          <div className="mb-4">
+            <Label className="font-bold text-sm mb-2 block">Your Comment:</Label>
+            <Textarea
+              value={localValue}
+              onChange={(e) => handleValueChange(e.target.value)}
+              placeholder="Enter your comment..."
+              disabled={disabled}
+              rows={3}
+              className="resize-none p-3"
+            />
+          </div>
+
+          {/* Manager Rating */}
+          <div className="mb-3">
+            <Label className="font-bold text-sm mb-2 block">Manager Rating:</Label>
+            <span className="text-sm text-gray-500">To be completed by manager</span>
+          </div>
+
+          {/* Manager Comment */}
+          <div className="mb-4">
+            <Label className="font-bold text-sm mb-2 block">Manager Comment:</Label>
+            <Textarea
+              placeholder="Manager comment will appear here..."
+              disabled={true}
+              rows={3}
+              className="resize-none p-3 bg-gray-50"
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Horizontal Divider */}
       <div className="border-t border-gray-300 my-6"></div>
