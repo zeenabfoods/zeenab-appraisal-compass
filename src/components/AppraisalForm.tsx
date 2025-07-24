@@ -1,425 +1,673 @@
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useAuthContext } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { AppraisalQuestionRenderer } from './AppraisalQuestionRenderer';
-import { AppraisalFormHeader } from './AppraisalFormHeader';
-import { GroupedQuestionRenderer } from './GroupedQuestionRenderer';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { formatCycleName } from '@/utils/cycleFormatting';
 
-interface Appraisal {
+// Browser-native UUID generation with fallback
+const generateId = () => {
+  try {
+    return window.crypto.randomUUID();
+  } catch (e) {
+    console.warn('crypto.randomUUID() not available, using fallback');
+    return Date.now().toString(36) + Math.random().toString(36).substring(2);
+  }
+};
+
+interface AppraisalQuestion {
   id: string;
+  question_text: string;
+  weight: number;
+  section_id: string;
+  appraisal_question_sections: {
+    name: string;
+  };
+}
+
+interface AppraisalResponse {
+  id?: string;
+  question_id: string;
+  emp_rating: number | null;
+  mgr_rating: number | null;
+  emp_comment: string;
+  mgr_comment: string;
+  question?: AppraisalQuestion;
+}
+
+interface AppraisalData {
+  id?: string;
   employee_id: string;
   cycle_id: string;
   status: string;
-  goals: string | null;
-  training_needs: string | null;
-  noteworthy: string | null;
-  emp_comments: string | null;
-  mgr_comments: string | null;
-}
-
-interface Question {
-  id: string;
-  question_text: string;
-  section_id: string;
-  question_type: string;
-  weight: number;
-  is_required: boolean;
-  is_active: boolean;
-  sort_order: number;
-  multiple_choice_options?: string[];
-}
-
-interface Response {
-  id: string;
-  question_id: string;
-  appraisal_id: string;
-  emp_response: string | null;
-  mgr_response: string | null;
-  committee_response: string | null;
-  emp_rating: number | null;
-  mgr_rating: number | null;
-  committee_rating: number | null;
+  goals: string;
+  training_needs: string;
+  noteworthy: string;
+  emp_comments: string;
+  mgr_comments: string;
+  overall_score: number | null;
+  performance_band: string;
+  employee_submitted_at: string | null;
+  manager_reviewed_at: string | null;
+  cycle: {
+    name: string;
+    quarter: number;
+    year: number;
+  };
+  employee: {
+    first_name: string;
+    last_name: string;
+    position: string;
+    email: string;
+    department: {
+      name: string;
+    };
+  };
 }
 
 interface AppraisalFormProps {
   appraisalId?: string;
 }
 
-export function AppraisalForm({ appraisalId }: AppraisalFormProps) {
+export function AppraisalForm({ appraisalId: propsAppraisalId }: AppraisalFormProps) {
   const { appraisalId: paramAppraisalId } = useParams<{ appraisalId: string }>();
-  const finalAppraisalId = appraisalId || paramAppraisalId;
+  const appraisalId = propsAppraisalId || paramAppraisalId;
+  
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile } = useAuthContext();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const [appraisal, setAppraisal] = useState<Appraisal | null>(null);
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [responses, setResponses] = useState<Response[]>([]);
-  const [employeeName, setEmployeeName] = useState<string>('');
-  const [cycleName, setCycleName] = useState<string>('');
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [appraisalData, setAppraisalData] = useState<AppraisalData | null>(null);
+  const [responses, setResponses] = useState<AppraisalResponse[]>([]);
+  const [goals, setGoals] = useState('');
+  const [trainingNeeds, setTrainingNeeds] = useState('');
+  const [noteworthy, setNoteworthy] = useState('');
+  const [empComments, setEmpComments] = useState('');
+  const [mgrComments, setMgrComments] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+
+  console.log('🔍 AppraisalForm: Rendered with appraisalId:', appraisalId);
+
+  // Fetch appraisal data
+  const { data: appraisalQuery, isLoading } = useQuery({
+    queryKey: ['appraisal', appraisalId],
+    queryFn: async () => {
+      if (!appraisalId) throw new Error("Appraisal ID is required");
+
+      console.log('📋 AppraisalForm: Fetching appraisal data for ID:', appraisalId);
+
+      const { data, error } = await supabase
+        .from('appraisals')
+        .select(`
+          *,
+          cycle:appraisal_cycles(name, quarter, year),
+          employee:profiles!appraisals_employee_id_fkey(
+            first_name,
+            last_name,
+            position,
+            email,
+            department:departments!profiles_department_id_fkey(name)
+          )
+        `)
+        .eq('id', appraisalId)
+        .single();
+
+      if (error) {
+        console.error("❌ AppraisalForm: Error fetching appraisal:", error);
+        throw error;
+      }
+
+      console.log('✅ AppraisalForm: Appraisal data loaded:', data);
+
+      // Ensure we have the proper structure
+      if (!data.employee || !data.cycle) {
+        throw new Error("Missing required appraisal data");
+      }
+
+      return data;
+    },
+    enabled: !!appraisalId,
+  });
+
+  // Fetch appraisal responses
+  const { data: responsesQuery } = useQuery({
+    queryKey: ['appraisal-responses', appraisalId],
+    queryFn: async () => {
+      if (!appraisalId) throw new Error("Appraisal ID is required");
+
+      console.log('📋 AppraisalForm: Fetching responses for appraisal:', appraisalId);
+
+      const { data, error } = await supabase
+        .from('appraisal_responses')
+        .select(`
+          *,
+          question:appraisal_questions(
+            id,
+            question_text,
+            weight,
+            section_id,
+            appraisal_question_sections(name)
+          )
+        `)
+        .eq('appraisal_id', appraisalId);
+
+      if (error) {
+        console.error("❌ AppraisalForm: Error fetching appraisal responses:", error);
+        throw error;
+      }
+
+      console.log('✅ AppraisalForm: Responses loaded:', data?.length || 0);
+      return data as AppraisalResponse[];
+    },
+    enabled: !!appraisalId,
+  });
 
   useEffect(() => {
-    const fetchAppraisalData = async () => {
-      try {
-        setLoading(true);
-
-        // Fetch appraisal
-        const { data: appraisalData, error: appraisalError } = await supabase
-          .from('appraisals')
-          .select('*')
-          .eq('id', finalAppraisalId)
-          .single();
-
-        if (appraisalError) throw appraisalError;
-        setAppraisal(appraisalData);
-
-        // Fetch employee name
-        const { data: employeeData, error: employeeError } = await supabase
-          .from('profiles')
-          .select('first_name, last_name')
-          .eq('id', appraisalData.employee_id)
-          .single();
-
-        if (employeeError) throw employeeError;
-        setEmployeeName(`${employeeData.first_name} ${employeeData.last_name}`);
-
-        // Fetch cycle name
-         const { data: cycleData, error: cycleError } = await supabase
-          .from('appraisal_cycles')
-          .select('name')
-          .eq('id', appraisalData.cycle_id)
-          .single();
-
-        if (cycleError) throw cycleError;
-        setCycleName(cycleData.name);
-
-        // Fetch questions
-        const { data: questionData, error: questionError } = await supabase
-          .from('appraisal_questions')
-          .select('*')
-          .eq('is_active', true)
-          .order('sort_order');
-
-        if (questionError) throw questionError;
-        setQuestions(questionData);
-
-        // Fetch responses
-        const { data: responseData, error: responseError } = await supabase
-          .from('appraisal_responses')
-          .select('*')
-          .eq('appraisal_id', finalAppraisalId)
-          .order('created_at');
-
-        if (responseError) throw responseError;
-        
-        // Transform the response data to match our Response interface
-        const transformedResponses: Response[] = (responseData || []).map(item => ({
-          id: item.id,
-          question_id: item.question_id,
-          appraisal_id: item.appraisal_id,
-          emp_response: item.emp_comment || null,
-          mgr_response: item.mgr_comment || null,
-          committee_response: item.committee_comment || null,
-          emp_rating: item.emp_rating || null,
-          mgr_rating: item.mgr_rating || null,
-          committee_rating: item.committee_rating || null,
-        }));
-
-        setResponses(transformedResponses);
-
-      } catch (error) {
-        console.error('Error fetching appraisal data:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load appraisal data",
-          variant: "destructive"
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (finalAppraisalId) {
-      fetchAppraisalData();
+    if (appraisalQuery) {
+      console.log('📋 AppraisalForm: Setting appraisal data from query');
+      setAppraisalData(appraisalQuery as AppraisalData);
+      setGoals(appraisalQuery?.goals || '');
+      setTrainingNeeds(appraisalQuery?.training_needs || '');
+      setNoteworthy(appraisalQuery?.noteworthy || '');
+      setEmpComments(appraisalQuery?.emp_comments || '');
+      setMgrComments(appraisalQuery?.mgr_comments || '');
     }
-  }, [finalAppraisalId, toast]);
+  }, [appraisalQuery]);
 
-  const canEdit = profile?.id === appraisal?.employee_id && appraisal?.status === 'draft';
+  useEffect(() => {
+    if (responsesQuery) {
+      console.log('📋 AppraisalForm: Setting responses from query');
+      setResponses(responsesQuery);
+    }
+  }, [responsesQuery]);
 
-  const handleResponseChange = (questionId: string, value: any) => {
-    setResponses(prevResponses => {
-      const existingResponseIndex = prevResponses.findIndex(r => r.question_id === questionId);
+  // Check if the appraisal is in read-only mode
+  const isReadOnly = appraisalData?.status !== 'draft' || appraisalData?.employee_id !== profile?.id;
 
-      if (existingResponseIndex !== -1) {
-        // Update existing response
-        const updatedResponses = [...prevResponses];
-        updatedResponses[existingResponseIndex] = {
-          ...updatedResponses[existingResponseIndex],
-          emp_response: value,
-        };
-        return updatedResponses;
+  console.log('🔒 AppraisalForm: Read-only mode:', isReadOnly, 'Status:', appraisalData?.status, 'Employee matches profile:', appraisalData?.employee_id === profile?.id);
+
+  const updateResponseMutation = useMutation({
+    mutationFn: async (updatedResponse: AppraisalResponse) => {
+      if (!updatedResponse.id) {
+        // If the response doesn't have an ID, it's a new response
+        const { data, error } = await supabase
+          .from('appraisal_responses')
+          .insert([
+            {
+              appraisal_id: appraisalId,
+              question_id: updatedResponse.question_id,
+              emp_rating: updatedResponse.emp_rating,
+              mgr_rating: updatedResponse.mgr_rating,
+              emp_comment: updatedResponse.emp_comment,
+              mgr_comment: updatedResponse.mgr_comment,
+            },
+          ])
+          .select()
+          .single();
+
+        if (error) {
+          console.error("Error creating appraisal response:", error);
+          throw error;
+        }
+
+        return data as AppraisalResponse;
       } else {
-        // Create new response
-        const newResponse: Response = {
-          id: '', // This will be generated by the database
-          question_id: questionId,
-          appraisal_id: finalAppraisalId || '',
-          emp_response: value,
-          mgr_response: null,
-          committee_response: null,
-          emp_rating: null,
-          mgr_rating: null,
-          committee_rating: null,
-        };
-        return [...prevResponses, newResponse];
+        // If the response has an ID, it's an existing response
+        const { data, error } = await supabase
+          .from('appraisal_responses')
+          .update({
+            emp_rating: updatedResponse.emp_rating,
+            mgr_rating: updatedResponse.mgr_rating,
+            emp_comment: updatedResponse.emp_comment,
+            mgr_comment: updatedResponse.mgr_comment,
+          })
+          .eq('id', updatedResponse.id)
+          .select()
+          .single();
+
+        if (error) {
+          console.error("Error updating appraisal response:", error);
+          throw error;
+        }
+
+        return data as AppraisalResponse;
       }
-    });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appraisal-responses', appraisalId] });
+    },
+    onError: (error) => {
+      console.error("Error updating appraisal response:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update appraisal response. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleResponseChange = (responseId: string, field: string, value: any) => {
+    setResponses((prevResponses) =>
+      prevResponses.map((response) => {
+        if (response.id === responseId) {
+          return { ...response, [field]: value };
+        }
+        return response;
+      })
+    );
   };
 
-  const handleAdditionalInfoChange = (field: string, value: string) => {
-    setAppraisal(prevAppraisal => {
-      if (!prevAppraisal) return prevAppraisal;
-      return {
-        ...prevAppraisal,
-        [field]: value,
-      };
-    });
-  };
-
-  const handleSave = async () => {
+  const handleSaveResponse = async (response: AppraisalResponse) => {
+    if (isReadOnly) return;
+    
     try {
-      setSaving(true);
+      await updateResponseMutation.mutateAsync(response);
+      toast({
+        title: "Success",
+        description: "Appraisal response saved successfully."
+      });
+    } catch (error) {
+      console.error("Error saving appraisal response:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save appraisal response. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
 
-      // Update appraisal
-      const { error: appraisalError } = await supabase
+  const handleInputChange = (field: string, value: string) => {
+    switch (field) {
+      case 'goals':
+        setGoals(value);
+        break;
+      case 'training_needs':
+        setTrainingNeeds(value);
+        break;
+      case 'noteworthy':
+        setNoteworthy(value);
+        break;
+      case 'emp_comments':
+        setEmpComments(value);
+        break;
+      case 'mgr_comments':
+        setMgrComments(value);
+        break;
+      default:
+        break;
+    }
+  };
+
+  const handleSaveChanges = async () => {
+    if (isReadOnly) return;
+    
+    setIsSubmitting(true);
+    try {
+      if (!appraisalId) throw new Error("Appraisal ID is required");
+
+      const { error } = await supabase
         .from('appraisals')
         .update({
-          goals: appraisal?.goals,
-          training_needs: appraisal?.training_needs,
-          noteworthy: appraisal?.noteworthy,
-          emp_comments: appraisal?.emp_comments,
+          goals: goals,
+          training_needs: trainingNeeds,
+          noteworthy: noteworthy,
+          emp_comments: empComments,
+          mgr_comments: mgrComments,
         })
-        .eq('id', finalAppraisalId);
+        .eq('id', appraisalId);
 
-      if (appraisalError) throw appraisalError;
-
-      // Upsert responses
-      for (const response of responses) {
-        const { error: responseError } = await supabase
-          .from('appraisal_responses')
-          .upsert({
-            id: response.id || undefined,
-            question_id: response.question_id,
-            appraisal_id: finalAppraisalId,
-            emp_comment: response.emp_response,
-            emp_rating: response.emp_rating,
-          }, { onConflict: 'question_id,appraisal_id' });
-
-        if (responseError) {
-          console.error('Error upserting response:', responseError);
-          throw responseError;
-        }
+      if (error) {
+        console.error("Error updating appraisal:", error);
+        throw error;
       }
 
       toast({
         title: "Success",
-        description: "Appraisal saved successfully"
+        description: "Appraisal saved successfully."
       });
     } catch (error) {
-      console.error('Error saving appraisal:', error);
+      console.error("Error updating appraisal:", error);
       toast({
         title: "Error",
-        description: "Failed to save appraisal",
+        description: "Failed to save appraisal. Please try again.",
         variant: "destructive"
       });
     } finally {
-      setSaving(false);
+      setIsSubmitting(false);
     }
   };
 
   const handleSubmit = async () => {
+    if (isReadOnly) return;
+    
+    setIsSubmitting(true);
     try {
-      setSaving(true);
+      if (!appraisalId) throw new Error("Appraisal ID is required");
 
-      // Update appraisal status to 'submitted'
-      const { error: appraisalError } = await supabase
+      // Submit the appraisal
+      const { error: submitError } = await supabase
         .from('appraisals')
-        .update({ status: 'submitted' })
-        .eq('id', finalAppraisalId);
+        .update({
+          status: 'submitted' as any, // Type assertion to fix the TypeScript error
+          employee_submitted_at: new Date().toISOString(),
+          submitted_at: new Date().toISOString()
+        })
+        .eq('id', appraisalId);
 
-      if (appraisalError) throw appraisalError;
-
-      // Save data
-      await handleSave();
+      if (submitError) {
+        console.error("Error submitting appraisal:", submitError);
+        throw submitError;
+      }
 
       toast({
         title: "Success",
-        description: "Appraisal submitted successfully"
+        description: "Appraisal submitted successfully."
       });
-
       navigate('/my-appraisals');
     } catch (error) {
-      console.error('Error submitting appraisal:', error);
+      console.error("Error submitting appraisal:", error);
       toast({
         title: "Error",
-        description: "Failed to submit appraisal",
+        description: "Failed to submit appraisal. Please try again.",
         variant: "destructive"
       });
     } finally {
-      setSaving(false);
+      setIsSubmitting(false);
     }
   };
 
-  const renderContent = () => {
-    if (loading) {
-      return (
-        <div className="flex items-center justify-center p-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
-      );
-    }
+  const handleConfirmSubmit = () => {
+    setIsConfirmOpen(true);
+  };
 
-    if (!appraisal) {
-      return (
-        <div className="text-center p-8">
-          <p className="text-gray-600">Appraisal not found</p>
-        </div>
-      );
-    }
+  const handleCancelSubmit = () => {
+    setIsConfirmOpen(false);
+  };
 
+  if (isLoading || !appraisalQuery) {
     return (
-      <div className="space-y-6">
-        <AppraisalFormHeader
-          appraisalId={appraisal.id}
-          employeeName={employeeName}
-          cycleName={cycleName}
-          status={appraisal.status}
-        />
-
-        {/* Questions Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Appraisal Questions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <GroupedQuestionRenderer
-              questions={questions}
-              onResponseChange={handleResponseChange}
-              readonly={!canEdit}
-              showEmployeeInfo={false}
-            />
-          </CardContent>
-        </Card>
-
-        {/* Additional Information Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Additional Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Goals
-                </label>
-                <Textarea
-                  value={appraisal.goals || ''}
-                  onChange={(e) => handleAdditionalInfoChange('goals', e.target.value)}
-                  placeholder="Enter your goals"
-                  disabled={!canEdit}
-                  rows={4}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Training Needs
-                </label>
-                <Textarea
-                  value={appraisal.training_needs || ''}
-                  onChange={(e) => handleAdditionalInfoChange('training_needs', e.target.value)}
-                  placeholder="Enter your training needs"
-                  disabled={!canEdit}
-                  rows={4}
-                />
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Noteworthy Achievements
-              </label>
-              <Textarea
-                value={appraisal.noteworthy || ''}
-                onChange={(e) => handleAdditionalInfoChange('noteworthy', e.target.value)}
-                placeholder="Enter any noteworthy achievements"
-                disabled={!canEdit}
-                rows={4}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Additional Comments
-                </label>
-                <Textarea
-                  value={appraisal.emp_comments || ''}
-                  onChange={(e) => handleAdditionalInfoChange('emp_comments', e.target.value)}
-                  placeholder="Enter any additional comments"
-                  disabled={!canEdit}
-                  rows={4}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Manager Comments
-                </label>
-                <Textarea
-                  value={appraisal.mgr_comments || ''}
-                  placeholder="Manager comment will appear here..."
-                  disabled={true}
-                  rows={4}
-                  className="bg-gray-50"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Action Buttons */}
-        {canEdit && (
-          <div className="flex justify-end space-x-4">
-            <Button
-              onClick={handleSave}
-              disabled={saving}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {saving ? 'Saving...' : 'Save Draft'}
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={saving}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {saving ? 'Submitting...' : 'Submit for Review'}
-            </Button>
-          </div>
-        )}
+      <div className="flex items-center justify-center h-64">
+        <div className="flex flex-col items-center space-y-3">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+          <span className="text-gray-600">Loading appraisal...</span>
+        </div>
       </div>
     );
-  };
+  }
+
+  if (!appraisalData) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Appraisal Not Found</h3>
+        <p className="text-gray-600 text-center mb-4">The requested appraisal could not be found.</p>
+        <Button onClick={() => navigate('/my-appraisals')}>
+          Return to My Appraisals
+        </Button>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      {renderContent()}
+    <div className="space-y-6">
+      {/* Appraisal Details Header */}
+      <Card className="border-l-4 border-l-blue-500">
+        <CardHeader>
+          <div className="flex justify-between items-start">
+            <div className="flex items-center space-x-4">
+              <div className="bg-blue-100 p-3 rounded-full">
+                <div className="text-blue-600 text-lg font-semibold">
+                  {appraisalData?.employee?.first_name} {appraisalData?.employee?.last_name}
+                </div>
+              </div>
+              <div>
+                <p className="text-gray-600 text-lg">{appraisalData?.employee?.position}</p>
+                <p className="text-sm text-gray-500">
+                  {appraisalData?.employee?.email} • {appraisalData?.employee?.department?.name}
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <Badge className="bg-blue-100 text-blue-800 text-sm px-3 py-1">
+                {appraisalData?.status}
+              </Badge>
+              <p className="text-sm text-gray-500 mt-2">
+                {formatCycleName(appraisalData?.cycle)}
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Show read-only message if applicable */}
+      {isReadOnly && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="p-4">
+            <div className="text-orange-800">
+              <p className="font-medium">Read-Only Mode</p>
+              <p className="text-sm">
+                This appraisal is in read-only mode. 
+                {appraisalData?.status !== 'draft' 
+                  ? ' It has been submitted and cannot be edited.' 
+                  : ' You can only view the details.'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Appraisal Form */}
+      <div className="grid md:grid-cols-2 gap-6">
+        {responses?.map((response) => (
+          <Card key={response.id || generateId()}>
+            <CardHeader>
+              <CardTitle>{response.question?.question_text}</CardTitle>
+              <p className="text-sm text-gray-500">
+                Section: {response.question?.appraisal_question_sections?.name}
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor={`employee-rating-${response.id}`}>Your Rating</Label>
+                {isReadOnly ? (
+                  <div className="p-2 bg-gray-100 rounded border">
+                    {response.emp_rating 
+                      ? `${response.emp_rating} - ${['Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][response.emp_rating - 1]}`
+                      : 'Not Rated'
+                    }
+                  </div>
+                ) : (
+                  <Select
+                    value={response.emp_rating !== null ? response.emp_rating.toString() : ''}
+                    onValueChange={(value) =>
+                      handleResponseChange(response.id || '', 'emp_rating', parseInt(value))
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a rating" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1 - Poor</SelectItem>
+                      <SelectItem value="2">2 - Fair</SelectItem>
+                      <SelectItem value="3">3 - Good</SelectItem>
+                      <SelectItem value="4">4 - Very Good</SelectItem>
+                      <SelectItem value="5">5 - Excellent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor={`employee-comment-${response.id}`}>Your Comment</Label>
+                {isReadOnly ? (
+                  <div className="p-2 bg-gray-100 rounded border min-h-[80px]">
+                    {response.emp_comment || 'No comment provided'}
+                  </div>
+                ) : (
+                  <Textarea
+                    id={`employee-comment-${response.id}`}
+                    placeholder="Enter your comment"
+                    value={response.emp_comment || ''}
+                    onChange={(e) =>
+                      handleResponseChange(response.id || '', 'emp_comment', e.target.value)
+                    }
+                  />
+                )}
+              </div>
+              {!isReadOnly && (
+                <Button onClick={() => handleSaveResponse(response)} disabled={isSubmitting}>
+                  Save Response
+                </Button>
+              )}
+
+              {/* Show manager ratings if available */}
+              {response.mgr_rating && (
+                <div className="pt-4 border-t">
+                  <div className="space-y-2">
+                    <Label>Manager Rating</Label>
+                    <div className="p-2 bg-blue-50 rounded border">
+                      {response.mgr_rating} - {['Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][response.mgr_rating - 1]}
+                    </div>
+                  </div>
+                  {response.mgr_comment && (
+                    <div className="space-y-2 mt-2">
+                      <Label>Manager Comment</Label>
+                      <div className="p-2 bg-blue-50 rounded border">
+                        {response.mgr_comment}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Additional Sections */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Additional Information</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="goals">Goals</Label>
+              {isReadOnly ? (
+                <div className="p-2 bg-gray-100 rounded border min-h-[80px]">
+                  {goals || 'No goals specified'}
+                </div>
+              ) : (
+                <Textarea
+                  id="goals"
+                  placeholder="Enter your goals"
+                  value={goals}
+                  onChange={(e) => handleInputChange('goals', e.target.value)}
+                />
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="training-needs">Training Needs</Label>
+              {isReadOnly ? (
+                <div className="p-2 bg-gray-100 rounded border min-h-[80px]">
+                  {trainingNeeds || 'No training needs specified'}
+                </div>
+              ) : (
+                <Textarea
+                  id="training-needs"
+                  placeholder="Enter your training needs"
+                  value={trainingNeeds}
+                  onChange={(e) => handleInputChange('training_needs', e.target.value)}
+                />
+              )}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="noteworthy">Noteworthy Achievements</Label>
+            {isReadOnly ? (
+              <div className="p-2 bg-gray-100 rounded border min-h-[80px]">
+                {noteworthy || 'No achievements noted'}
+              </div>
+            ) : (
+              <Textarea
+                id="noteworthy"
+                placeholder="Enter any noteworthy achievements"
+                value={noteworthy}
+                onChange={(e) => handleInputChange('noteworthy', e.target.value)}
+              />
+            )}
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="employee-comments">Additional Comments</Label>
+              {isReadOnly ? (
+                <div className="p-2 bg-gray-100 rounded border min-h-[80px]">
+                  {empComments || 'No additional comments'}
+                </div>
+              ) : (
+                <Textarea
+                  id="employee-comments"
+                  placeholder="Enter any additional comments"
+                  value={empComments}
+                  onChange={(e) => handleInputChange('emp_comments', e.target.value)}
+                />
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="manager-comments">Manager Comments</Label>
+              <div className="p-2 bg-gray-100 rounded border min-h-[80px]">
+                {mgrComments || 'No manager comments'}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Action Buttons - only show if not read-only */}
+      {!isReadOnly && (
+        <div className="flex justify-between">
+          <Button variant="outline" onClick={() => navigate('/my-appraisals')}>
+            Cancel
+          </Button>
+          <div>
+            <Button className="mr-2" onClick={handleSaveChanges} disabled={isSubmitting}>
+              Save Changes
+            </Button>
+            <Button onClick={handleConfirmSubmit} disabled={isSubmitting}>
+              Submit Appraisal
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Submit Dialog */}
+      <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to submit?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. Please ensure all information is correct
+              before submitting.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelSubmit}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSubmit} disabled={isSubmitting}>
+              Submit
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
