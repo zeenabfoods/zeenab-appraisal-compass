@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
@@ -59,7 +60,7 @@ export function EmployeeQuestionManager() {
     fetchStaff,
     fetchSections,
     fetchQuestions,
-    deleteQuestion,
+    deleteAssignment,
     toggleQuestionStatus
   } = useEmployeeQuestions();
 
@@ -107,8 +108,8 @@ export function EmployeeQuestionManager() {
     setEditingSection(null);
   };
 
-  const handleDeleteQuestion = async (questionId: string) => {
-    const success = await deleteQuestion(questionId);
+  const handleDeleteQuestion = async (assignmentId: string) => {
+    const success = await deleteAssignment(assignmentId);
     if (success) {
       fetchQuestions(selectedStaff);
     }
