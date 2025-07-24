@@ -84,11 +84,12 @@ export function useQuestionAssignmentData() {
         }
       }
 
-      // Get question assignments
+      // Get question assignments (excluding deleted ones)
       const { data: allAssignments, error: assignmentsError } = await supabase
         .from('employee_appraisal_questions')
         .select('employee_id, question_id, assigned_at, is_active')
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .is('deleted_at', null);
 
       if (assignmentsError) {
         console.error('❌ Error fetching assignments:', assignmentsError);

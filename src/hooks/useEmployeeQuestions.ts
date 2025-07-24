@@ -35,6 +35,7 @@ interface Question {
   is_active: boolean;
   sort_order: number;
   employee_id?: string;
+  assignment_id?: string;
 }
 
 export function useEmployeeQuestions() {
@@ -96,6 +97,7 @@ export function useEmployeeQuestions() {
       const { data: assignedQuestions, error: assignedError } = await supabase
         .from('employee_appraisal_questions')
         .select(`
+          id,
           question_id,
           appraisal_questions (
             id,
@@ -109,14 +111,16 @@ export function useEmployeeQuestions() {
           )
         `)
         .eq('employee_id', employeeId)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .is('deleted_at', null);
 
       if (assignedError) throw assignedError;
 
       // Transform the data to match our Question interface
       const transformedQuestions = (assignedQuestions || []).map(item => ({
         ...item.appraisal_questions,
-        employee_id: employeeId
+        employee_id: employeeId,
+        assignment_id: item.id
       })) as Question[];
 
       setQuestions(transformedQuestions);
@@ -130,25 +134,24 @@ export function useEmployeeQuestions() {
     }
   }, [toast]);
 
-  const deleteQuestion = useCallback(async (questionId: string) => {
+  const deleteAssignment = useCallback(async (assignmentId: string) => {
     try {
-      const { error } = await supabase
-        .from('employee_appraisal_questions')
-        .delete()
-        .eq('question_id', questionId);
+      const { error } = await supabase.rpc('delete_employee_appraisal_assignment', {
+        assignment_id: assignmentId
+      });
 
       if (error) throw error;
 
       toast({
         title: "Success",
-        description: "Question removed from employee"
+        description: "Assignment deleted successfully"
       });
       return true;
     } catch (error) {
-      console.error('Error removing question:', error);
+      console.error('Error deleting assignment:', error);
       toast({
         title: "Error",
-        description: "Failed to remove question",
+        description: "Failed to delete assignment",
         variant: "destructive"
       });
       return false;
@@ -188,7 +191,7 @@ export function useEmployeeQuestions() {
     fetchStaff,
     fetchSections,
     fetchQuestions,
-    deleteQuestion,
+    deleteAssignment,
     toggleQuestionStatus
   };
 }

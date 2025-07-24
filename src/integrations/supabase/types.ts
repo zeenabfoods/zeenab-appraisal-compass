@@ -451,6 +451,7 @@ export type Database = {
           assigned_at: string | null
           assigned_by: string | null
           cycle_id: string
+          deleted_at: string | null
           employee_id: string
           id: string
           is_active: boolean | null
@@ -460,6 +461,7 @@ export type Database = {
           assigned_at?: string | null
           assigned_by?: string | null
           cycle_id: string
+          deleted_at?: string | null
           employee_id: string
           id?: string
           is_active?: boolean | null
@@ -469,6 +471,7 @@ export type Database = {
           assigned_at?: string | null
           assigned_by?: string | null
           cycle_id?: string
+          deleted_at?: string | null
           employee_id?: string
           id?: string
           is_active?: boolean | null
@@ -803,6 +806,10 @@ export type Database = {
       }
       complete_appraisal_cycle: {
         Args: { cycle_id_param: string }
+        Returns: undefined
+      }
+      delete_employee_appraisal_assignment: {
+        Args: { assignment_id: string }
         Returns: undefined
       }
       delete_section_with_questions: {

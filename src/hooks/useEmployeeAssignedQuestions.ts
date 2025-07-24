@@ -48,7 +48,8 @@ export function useEmployeeAssignedQuestions(employeeId: string) {
           )
         `)
         .eq('employee_id', employeeId)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .is('deleted_at', null);
 
       if (error) throw error;
 
