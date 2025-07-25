@@ -41,7 +41,7 @@ export function AppraisalHistoryCard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAccessDialog, setShowAccessDialog] = useState(false);
-  const [selectedAppraisal, setSelectedAppraisal] = useState<string>('');
+  const [selectedAppraisal, setSelectedAppraisal] = useState<AppraisalHistory | null>(null);
 
   useEffect(() => {
     console.log('AppraisalHistoryCard: Auth state changed', { 
@@ -70,27 +70,12 @@ export function AppraisalHistoryCard() {
       setError(null);
       console.log('AppraisalHistoryCard: Loading appraisal history for user:', profile.id, 'role:', profile.role);
       
-      // First, let's check if we have any appraisal cycles at all
-      const { data: cyclesCheck, error: cyclesError } = await supabase
-        .from('appraisal_cycles')
-        .select('id, name, status')
-        .limit(5);
-      
-      console.log('AppraisalHistoryCard: Available cycles:', cyclesCheck?.length || 0, cyclesError);
-      
-      // Then check for any appraisals
-      const { data: appraisalsCheck, error: appraisalsError } = await supabase
-        .from('appraisals')
-        .select('id, employee_id, status')
-        .limit(5);
-      
-      console.log('AppraisalHistoryCard: Available appraisals:', appraisalsCheck?.length || 0, appraisalsError);
-      
       let query;
       
       if (profile.role === 'staff') {
         console.log('AppraisalHistoryCard: Fetching staff appraisals for employee:', profile.id);
         
+        // Remove the cycle status filter - show all appraisals regardless of cycle status
         query = supabase
           .from('appraisals')
           .select(`
@@ -246,9 +231,14 @@ export function AppraisalHistoryCard() {
   };
 
   const handleAppraisalClick = (appraisal: AppraisalHistory) => {
-    if (appraisal.status === 'completed') {
-      setSelectedAppraisal(appraisal.appraisal_cycles.name);
+    // Check if the cycle is completed and user is staff
+    if (profile?.role === 'staff' && appraisal.appraisal_cycles.status === 'completed') {
+      // Show warning for completed cycles
+      setSelectedAppraisal(appraisal);
       setShowAccessDialog(true);
+    } else {
+      // For other roles or active cycles, allow normal access
+      window.location.href = `/appraisal/${appraisal.id}`;
     }
   };
 
@@ -343,10 +333,10 @@ export function AppraisalHistoryCard() {
               appraisals.map((appraisal) => (
                 <div 
                   key={appraisal.id} 
-                  className={`flex items-center justify-between p-3 rounded-lg border transition-all hover:shadow-md ${
-                    appraisal.status === 'completed' 
-                      ? 'bg-gray-50 border-gray-200 cursor-pointer hover:bg-gray-100' 
-                      : 'bg-white border-orange-200 cursor-pointer hover:bg-orange-50'
+                  className={`flex items-center justify-between p-3 rounded-lg border transition-all hover:shadow-md cursor-pointer ${
+                    appraisal.appraisal_cycles.status === 'completed' 
+                      ? 'bg-gray-50 border-gray-200 hover:bg-gray-100' 
+                      : 'bg-white border-orange-200 hover:bg-orange-50'
                   }`}
                   onClick={() => handleAppraisalClick(appraisal)}
                 >
@@ -366,6 +356,20 @@ export function AppraisalHistoryCard() {
                           ? `${new Date(appraisal.appraisal_cycles.start_date).toLocaleDateString()} - ${new Date(appraisal.appraisal_cycles.end_date).toLocaleDateString()}`
                           : 'Date range not available'
                         }
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        Cycle Status: 
+                        <Badge 
+                          className={`ml-1 text-xs ${
+                            appraisal.appraisal_cycles.status === 'completed' 
+                              ? 'bg-red-100 text-red-800' 
+                              : appraisal.appraisal_cycles.status === 'active'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {appraisal.appraisal_cycles.status}
+                        </Badge>
                       </div>
                       {appraisal.overall_score && (
                         <div className="text-xs text-green-600 font-medium mt-1">
@@ -397,7 +401,7 @@ export function AppraisalHistoryCard() {
       <AppraisalAccessDialog
         isOpen={showAccessDialog}
         onClose={() => setShowAccessDialog(false)}
-        appraisalName={selectedAppraisal}
+        appraisalName={selectedAppraisal?.appraisal_cycles?.name || ''}
       />
     </>
   );

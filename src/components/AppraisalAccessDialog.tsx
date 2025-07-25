@@ -17,11 +17,11 @@ export function AppraisalAccessDialog({ isOpen, onClose, appraisalName }: Apprai
         <DialogHeader>
           <div className="flex items-center space-x-2">
             <AlertTriangle className="h-6 w-6 text-amber-600" />
-            <DialogTitle>Appraisal Access Restricted</DialogTitle>
+            <DialogTitle>Appraisal Cycle Completed</DialogTitle>
           </div>
           <DialogDescription className="pt-2">
-            You have missed the deadline for "{appraisalName}". 
-            This appraisal cycle has been completed and is no longer accessible for submissions.
+            The appraisal cycle for "{appraisalName}" has been completed. 
+            You will not be able to make any changes to your submission.
           </DialogDescription>
         </DialogHeader>
         
@@ -29,9 +29,10 @@ export function AppraisalAccessDialog({ isOpen, onClose, appraisalName }: Apprai
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
             <h4 className="font-medium text-amber-800 mb-2">What happens next?</h4>
             <ul className="text-sm text-amber-700 space-y-1">
-              <li>• Your manager will be notified of the missed submission</li>
-              <li>• HR will schedule a follow-up discussion</li>
-              <li>• You may be eligible for the next appraisal cycle</li>
+              <li>• You will face the committee for further action regarding this appraisal</li>
+              <li>• Your manager and HR have been notified</li>
+              <li>• You may be contacted for additional discussions</li>
+              <li>• Future appraisal cycles will be available when they are created</li>
             </ul>
           </div>
           
