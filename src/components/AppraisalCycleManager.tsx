@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -147,15 +148,15 @@ export function AppraisalCycleManager() {
     try {
       console.log('Deleting cycle with ID:', cycleId);
 
-      // Use a more robust deletion approach
-      const { error } = await supabase.rpc('delete_appraisal_cycle_cascade', {
-        cycle_id_param: cycleId
-      });
+      // Call the database function to delete the cycle and all related data
+      const { error } = await supabase
+        .rpc('delete_appraisal_cycle_cascade', {
+          cycle_id_param: cycleId
+        });
 
       if (error) {
-        console.error('Error from RPC function:', error);
-        // Fallback to manual deletion if RPC doesn't exist
-        await performManualDeletion(cycleId);
+        console.error('Error from delete function:', error);
+        throw error;
       }
 
       setCycles(cycles.filter(cycle => cycle.id !== cycleId));
@@ -170,57 +171,6 @@ export function AppraisalCycleManager() {
         description: "Failed to delete appraisal cycle. Please try again.",
         variant: "destructive",
       });
-    }
-  };
-
-  // Fallback manual deletion function
-  const performManualDeletion = async (cycleId: string) => {
-    console.log('Performing manual deletion for cycle:', cycleId);
-    
-    // Delete in correct order to avoid foreign key constraints
-    
-    // 1. Delete appraisal responses
-    const { error: responsesError } = await supabase
-      .from('appraisal_responses')
-      .delete()
-      .eq('cycle_id', cycleId);
-
-    if (responsesError) {
-      console.error('Error deleting responses:', responsesError);
-      // Continue even if some responses fail to delete
-    }
-
-    // 2. Delete employee question assignments
-    const { error: assignmentsError } = await supabase
-      .from('employee_appraisal_questions')
-      .delete()
-      .eq('cycle_id', cycleId);
-
-    if (assignmentsError) {
-      console.error('Error deleting assignments:', assignmentsError);
-      // Continue even if some assignments fail to delete
-    }
-
-    // 3. Delete appraisals
-    const { error: appraisalsError } = await supabase
-      .from('appraisals')
-      .delete()
-      .eq('cycle_id', cycleId);
-
-    if (appraisalsError) {
-      console.error('Error deleting appraisals:', appraisalsError);
-      throw appraisalsError;
-    }
-
-    // 4. Finally delete the cycle
-    const { error: cycleError } = await supabase
-      .from('appraisal_cycles')
-      .delete()
-      .eq('id', cycleId);
-
-    if (cycleError) {
-      console.error('Error deleting cycle:', cycleError);
-      throw cycleError;
     }
   };
 

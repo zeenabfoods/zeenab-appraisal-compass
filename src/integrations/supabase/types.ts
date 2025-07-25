@@ -808,6 +808,10 @@ export type Database = {
         Args: { cycle_id_param: string }
         Returns: undefined
       }
+      delete_appraisal_cycle_cascade: {
+        Args: { cycle_id_param: string }
+        Returns: undefined
+      }
       delete_employee_appraisal_assignment: {
         Args: { assignment_id: string }
         Returns: undefined
