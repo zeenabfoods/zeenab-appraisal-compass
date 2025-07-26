@@ -18,7 +18,7 @@ export default function EmployeeManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: employees, isLoading, refetch } = useQuery({
+  const { data: employees, isLoading } = useQuery({
     queryKey: ['employees'],
     queryFn: async () => {
       console.log('Fetching employees...');
@@ -74,7 +74,9 @@ export default function EmployeeManagement() {
 
       console.log('Enhanced employees:', enhancedEmployees);
       return enhancedEmployees;
-    }
+    },
+    staleTime: 0, // Always consider data stale to force refresh
+    cacheTime: 0  // Don't cache the data
   });
 
   const { data: departments } = useQuery({
@@ -275,18 +277,20 @@ export default function EmployeeManagement() {
         throw error;
       }
     },
-    onSuccess: async () => {
-      console.log('Delete mutation successful, forcing cache refresh...');
+    onSuccess: async (_, employeeId) => {
+      console.log('Delete mutation successful, updating UI immediately...');
       
-      // Force immediate refetch of employees data
-      await refetch();
+      // Immediately update the cache by removing the deleted employee
+      queryClient.setQueryData(['employees'], (oldData: any) => {
+        if (!oldData) return oldData;
+        console.log('Updating cache - removing employee:', employeeId);
+        const filteredData = oldData.filter((employee: any) => employee.id !== employeeId);
+        console.log('Updated employees list:', filteredData);
+        return filteredData;
+      });
       
-      // Also invalidate and refetch all related queries
+      // Also invalidate to ensure fresh data on next load
       await queryClient.invalidateQueries({ queryKey: ['employees'] });
-      await queryClient.invalidateQueries({ queryKey: ['departments'] });
-      
-      // Force a hard refresh of the employees query specifically
-      queryClient.removeQueries({ queryKey: ['employees'] });
       
       toast({
         title: "Success",
