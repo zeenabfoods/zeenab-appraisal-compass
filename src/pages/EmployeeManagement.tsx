@@ -181,95 +181,104 @@ export default function EmployeeManagement() {
 
   const deleteEmployeeMutation = useMutation({
     mutationFn: async (employeeId: string) => {
-      console.log('Deleting employee with ID:', employeeId);
+      console.log('Starting employee deletion process for ID:', employeeId);
       
-      // First, check if employee has any related data that needs to be cleaned up
-      const { data: appraisals } = await supabase
-        .from('appraisals')
-        .select('id')
-        .eq('employee_id', employeeId);
-
-      const { data: responses } = await supabase
-        .from('appraisal_responses')
-        .select('id')
-        .eq('employee_id', employeeId);
-
-      const { data: questions } = await supabase
-        .from('employee_appraisal_questions')
-        .select('id')
-        .eq('employee_id', employeeId);
-
-      const { data: notifications } = await supabase
-        .from('notifications')
-        .select('id')
-        .eq('related_employee_id', employeeId);
-
-      console.log('Related data found:', { appraisals, responses, questions, notifications });
-
-      // Delete related data first to avoid foreign key constraints
-      if (notifications && notifications.length > 0) {
+      try {
+        // Step 1: Clean up related notifications
+        console.log('Deleting related notifications...');
         const { error: notifError } = await supabase
           .from('notifications')
           .delete()
           .eq('related_employee_id', employeeId);
         
-        if (notifError) {
+        if (notifError && notifError.code !== 'PGRST116') { // PGRST116 = no rows found, which is fine
           console.error('Error deleting notifications:', notifError);
-          throw notifError;
+          throw new Error(`Failed to delete notifications: ${notifError.message}`);
         }
-      }
 
-      if (questions && questions.length > 0) {
+        // Step 2: Clean up employee appraisal questions
+        console.log('Deleting employee appraisal questions...');
         const { error: questionsError } = await supabase
           .from('employee_appraisal_questions')
           .delete()
           .eq('employee_id', employeeId);
         
-        if (questionsError) {
+        if (questionsError && questionsError.code !== 'PGRST116') {
           console.error('Error deleting employee questions:', questionsError);
-          throw questionsError;
+          throw new Error(`Failed to delete employee questions: ${questionsError.message}`);
         }
-      }
 
-      if (responses && responses.length > 0) {
+        // Step 3: Clean up appraisal responses
+        console.log('Deleting appraisal responses...');
         const { error: responsesError } = await supabase
           .from('appraisal_responses')
           .delete()
           .eq('employee_id', employeeId);
         
-        if (responsesError) {
+        if (responsesError && responsesError.code !== 'PGRST116') {
           console.error('Error deleting responses:', responsesError);
-          throw responsesError;
+          throw new Error(`Failed to delete appraisal responses: ${responsesError.message}`);
         }
-      }
 
-      if (appraisals && appraisals.length > 0) {
+        // Step 4: Clean up performance analytics
+        console.log('Deleting performance analytics...');
+        const { error: analyticsError } = await supabase
+          .from('performance_analytics')
+          .delete()
+          .eq('employee_id', employeeId);
+        
+        if (analyticsError && analyticsError.code !== 'PGRST116') {
+          console.error('Error deleting analytics:', analyticsError);
+          throw new Error(`Failed to delete performance analytics: ${analyticsError.message}`);
+        }
+
+        // Step 5: Clean up appraisals
+        console.log('Deleting appraisals...');
         const { error: appraisalsError } = await supabase
           .from('appraisals')
           .delete()
           .eq('employee_id', employeeId);
         
-        if (appraisalsError) {
+        if (appraisalsError && appraisalsError.code !== 'PGRST116') {
           console.error('Error deleting appraisals:', appraisalsError);
-          throw appraisalsError;
+          throw new Error(`Failed to delete appraisals: ${appraisalsError.message}`);
         }
-      }
 
-      // Finally delete the employee profile
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', employeeId);
-      
-      if (error) {
-        console.error('Error deleting employee profile:', error);
+        // Step 6: Update any employees who report to this person (set their line_manager_id to null)
+        console.log('Updating subordinates...');
+        const { error: subordinatesError } = await supabase
+          .from('profiles')
+          .update({ line_manager_id: null })
+          .eq('line_manager_id', employeeId);
+        
+        if (subordinatesError) {
+          console.error('Error updating subordinates:', subordinatesError);
+          throw new Error(`Failed to update subordinates: ${subordinatesError.message}`);
+        }
+
+        // Step 7: Finally delete the employee profile
+        console.log('Deleting employee profile...');
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .delete()
+          .eq('id', employeeId);
+        
+        if (profileError) {
+          console.error('Error deleting employee profile:', profileError);
+          throw new Error(`Failed to delete employee profile: ${profileError.message}`);
+        }
+
+        console.log('Employee deleted successfully');
+        return { success: true };
+        
+      } catch (error) {
+        console.error('Error during employee deletion:', error);
         throw error;
       }
-
-      console.log('Employee deleted successfully');
     },
     onSuccess: () => {
-      console.log('Delete mutation successful, invalidating queries...');
+      console.log('Delete mutation successful, refreshing data...');
+      // Refresh the employees data
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       queryClient.invalidateQueries({ queryKey: ['departments'] });
       toast({
@@ -287,10 +296,18 @@ export default function EmployeeManagement() {
     }
   });
 
-  const handleDeleteEmployee = (employeeId: string, employeeName: string) => {
+  const handleDeleteEmployee = async (employeeId: string, employeeName: string) => {
     console.log('Delete button clicked for:', employeeId, employeeName);
-    if (confirm(`Are you sure you want to delete ${employeeName}? This action cannot be undone and will remove all related appraisal data.`)) {
+    
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${employeeName}?\n\nThis action cannot be undone and will remove:\n- All appraisal data\n- All question assignments\n- All performance analytics\n- All notifications\n\nClick OK to proceed or Cancel to abort.`
+    );
+    
+    if (confirmed) {
+      console.log('User confirmed deletion, proceeding...');
       deleteEmployeeMutation.mutate(employeeId);
+    } else {
+      console.log('User cancelled deletion');
     }
   };
 
@@ -381,6 +398,7 @@ export default function EmployeeManagement() {
                               variant="ghost"
                               onClick={() => handleEdit(employee)}
                               className="hover:bg-orange-100"
+                              disabled={deleteEmployeeMutation.isPending}
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -391,7 +409,11 @@ export default function EmployeeManagement() {
                               className="hover:bg-red-100 text-red-600 hover:text-red-700"
                               disabled={deleteEmployeeMutation.isPending}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              {deleteEmployeeMutation.isPending ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
                             </Button>
                           </div>
                         </TableCell>
