@@ -1,4 +1,3 @@
-
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -276,11 +275,19 @@ export default function EmployeeManagement() {
         throw error;
       }
     },
-    onSuccess: () => {
-      console.log('Delete mutation successful, refreshing data...');
-      // Refresh the employees data
-      queryClient.invalidateQueries({ queryKey: ['employees'] });
-      queryClient.invalidateQueries({ queryKey: ['departments'] });
+    onSuccess: async () => {
+      console.log('Delete mutation successful, forcing cache refresh...');
+      
+      // Force immediate refetch of employees data
+      await refetch();
+      
+      // Also invalidate and refetch all related queries
+      await queryClient.invalidateQueries({ queryKey: ['employees'] });
+      await queryClient.invalidateQueries({ queryKey: ['departments'] });
+      
+      // Force a hard refresh of the employees query specifically
+      queryClient.removeQueries({ queryKey: ['employees'] });
+      
       toast({
         title: "Success",
         description: "Employee deleted successfully"
