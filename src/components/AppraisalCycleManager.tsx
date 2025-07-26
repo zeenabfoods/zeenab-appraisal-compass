@@ -146,29 +146,32 @@ export function AppraisalCycleManager() {
     }
 
     try {
-      console.log('Deleting cycle with ID:', cycleId);
+      console.log('Attempting to delete cycle with ID:', cycleId);
 
       // Call the database function to delete the cycle and all related data
-      const { error } = await supabase
-        .rpc('delete_appraisal_cycle_cascade', {
-          cycle_id_param: cycleId
-        });
+      const { error } = await supabase.rpc('delete_appraisal_cycle_cascade', {
+        cycle_id_param: cycleId
+      });
 
       if (error) {
-        console.error('Error from delete function:', error);
-        throw error;
+        console.error('Supabase RPC error:', error);
+        throw new Error(`Database error: ${error.message}`);
       }
 
+      console.log('Successfully called delete function, updating UI');
+      
+      // Update the local state to remove the deleted cycle
       setCycles(cycles.filter(cycle => cycle.id !== cycleId));
+      
       toast({
         title: "Success",
-        description: `"${cycleName}" deleted successfully`,
+        description: `"${cycleName}" and all related data deleted successfully`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting cycle:', error);
       toast({
         title: "Error",
-        description: "Failed to delete appraisal cycle. Please try again.",
+        description: `Failed to delete appraisal cycle: ${error.message || 'Please try again.'}`,
         variant: "destructive",
       });
     }
