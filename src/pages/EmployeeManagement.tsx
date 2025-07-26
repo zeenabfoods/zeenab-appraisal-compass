@@ -76,7 +76,7 @@ export default function EmployeeManagement() {
       return enhancedEmployees;
     },
     staleTime: 0, // Always consider data stale to force refresh
-    cacheTime: 0  // Don't cache the data
+    gcTime: 0  // Don't cache the data (renamed from cacheTime)
   });
 
   const { data: departments } = useQuery({
