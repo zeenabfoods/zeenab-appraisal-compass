@@ -1,3 +1,4 @@
+
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -181,30 +182,23 @@ export default function EmployeeManagement() {
 
   const deleteEmployeeMutation = useMutation({
     mutationFn: async (employeeId: string) => {
-      console.log('Starting improved employee deletion process for ID:', employeeId);
+      console.log('Starting permanent employee deletion for ID:', employeeId);
       setDeletingEmployeeId(employeeId);
       
       try {
-        // Step 1: Check if employee exists and get their info
-        const { data: employeeCheck, error: checkError } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name, line_manager_id, department_id')
-          .eq('id', employeeId)
-          .single();
+        // Step 1: Clear all query cache related to this employee
+        await queryClient.cancelQueries({ queryKey: ['employees'] });
+        
+        // Step 2: Remove from cache immediately
+        queryClient.setQueryData(['employees'], (oldData: any) => {
+          if (!oldData) return oldData;
+          return oldData.filter((emp: any) => emp.id !== employeeId);
+        });
 
-        if (checkError) {
-          console.error('Error checking employee existence:', checkError);
-          throw new Error(`Employee not found: ${checkError.message}`);
-        }
-
-        if (!employeeCheck) {
-          throw new Error('Employee not found');
-        }
-
-        console.log('Employee found, proceeding with deletion:', employeeCheck);
-
-        // Step 2: Remove this employee as line manager from other employees
-        console.log('Updating subordinates to remove line manager reference...');
+        // Step 3: Delete from database with comprehensive cleanup
+        console.log('Cleaning up related data...');
+        
+        // Remove subordinates' line manager reference
         const { error: subordinatesError } = await supabase
           .from('profiles')
           .update({ line_manager_id: null })
@@ -215,115 +209,57 @@ export default function EmployeeManagement() {
           throw new Error(`Failed to update subordinates: ${subordinatesError.message}`);
         }
 
-        // Step 3: Delete related records in the correct order
-        console.log('Deleting related notifications...');
-        await supabase
-          .from('notifications')
-          .delete()
-          .eq('related_employee_id', employeeId);
+        // Delete related records in proper order
+        console.log('Deleting related records...');
+        
+        // Delete notifications first
+        await supabase.from('notifications').delete().eq('related_employee_id', employeeId);
+        
+        // Delete employee question assignments
+        await supabase.from('employee_appraisal_questions').delete().eq('employee_id', employeeId);
+        
+        // Delete appraisal responses
+        await supabase.from('appraisal_responses').delete().eq('employee_id', employeeId);
+        
+        // Delete performance analytics
+        await supabase.from('performance_analytics').delete().eq('employee_id', employeeId);
+        
+        // Delete appraisals
+        await supabase.from('appraisals').delete().eq('employee_id', employeeId);
 
-        console.log('Deleting employee appraisal questions...');
-        await supabase
-          .from('employee_appraisal_questions')
-          .delete()
-          .eq('employee_id', employeeId);
-
-        console.log('Deleting appraisal responses...');
-        await supabase
-          .from('appraisal_responses')
-          .delete()
-          .eq('employee_id', employeeId);
-
-        console.log('Deleting performance analytics...');
-        await supabase
-          .from('performance_analytics')
-          .delete()
-          .eq('employee_id', employeeId);
-
-        console.log('Deleting appraisals...');
-        await supabase
-          .from('appraisals')
-          .delete()
-          .eq('employee_id', employeeId);
-
-        // Step 4: Finally delete the employee profile with proper error handling
+        // Step 4: Delete the employee profile
         console.log('Deleting employee profile...');
-        const { error: profileError, count } = await supabase
+        const { error: profileError } = await supabase
           .from('profiles')
           .delete()
-          .eq('id', employeeId)
-          .select('id', { count: 'exact' });
+          .eq('id', employeeId);
         
         if (profileError) {
           console.error('Error deleting employee profile:', profileError);
           throw new Error(`Failed to delete employee profile: ${profileError.message}`);
         }
 
-        console.log('Delete operation completed. Records affected:', count);
-
-        // Step 5: Improved verification with retry logic
-        console.log('Verifying deletion...');
-        let verificationAttempts = 0;
-        const maxAttempts = 3;
-        
-        while (verificationAttempts < maxAttempts) {
-          // Add a small delay to ensure the transaction is committed
-          await new Promise(resolve => setTimeout(resolve, 200));
-          
-          const { data: verifyCheck, error: verifyError } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('id', employeeId);
-
-          if (verifyError) {
-            console.error('Error during verification:', verifyError);
-            // If there's an error in verification, we'll assume deletion was successful
-            // since the delete operation itself didn't throw an error
-            break;
-          }
-
-          if (!verifyCheck || verifyCheck.length === 0) {
-            console.log('Verification successful: Employee record no longer exists');
-            break;
-          }
-
-          verificationAttempts++;
-          console.log(`Verification attempt ${verificationAttempts}: Record still exists, retrying...`);
-          
-          if (verificationAttempts >= maxAttempts) {
-            console.warn('Verification failed after maximum attempts, but deletion operation was successful');
-            // Don't throw an error here - the delete operation was successful
-            break;
-          }
-        }
-
-        console.log('Employee deletion process completed successfully');
+        console.log('Employee deletion completed successfully');
         return { success: true, deletedId: employeeId };
         
       } catch (error) {
         console.error('Error during employee deletion:', error);
+        // Restore cache if deletion failed
+        refetch();
         throw error;
       } finally {
         setDeletingEmployeeId(null);
       }
     },
     onSuccess: async (result) => {
-      console.log('Delete mutation successful, refreshing data...');
+      console.log('Delete mutation successful');
       
-      // Immediately remove from cache
-      queryClient.setQueryData(['employees'], (oldData: any) => {
-        if (!oldData) return oldData;
-        return oldData.filter((emp: any) => emp.id !== result.deletedId);
-      });
-      
-      // Invalidate and refetch to ensure consistency
+      // Clear all related queries
       await queryClient.invalidateQueries({ queryKey: ['employees'] });
       await queryClient.invalidateQueries({ queryKey: ['departments'] });
       
-      // Force refetch after a short delay
-      setTimeout(() => {
-        refetch();
-      }, 100);
+      // Force a fresh fetch to ensure consistency
+      await refetch();
       
       toast({
         title: "Success",
@@ -341,8 +277,12 @@ export default function EmployeeManagement() {
     }
   });
 
-  const handleDeleteEmployee = async (employeeId: string, employeeName: string) => {
-    console.log('Delete button clicked for:', employeeId, employeeName);
+  const handleDeleteEmployee = async (employeeId: string) => {
+    console.log('Delete button clicked for:', employeeId);
+    
+    // Find employee name for confirmation
+    const employee = employees?.find(emp => emp.id === employeeId);
+    const employeeName = employee ? `${employee.first_name} ${employee.last_name}` : 'this employee';
     
     const confirmed = window.confirm(
       `Are you sure you want to delete ${employeeName}?\n\nThis action cannot be undone and will remove:\n- All appraisal data\n- All question assignments\n- All performance analytics\n- All notifications\n\nClick OK to proceed or Cancel to abort.`
@@ -451,7 +391,7 @@ export default function EmployeeManagement() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => handleDeleteEmployee(employee.id, `${employee.first_name} ${employee.last_name}`)}
+                              onClick={() => handleDeleteEmployee(employee.id)}
                               className="hover:bg-red-100 text-red-600 hover:text-red-700"
                               disabled={isDeleting}
                             >
