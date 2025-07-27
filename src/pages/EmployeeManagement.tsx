@@ -16,6 +16,7 @@ export default function EmployeeManagement() {
   const [editingEmployee, setEditingEmployee] = useState<ExtendedProfile | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [deletingEmployeeId, setDeletingEmployeeId] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -181,70 +182,22 @@ export default function EmployeeManagement() {
 
   const deleteEmployeeMutation = useMutation({
     mutationFn: async (employeeId: string) => {
-      console.log('Starting employee deletion process for ID:', employeeId);
+      console.log('Starting comprehensive employee deletion process for ID:', employeeId);
+      setDeletingEmployeeId(employeeId);
       
       try {
-        // Step 1: Clean up related notifications
-        console.log('Deleting related notifications...');
-        const { error: notifError } = await supabase
-          .from('notifications')
-          .delete()
-          .eq('related_employee_id', employeeId);
-        
-        if (notifError && notifError.code !== 'PGRST116') {
-          console.error('Error deleting notifications:', notifError);
-          throw new Error(`Failed to delete notifications: ${notifError.message}`);
+        // Step 1: Check if employee exists
+        const { data: employeeCheck, error: checkError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name')
+          .eq('id', employeeId)
+          .single();
+
+        if (checkError || !employeeCheck) {
+          throw new Error('Employee not found');
         }
 
-        // Step 2: Clean up employee appraisal questions
-        console.log('Deleting employee appraisal questions...');
-        const { error: questionsError } = await supabase
-          .from('employee_appraisal_questions')
-          .delete()
-          .eq('employee_id', employeeId);
-        
-        if (questionsError && questionsError.code !== 'PGRST116') {
-          console.error('Error deleting employee questions:', questionsError);
-          throw new Error(`Failed to delete employee questions: ${questionsError.message}`);
-        }
-
-        // Step 3: Clean up appraisal responses
-        console.log('Deleting appraisal responses...');
-        const { error: responsesError } = await supabase
-          .from('appraisal_responses')
-          .delete()
-          .eq('employee_id', employeeId);
-        
-        if (responsesError && responsesError.code !== 'PGRST116') {
-          console.error('Error deleting responses:', responsesError);
-          throw new Error(`Failed to delete appraisal responses: ${responsesError.message}`);
-        }
-
-        // Step 4: Clean up performance analytics
-        console.log('Deleting performance analytics...');
-        const { error: analyticsError } = await supabase
-          .from('performance_analytics')
-          .delete()
-          .eq('employee_id', employeeId);
-        
-        if (analyticsError && analyticsError.code !== 'PGRST116') {
-          console.error('Error deleting analytics:', analyticsError);
-          throw new Error(`Failed to delete performance analytics: ${analyticsError.message}`);
-        }
-
-        // Step 5: Clean up appraisals
-        console.log('Deleting appraisals...');
-        const { error: appraisalsError } = await supabase
-          .from('appraisals')
-          .delete()
-          .eq('employee_id', employeeId);
-        
-        if (appraisalsError && appraisalsError.code !== 'PGRST116') {
-          console.error('Error deleting appraisals:', appraisalsError);
-          throw new Error(`Failed to delete appraisals: ${appraisalsError.message}`);
-        }
-
-        // Step 6: Update any employees who report to this person
+        // Step 2: Remove this employee as line manager from other employees
         console.log('Updating subordinates...');
         const { error: subordinatesError } = await supabase
           .from('profiles')
@@ -256,7 +209,67 @@ export default function EmployeeManagement() {
           throw new Error(`Failed to update subordinates: ${subordinatesError.message}`);
         }
 
-        // Step 7: Finally delete the employee profile
+        // Step 3: Clean up notifications
+        console.log('Deleting related notifications...');
+        const { error: notifError } = await supabase
+          .from('notifications')
+          .delete()
+          .eq('related_employee_id', employeeId);
+        
+        if (notifError && notifError.code !== 'PGRST116') {
+          console.error('Error deleting notifications:', notifError);
+          // Don't throw here as notifications might not exist
+        }
+
+        // Step 4: Clean up employee appraisal questions
+        console.log('Deleting employee appraisal questions...');
+        const { error: questionsError } = await supabase
+          .from('employee_appraisal_questions')
+          .delete()
+          .eq('employee_id', employeeId);
+        
+        if (questionsError && questionsError.code !== 'PGRST116') {
+          console.error('Error deleting employee questions:', questionsError);
+          // Don't throw here as questions might not exist
+        }
+
+        // Step 5: Clean up appraisal responses
+        console.log('Deleting appraisal responses...');
+        const { error: responsesError } = await supabase
+          .from('appraisal_responses')
+          .delete()
+          .eq('employee_id', employeeId);
+        
+        if (responsesError && responsesError.code !== 'PGRST116') {
+          console.error('Error deleting responses:', responsesError);
+          // Don't throw here as responses might not exist
+        }
+
+        // Step 6: Clean up performance analytics
+        console.log('Deleting performance analytics...');
+        const { error: analyticsError } = await supabase
+          .from('performance_analytics')
+          .delete()
+          .eq('employee_id', employeeId);
+        
+        if (analyticsError && analyticsError.code !== 'PGRST116') {
+          console.error('Error deleting analytics:', analyticsError);
+          // Don't throw here as analytics might not exist
+        }
+
+        // Step 7: Clean up appraisals
+        console.log('Deleting appraisals...');
+        const { error: appraisalsError } = await supabase
+          .from('appraisals')
+          .delete()
+          .eq('employee_id', employeeId);
+        
+        if (appraisalsError && appraisalsError.code !== 'PGRST116') {
+          console.error('Error deleting appraisals:', appraisalsError);
+          // Don't throw here as appraisals might not exist
+        }
+
+        // Step 8: Finally delete the employee profile
         console.log('Deleting employee profile...');
         const { error: profileError } = await supabase
           .from('profiles')
@@ -268,26 +281,43 @@ export default function EmployeeManagement() {
           throw new Error(`Failed to delete employee profile: ${profileError.message}`);
         }
 
+        // Step 9: Verify deletion
+        const { data: verifyCheck } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', employeeId);
+
+        if (verifyCheck && verifyCheck.length > 0) {
+          throw new Error('Employee deletion verification failed - record still exists');
+        }
+
         console.log('Employee deleted successfully from database');
-        return { success: true };
+        return { success: true, deletedId: employeeId };
         
       } catch (error) {
         console.error('Error during employee deletion:', error);
         throw error;
+      } finally {
+        setDeletingEmployeeId(null);
       }
     },
-    onSuccess: async (_, employeeId) => {
-      console.log('Delete mutation successful, updating cache and refetching...');
+    onSuccess: async (result) => {
+      console.log('Delete mutation successful, refreshing data...');
       
-      // Clear all related queries from the cache
+      // Immediately remove from cache
+      queryClient.setQueryData(['employees'], (oldData: any) => {
+        if (!oldData) return oldData;
+        return oldData.filter((emp: any) => emp.id !== result.deletedId);
+      });
+      
+      // Invalidate and refetch to ensure consistency
       await queryClient.invalidateQueries({ queryKey: ['employees'] });
       await queryClient.invalidateQueries({ queryKey: ['departments'] });
       
-      // Wait a bit for the invalidation to complete
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      // Force refetch to get the latest data
-      await refetch();
+      // Force refetch after a short delay
+      setTimeout(() => {
+        refetch();
+      }, 100);
       
       toast({
         title: "Success",
@@ -296,6 +326,7 @@ export default function EmployeeManagement() {
     },
     onError: (error: any) => {
       console.error('Delete mutation failed:', error);
+      setDeletingEmployeeId(null);
       toast({
         title: "Error",
         description: error.message || "Failed to delete employee",
@@ -370,8 +401,10 @@ export default function EmployeeManagement() {
                       ? employee.line_manager[0] 
                       : null;
                     
+                    const isDeleting = deletingEmployeeId === employee.id;
+                    
                     return (
-                      <TableRow key={employee.id}>
+                      <TableRow key={employee.id} className={isDeleting ? 'opacity-50' : ''}>
                         <TableCell className="font-medium">
                           {employee.first_name} {employee.last_name}
                         </TableCell>
@@ -405,7 +438,7 @@ export default function EmployeeManagement() {
                               variant="ghost"
                               onClick={() => handleEdit(employee)}
                               className="hover:bg-orange-100"
-                              disabled={deleteEmployeeMutation.isPending}
+                              disabled={isDeleting}
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -414,9 +447,9 @@ export default function EmployeeManagement() {
                               variant="ghost"
                               onClick={() => handleDeleteEmployee(employee.id, `${employee.first_name} ${employee.last_name}`)}
                               className="hover:bg-red-100 text-red-600 hover:text-red-700"
-                              disabled={deleteEmployeeMutation.isPending}
+                              disabled={isDeleting}
                             >
-                              {deleteEmployeeMutation.isPending ? (
+                              {isDeleting ? (
                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
                               ) : (
                                 <Trash2 className="h-4 w-4" />
