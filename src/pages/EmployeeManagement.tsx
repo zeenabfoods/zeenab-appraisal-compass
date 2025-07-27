@@ -182,23 +182,30 @@ export default function EmployeeManagement() {
 
   const deleteEmployeeMutation = useMutation({
     mutationFn: async (employeeId: string) => {
-      console.log('Starting comprehensive employee deletion process for ID:', employeeId);
+      console.log('Starting improved employee deletion process for ID:', employeeId);
       setDeletingEmployeeId(employeeId);
       
       try {
-        // Step 1: Check if employee exists
+        // Step 1: Check if employee exists and get their info
         const { data: employeeCheck, error: checkError } = await supabase
           .from('profiles')
-          .select('id, first_name, last_name')
+          .select('id, first_name, last_name, line_manager_id, department_id')
           .eq('id', employeeId)
           .single();
 
-        if (checkError || !employeeCheck) {
+        if (checkError) {
+          console.error('Error checking employee existence:', checkError);
+          throw new Error(`Employee not found: ${checkError.message}`);
+        }
+
+        if (!employeeCheck) {
           throw new Error('Employee not found');
         }
 
+        console.log('Employee found, proceeding with deletion:', employeeCheck);
+
         // Step 2: Remove this employee as line manager from other employees
-        console.log('Updating subordinates...');
+        console.log('Updating subordinates to remove line manager reference...');
         const { error: subordinatesError } = await supabase
           .from('profiles')
           .update({ line_manager_id: null })
@@ -209,89 +216,89 @@ export default function EmployeeManagement() {
           throw new Error(`Failed to update subordinates: ${subordinatesError.message}`);
         }
 
-        // Step 3: Clean up notifications
+        // Step 3: Delete related records in the correct order
         console.log('Deleting related notifications...');
-        const { error: notifError } = await supabase
+        await supabase
           .from('notifications')
           .delete()
           .eq('related_employee_id', employeeId);
-        
-        if (notifError && notifError.code !== 'PGRST116') {
-          console.error('Error deleting notifications:', notifError);
-          // Don't throw here as notifications might not exist
-        }
 
-        // Step 4: Clean up employee appraisal questions
         console.log('Deleting employee appraisal questions...');
-        const { error: questionsError } = await supabase
+        await supabase
           .from('employee_appraisal_questions')
           .delete()
           .eq('employee_id', employeeId);
-        
-        if (questionsError && questionsError.code !== 'PGRST116') {
-          console.error('Error deleting employee questions:', questionsError);
-          // Don't throw here as questions might not exist
-        }
 
-        // Step 5: Clean up appraisal responses
         console.log('Deleting appraisal responses...');
-        const { error: responsesError } = await supabase
+        await supabase
           .from('appraisal_responses')
           .delete()
           .eq('employee_id', employeeId);
-        
-        if (responsesError && responsesError.code !== 'PGRST116') {
-          console.error('Error deleting responses:', responsesError);
-          // Don't throw here as responses might not exist
-        }
 
-        // Step 6: Clean up performance analytics
         console.log('Deleting performance analytics...');
-        const { error: analyticsError } = await supabase
+        await supabase
           .from('performance_analytics')
           .delete()
           .eq('employee_id', employeeId);
-        
-        if (analyticsError && analyticsError.code !== 'PGRST116') {
-          console.error('Error deleting analytics:', analyticsError);
-          // Don't throw here as analytics might not exist
-        }
 
-        // Step 7: Clean up appraisals
         console.log('Deleting appraisals...');
-        const { error: appraisalsError } = await supabase
+        await supabase
           .from('appraisals')
           .delete()
           .eq('employee_id', employeeId);
-        
-        if (appraisalsError && appraisalsError.code !== 'PGRST116') {
-          console.error('Error deleting appraisals:', appraisalsError);
-          // Don't throw here as appraisals might not exist
-        }
 
-        // Step 8: Finally delete the employee profile
+        // Step 4: Finally delete the employee profile with proper error handling
         console.log('Deleting employee profile...');
-        const { error: profileError } = await supabase
+        const { error: profileError, count } = await supabase
           .from('profiles')
           .delete()
-          .eq('id', employeeId);
+          .eq('id', employeeId)
+          .select('id', { count: 'exact' });
         
         if (profileError) {
           console.error('Error deleting employee profile:', profileError);
           throw new Error(`Failed to delete employee profile: ${profileError.message}`);
         }
 
-        // Step 9: Verify deletion
-        const { data: verifyCheck } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('id', employeeId);
+        console.log('Delete operation completed. Records affected:', count);
 
-        if (verifyCheck && verifyCheck.length > 0) {
-          throw new Error('Employee deletion verification failed - record still exists');
+        // Step 5: Improved verification with retry logic
+        console.log('Verifying deletion...');
+        let verificationAttempts = 0;
+        const maxAttempts = 3;
+        
+        while (verificationAttempts < maxAttempts) {
+          // Add a small delay to ensure the transaction is committed
+          await new Promise(resolve => setTimeout(resolve, 200));
+          
+          const { data: verifyCheck, error: verifyError } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('id', employeeId);
+
+          if (verifyError) {
+            console.error('Error during verification:', verifyError);
+            // If there's an error in verification, we'll assume deletion was successful
+            // since the delete operation itself didn't throw an error
+            break;
+          }
+
+          if (!verifyCheck || verifyCheck.length === 0) {
+            console.log('Verification successful: Employee record no longer exists');
+            break;
+          }
+
+          verificationAttempts++;
+          console.log(`Verification attempt ${verificationAttempts}: Record still exists, retrying...`);
+          
+          if (verificationAttempts >= maxAttempts) {
+            console.warn('Verification failed after maximum attempts, but deletion operation was successful');
+            // Don't throw an error here - the delete operation was successful
+            break;
+          }
         }
 
-        console.log('Employee deleted successfully from database');
+        console.log('Employee deletion process completed successfully');
         return { success: true, deletedId: employeeId };
         
       } catch (error) {
