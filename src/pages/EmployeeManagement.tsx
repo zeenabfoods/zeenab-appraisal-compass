@@ -18,7 +18,7 @@ export default function EmployeeManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: employees, isLoading } = useQuery({
+  const { data: employees, isLoading, refetch } = useQuery({
     queryKey: ['employees'],
     queryFn: async () => {
       console.log('Fetching employees...');
@@ -74,9 +74,7 @@ export default function EmployeeManagement() {
 
       console.log('Enhanced employees:', enhancedEmployees);
       return enhancedEmployees;
-    },
-    staleTime: 0, // Always consider data stale to force refresh
-    gcTime: 0  // Don't cache the data (renamed from cacheTime)
+    }
   });
 
   const { data: departments } = useQuery({
@@ -192,7 +190,7 @@ export default function EmployeeManagement() {
           .delete()
           .eq('related_employee_id', employeeId);
         
-        if (notifError && notifError.code !== 'PGRST116') { // PGRST116 = no rows found, which is fine
+        if (notifError && notifError.code !== 'PGRST116') {
           console.error('Error deleting notifications:', notifError);
           throw new Error(`Failed to delete notifications: ${notifError.message}`);
         }
@@ -245,7 +243,7 @@ export default function EmployeeManagement() {
           throw new Error(`Failed to delete appraisals: ${appraisalsError.message}`);
         }
 
-        // Step 6: Update any employees who report to this person (set their line_manager_id to null)
+        // Step 6: Update any employees who report to this person
         console.log('Updating subordinates...');
         const { error: subordinatesError } = await supabase
           .from('profiles')
@@ -269,7 +267,7 @@ export default function EmployeeManagement() {
           throw new Error(`Failed to delete employee profile: ${profileError.message}`);
         }
 
-        console.log('Employee deleted successfully');
+        console.log('Employee deleted successfully from database');
         return { success: true };
         
       } catch (error) {
@@ -278,19 +276,13 @@ export default function EmployeeManagement() {
       }
     },
     onSuccess: async (_, employeeId) => {
-      console.log('Delete mutation successful, updating UI immediately...');
+      console.log('Delete mutation successful, refetching data...');
       
-      // Immediately update the cache by removing the deleted employee
-      queryClient.setQueryData(['employees'], (oldData: any) => {
-        if (!oldData) return oldData;
-        console.log('Updating cache - removing employee:', employeeId);
-        const filteredData = oldData.filter((employee: any) => employee.id !== employeeId);
-        console.log('Updated employees list:', filteredData);
-        return filteredData;
-      });
+      // Add a small delay to ensure database changes are committed
+      await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Also invalidate to ensure fresh data on next load
-      await queryClient.invalidateQueries({ queryKey: ['employees'] });
+      // Force a complete refetch of the data
+      await refetch();
       
       toast({
         title: "Success",
@@ -369,7 +361,6 @@ export default function EmployeeManagement() {
                 </TableHeader>
                 <TableBody>
                   {employees.map((employee) => {
-                    // Handle line_manager as it comes as an array from our enhanced data
                     const lineManager = Array.isArray(employee.line_manager) && employee.line_manager.length > 0 
                       ? employee.line_manager[0] 
                       : null;
