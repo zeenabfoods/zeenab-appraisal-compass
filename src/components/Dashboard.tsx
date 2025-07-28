@@ -11,8 +11,9 @@ import { EmployeeAssignedQuestions } from '@/components/EmployeeAssignedQuestion
 import { AppraisalHistoryCard } from '@/components/AppraisalHistoryCard';
 import { EmployeeProfileCard } from '@/components/EmployeeProfileCard';
 import { RecentActivityCard } from '@/components/RecentActivityCard';
-import { QuickActionsCard } from '@/components/QuickActionsCard';
+import { FunctionalQuickActions } from '@/components/FunctionalQuickActions';
 import { PerformanceScoreCalculator } from '@/components/PerformanceScoreCalculator';
+import { HRAnalytics } from '@/components/HRAnalytics';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Profile } from '@/hooks/useAuth';
 import { EmployeeProfileService, ExtendedProfile } from '@/services/employeeProfileService';
@@ -447,10 +448,15 @@ export function Dashboard() {
         </Card>
       </div>
 
-      {/* Recent Activity and Quick Actions */}
+      {/* HR Analytics for HR/Admin users */}
+      {currentProfile && (currentProfile.role === 'hr' || currentProfile.role === 'admin') && (
+        <HRAnalytics />
+      )}
+
+      {/* Recent Activity and Functional Quick Actions */}
       <div className="grid gap-6 md:grid-cols-2">
         <RecentActivityCard />
-        <QuickActionsCard />
+        <FunctionalQuickActions />
       </div>
 
       {/* Performance Score Calculator */}
