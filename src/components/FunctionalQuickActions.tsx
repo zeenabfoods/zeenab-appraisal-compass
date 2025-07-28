@@ -14,9 +14,9 @@ import {
   FileText,
   Calendar,
   Settings,
-  Download,
   RefreshCw,
-  UserPlus
+  UserPlus,
+  Zap
 } from 'lucide-react';
 
 export function FunctionalQuickActions() {
@@ -25,15 +25,15 @@ export function FunctionalQuickActions() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState<string | null>(null);
 
-  const handleAction = async (action: string, callback: () => Promise<void> | void) => {
-    setIsLoading(action);
+  const handleAction = async (actionId: string, callback: () => Promise<void> | void) => {
+    setIsLoading(actionId);
     try {
       await callback();
     } catch (error) {
-      console.error(`Error in ${action}:`, error);
+      console.error(`Error in ${actionId}:`, error);
       toast({
         title: "Error",
-        description: `Failed to perform ${action}. Please try again.`,
+        description: `Failed to perform action. Please try again.`,
         variant: "destructive"
       });
     } finally {
@@ -53,7 +53,7 @@ export function FunctionalQuickActions() {
       `)
       .eq('status', 'completed');
 
-    if (!appraisals) {
+    if (!appraisals || appraisals.length === 0) {
       toast({
         title: "No Data",
         description: "No completed appraisals found for report generation.",
@@ -66,7 +66,7 @@ export function FunctionalQuickActions() {
     const csvContent = [
       ['Employee Name', 'Email', 'Score', 'Completion Date'],
       ...appraisals.map(a => [
-        `${a.profiles?.first_name} ${a.profiles?.last_name}`,
+        `${a.profiles?.first_name || ''} ${a.profiles?.last_name || ''}`.trim(),
         a.profiles?.email || '',
         a.overall_score?.toString() || '',
         a.completed_at ? new Date(a.completed_at).toLocaleDateString() : ''
@@ -84,30 +84,54 @@ export function FunctionalQuickActions() {
 
     toast({
       title: "Report Generated",
-      description: "Performance report has been downloaded successfully.",
+      description: `Performance report downloaded with ${appraisals.length} completed appraisals.`,
     });
   };
 
   const syncData = async () => {
-    // Simulate data sync - in reality this might refresh analytics or update cached data
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Simulate data refresh
+    await new Promise(resolve => setTimeout(resolve, 1500));
     
     toast({
-      title: "Data Synced",
-      description: "All analytics data has been refreshed successfully.",
+      title: "Data Refreshed",
+      description: "All dashboard data has been synchronized.",
     });
   };
+
+  // Only show actions if user has a profile
+  if (!profile) {
+    return (
+      <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Quick Actions
+          </CardTitle>
+          <CardDescription>
+            Loading user permissions...
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const getActionButtons = () => {
     const baseActions = [
       {
+        id: 'view-analytics',
         icon: BarChart3,
         label: "View Analytics",
-        description: "Comprehensive performance insights",
+        description: "Performance insights and reports",
         action: () => Promise.resolve(navigate('/company-reports')),
         variant: "default" as const
       },
       {
+        id: 'generate-report',
         icon: FileText,
         label: "Generate Report",
         description: "Export performance data",
@@ -115,56 +139,46 @@ export function FunctionalQuickActions() {
         variant: "outline" as const
       },
       {
+        id: 'sync-data',
         icon: RefreshCw,
-        label: "Sync Data",
-        description: "Refresh all analytics",
+        label: "Refresh Data",
+        description: "Sync latest information",
         action: () => handleAction('sync-data', syncData),
         variant: "outline" as const
       }
     ];
 
     // Add role-specific actions
-    if (profile?.role === 'hr' || profile?.role === 'admin') {
+    if (profile.role === 'hr' || profile.role === 'admin') {
       baseActions.unshift(
         {
+          id: 'new-cycle',
           icon: Plus,
           label: "New Appraisal Cycle",
-          description: "Create new performance cycle",
+          description: "Create performance review cycle",
           action: () => Promise.resolve(navigate('/appraisal-cycles')),
           variant: "default" as const
         },
         {
+          id: 'manage-employees',
           icon: UserPlus,
           label: "Manage Employees",
-          description: "Add or update employee profiles",
+          description: "Employee profiles and settings",
           action: () => Promise.resolve(navigate('/employee-management')),
-          variant: "outline" as const
-        },
-        {
-          icon: Settings,
-          label: "Question Templates",
-          description: "Manage appraisal questions",
-          action: () => Promise.resolve(navigate('/question-templates')),
           variant: "outline" as const
         }
       );
     }
 
-    if (profile?.role === 'manager') {
+    if (profile.role === 'manager') {
       baseActions.unshift(
         {
+          id: 'team-reviews',
           icon: Users,
           label: "Team Reviews",
-          description: "Review team appraisals",
+          description: "Review team performance",
           action: () => Promise.resolve(navigate('/manager-appraisals')),
           variant: "default" as const
-        },
-        {
-          icon: Calendar,
-          label: "Schedule Reviews",
-          description: "Manage review timeline",
-          action: () => Promise.resolve(navigate('/appraisal-cycles')),
-          variant: "outline" as const
         }
       );
     }
@@ -172,36 +186,40 @@ export function FunctionalQuickActions() {
     return baseActions;
   };
 
+  const actions = getActionButtons();
+
   return (
     <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Shield className="h-5 w-5" />
+          <Zap className="h-5 w-5" />
           Quick Actions
         </CardTitle>
         <CardDescription>
-          Common tasks and shortcuts for {profile?.role === 'hr' ? 'HR' : profile?.role === 'manager' ? 'Managers' : 'Employees'}
+          {profile.role === 'hr' ? 'HR Management Tools' : 
+           profile.role === 'admin' ? 'Admin Tools' :
+           profile.role === 'manager' ? 'Manager Tools' : 'Employee Tools'}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid gap-3">
-          {getActionButtons().map((action, index) => (
+          {actions.map((action) => (
             <Button
-              key={index}
-              className="w-full justify-start h-auto p-4"
+              key={action.id}
+              className="w-full justify-start h-auto p-4 text-left"
               variant={action.variant}
               onClick={action.action}
               disabled={isLoading !== null}
             >
               <div className="flex items-center gap-3 w-full">
                 <action.icon className="h-5 w-5 flex-shrink-0" />
-                <div className="flex-1 text-left">
+                <div className="flex-1">
                   <div className="font-medium">{action.label}</div>
                   <div className="text-sm text-muted-foreground">
                     {action.description}
                   </div>
                 </div>
-                {isLoading === action.label.toLowerCase().replace(/\s+/g, '-') && (
+                {isLoading === action.id && (
                   <RefreshCw className="h-4 w-4 animate-spin" />
                 )}
               </div>
