@@ -2,12 +2,13 @@
 import { useAuthContext } from '@/components/AuthProvider';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { SimpleSidebar } from '@/components/SimpleSidebar';
+import { ResponsiveSidebar } from '@/components/ResponsiveSidebar';
 import { NotificationBell } from '@/components/NotificationBell';
 import { LogOut, User, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -18,6 +19,7 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, showSearch = true, pageTitle = "Dashboard" }: DashboardLayoutProps) {
   const { profile, signOut } = useAuthContext();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   // CRITICAL: Layout enforcement - throw error if duplicate headers exist
   useEffect(() => {
@@ -105,42 +107,52 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
   console.log('🎯 DashboardLayout: Rendering SINGLE CONSOLIDATED header with title:', pageTitle);
 
   return (
-    <div className="min-h-screen flex w-full bg-gradient-to-br from-orange-50/50 via-white to-red-50/50">
-      {/* Fixed Sidebar */}
-      <div className="fixed left-0 top-0 h-full w-64 z-30">
-        <SimpleSidebar />
-      </div>
+    <div className="min-h-screen flex flex-col lg:flex-row w-full bg-gradient-to-br from-orange-50/50 via-white to-red-50/50">
+      {/* Responsive Sidebar */}
+      <ResponsiveSidebar />
       
-      {/* Main Content Area - Properly offset */}
-      <div className="flex-1 flex flex-col min-w-0 ml-64">
-        {/* 🎯 SINGLE CONSOLIDATED HEADER - The ONLY header in the entire application */}
+      {/* Main Content Area - Responsive layout */}
+      <div className="flex-1 flex flex-col min-w-0 lg:ml-64">
+        {/* 🎯 SINGLE CONSOLIDATED HEADER - Responsive design */}
         <header 
           data-testid="app-header"
           className="sticky top-0 backdrop-blur-md bg-white/90 shadow-sm border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-6 z-20 shrink-0"
         >
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 rounded-lg overflow-hidden shadow-md">
-                <img 
-                  src="/lovable-uploads/382d6c71-33c6-4592-bd0f-0fb453a48ecf.png" 
-                  alt="Zeenab Logo" 
-                  className="w-full h-full object-contain"
-                />
+              {/* Mobile menu trigger is now in ResponsiveSidebar */}
+              <div className="hidden sm:flex items-center space-x-3">
+                <div className="w-8 h-8 rounded-lg overflow-hidden shadow-md">
+                  <img 
+                    src="/lovable-uploads/382d6c71-33c6-4592-bd0f-0fb453a48ecf.png" 
+                    alt="Zeenab Logo" 
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                <h1 className="text-lg md:text-xl font-semibold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+                  {pageTitle}
+                </h1>
               </div>
-              <h1 className="text-lg md:text-xl font-semibold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+              {/* Mobile: Show only page title */}
+              <h1 className="sm:hidden text-lg font-semibold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent truncate">
                 {pageTitle}
               </h1>
             </div>
           </div>
           
           <div className="flex items-center space-x-2 md:space-x-4">
-            {/* INTEGRATED SEARCH BAR - Only rendered when showSearch is true */}
+            {/* Mobile sidebar trigger */}
+            <div className="lg:hidden">
+              <ResponsiveSidebar />
+            </div>
+            
+            {/* INTEGRATED SEARCH BAR - Responsive */}
             {showSearch && (
-              <div className="relative hidden sm:block" data-testid="integrated-search">
+              <div className="relative hidden md:block" data-testid="integrated-search">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input 
                   placeholder="Search appraisals..." 
-                  className="pl-10 w-64 md:w-80 backdrop-blur-sm bg-white/70 border-white/40"
+                  className="pl-10 w-48 lg:w-64 xl:w-80 backdrop-blur-sm bg-white/70 border-white/40"
                 />
               </div>
             )}
@@ -148,27 +160,27 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
             {/* Notification Bell */}
             <NotificationBell onClick={handleNotificationClick} />
             
-            {/* USER PROFILE - Single instance */}
+            {/* USER PROFILE - Responsive */}
             <div className="flex items-center space-x-3 border-l pl-3 md:pl-4 border-gray-200" data-testid="user-profile">
               <div className="flex items-center space-x-2">
                 <User className="h-5 w-5 text-gray-400" />
-                <div className="text-sm hidden sm:block">
+                <div className="text-sm hidden md:block">
                   <div className="flex items-center space-x-2">
-                    <span className="font-medium text-gray-700">
+                    <span className="font-medium text-gray-700 truncate max-w-24 lg:max-w-none">
                       {profile.first_name} {profile.last_name}
                     </span>
-                    <Badge className={`${getRoleBadgeColor(profile.role)}`}>
+                    <Badge className={`${getRoleBadgeColor(profile.role)} text-xs`}>
                       {profile.role.toUpperCase()}
                     </Badge>
                   </div>
                   {profile.department && (
-                    <div className="text-xs text-gray-500 mt-1">
-                      Department: {profile.department.name}
+                    <div className="text-xs text-gray-500 mt-1 truncate">
+                      Dept: {profile.department.name}
                     </div>
                   )}
                   {profile.position && (
-                    <div className="text-xs text-gray-500">
-                      Position: {profile.position}
+                    <div className="text-xs text-gray-500 truncate">
+                      Role: {profile.position}
                     </div>
                   )}
                 </div>
@@ -180,13 +192,13 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
           </div>
         </header>
 
-        {/* 🎯 CLEAN MAIN CONTENT - NO additional headers allowed here */}
-        <main className="flex-1 p-4 md:p-6 overflow-auto">
+        {/* 🎯 CLEAN MAIN CONTENT - Responsive padding */}
+        <main className="flex-1 p-3 sm:p-4 md:p-6 overflow-auto">
           <div className="max-w-full">
             {children}
           </div>
         </main>
       </div>
     </div>
-  );
+  )
 }
