@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { TrendingUp, TrendingDown, Award, BarChart3, Calendar, AlertCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Award, BarChart3, Calendar } from 'lucide-react';
 
 interface PerformanceTrendData {
   month: string;
@@ -23,27 +23,15 @@ interface CompanyStats {
 }
 
 export function CompanyPerformanceTrend() {
-  const { data: trendData, isLoading: trendLoading, error: trendError } = useQuery({
+  const { data: trendData, isLoading: trendLoading } = useQuery({
     queryKey: ['company-performance-trend'],
     queryFn: async (): Promise<PerformanceTrendData[]> => {
-      console.log('🔍 Fetching company performance trend data...');
-      
-      const { data: appraisals, error } = await supabase
+      const { data: appraisals } = await supabase
         .from('appraisals')
         .select('overall_score, completed_at, status, created_at')
         .order('created_at', { ascending: true });
 
-      if (error) {
-        console.error('❌ Error fetching appraisals:', error);
-        throw error;
-      }
-
-      console.log('📊 Appraisals data:', appraisals);
-
-      if (!appraisals || appraisals.length === 0) {
-        console.log('⚠️ No appraisals found');
-        return [];
-      }
+      if (!appraisals) return [];
 
       // Group data by month
       const monthlyData = appraisals.reduce((acc, appraisal) => {
@@ -72,7 +60,7 @@ export function CompanyPerformanceTrend() {
       }, {} as Record<string, { scores: number[], completed: number, total: number }>);
 
       // Convert to array and calculate averages
-      const result = Object.entries(monthlyData)
+      return Object.entries(monthlyData)
         .map(([month, data]) => ({
           month,
           avgScore: data.scores.length > 0 
@@ -84,37 +72,19 @@ export function CompanyPerformanceTrend() {
         }))
         .filter(item => item.totalAppraisals > 0)
         .slice(-6); // Show last 6 months
-
-      console.log('📈 Processed trend data:', result);
-      return result;
     }
   });
 
-  const { data: companyStats, isLoading: statsLoading, error: statsError } = useQuery({
+  const { data: companyStats, isLoading: statsLoading } = useQuery({
     queryKey: ['company-stats'],
     queryFn: async (): Promise<CompanyStats> => {
-      console.log('🔍 Fetching company stats...');
-      
       const [
-        { data: employees, error: employeesError },
-        { data: completedAppraisals, error: appraisalsError }
+        { data: employees },
+        { data: completedAppraisals }
       ] = await Promise.all([
         supabase.from('profiles').select('id').eq('is_active', true),
         supabase.from('appraisals').select('overall_score').eq('status', 'completed').not('overall_score', 'is', null)
       ]);
-
-      if (employeesError) {
-        console.error('❌ Error fetching employees:', employeesError);
-        throw employeesError;
-      }
-      
-      if (appraisalsError) {
-        console.error('❌ Error fetching completed appraisals:', appraisalsError);
-        throw appraisalsError;
-      }
-
-      console.log('👥 Employees:', employees);
-      console.log('✅ Completed appraisals:', completedAppraisals);
 
       const totalEmployees = employees?.length || 0;
       const scores = completedAppraisals?.map(a => a.overall_score) || [];
@@ -130,15 +100,12 @@ export function CompanyPerformanceTrend() {
       const olderAvg = olderScores.length > 0 ? olderScores.reduce((sum, score) => sum + score, 0) / olderScores.length : 0;
       const improvementTrend = olderAvg > 0 ? ((recentAvg - olderAvg) / olderAvg) * 100 : 0;
 
-      const result = {
+      return {
         totalEmployees,
         avgCompanyScore: parseFloat(avgScore.toFixed(1)),
         topPerformers,
         improvementTrend: parseFloat(improvementTrend.toFixed(1))
       };
-
-      console.log('📊 Company stats:', result);
-      return result;
     }
   });
 
@@ -150,42 +117,20 @@ export function CompanyPerformanceTrend() {
             <TrendingUp className="h-5 w-5" />
             Company Performance Trend
           </CardTitle>
-          <CardDescription>Loading performance analytics...</CardDescription>
+          <CardDescription>Overall company performance analytics</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
-            <span className="ml-3 text-gray-600">Fetching data...</span>
           </div>
         </CardContent>
       </Card>
     );
   }
 
-  if (trendError || statsError) {
-    return (
-      <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-red-500" />
-            Company Performance Trend
-          </CardTitle>
-          <CardDescription>Error loading performance data</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-12 text-center">
-            <div className="text-red-500">
-              <AlertCircle className="h-16 w-16 mx-auto mb-4" />
-              <h3 className="text-lg font-medium mb-2">Unable to Load Data</h3>
-              <p className="text-sm text-gray-600">
-                {trendError?.message || statsError?.message || 'Please check your database connection'}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const latestTrend = trendData && trendData.length > 1 
+    ? trendData[trendData.length - 1].avgScore - trendData[trendData.length - 2].avgScore
+    : 0;
 
   return (
     <div className="space-y-6">
@@ -268,15 +213,10 @@ export function CompanyPerformanceTrend() {
                 <TrendingUp className="h-5 w-5" />
                 Company Performance Trend
               </CardTitle>
-              <CardDescription>
-                {trendData && trendData.length > 0 
-                  ? `Monthly performance scores and completion rates - ${trendData.length} months shown`
-                  : 'No performance data available yet'
-                }
-              </CardDescription>
+              <CardDescription>Monthly performance scores and completion rates</CardDescription>
             </div>
             <Badge variant="outline" className="bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800 border-blue-200">
-              {trendData && trendData.length > 0 ? 'Live Data' : 'No Data'}
+              Last 6 Months
             </Badge>
           </div>
         </CardHeader>
@@ -369,17 +309,12 @@ export function CompanyPerformanceTrend() {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <BarChart3 className="h-16 w-16 text-gray-400 mb-4" />
+              <TrendingUp className="h-16 w-16 text-gray-400 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No Performance Data Available</h3>
-              <p className="text-sm text-gray-500 max-w-md mb-4">
+              <p className="text-sm text-gray-500 max-w-md">
                 Performance trends will appear here once appraisals are completed. 
-                The system is ready to display data as soon as you have:
+                Start by creating appraisal cycles and having employees complete their evaluations.
               </p>
-              <div className="text-xs text-gray-400 space-y-1">
-                <p>• Created appraisal cycles</p>
-                <p>• Added employee appraisals</p>
-                <p>• Completed performance reviews</p>
-              </div>
             </div>
           )}
         </CardContent>
