@@ -104,7 +104,7 @@ export function FunctionalQuickActions() {
         icon: BarChart3,
         label: "View Analytics",
         description: "Comprehensive performance insights",
-        action: () => navigate('/company-reports'),
+        action: () => Promise.resolve(navigate('/company-reports')),
         variant: "default" as const
       },
       {
@@ -130,21 +130,21 @@ export function FunctionalQuickActions() {
           icon: Plus,
           label: "New Appraisal Cycle",
           description: "Create new performance cycle",
-          action: () => navigate('/appraisal-cycles'),
+          action: () => Promise.resolve(navigate('/appraisal-cycles')),
           variant: "default" as const
         },
         {
           icon: UserPlus,
           label: "Manage Employees",
           description: "Add or update employee profiles",
-          action: () => navigate('/employee-management'),
+          action: () => Promise.resolve(navigate('/employee-management')),
           variant: "outline" as const
         },
         {
           icon: Settings,
           label: "Question Templates",
           description: "Manage appraisal questions",
-          action: () => navigate('/question-templates'),
+          action: () => Promise.resolve(navigate('/question-templates')),
           variant: "outline" as const
         }
       );
@@ -156,14 +156,14 @@ export function FunctionalQuickActions() {
           icon: Users,
           label: "Team Reviews",
           description: "Review team appraisals",
-          action: () => navigate('/manager-appraisals'),
+          action: () => Promise.resolve(navigate('/manager-appraisals')),
           variant: "default" as const
         },
         {
           icon: Calendar,
           label: "Schedule Reviews",
           description: "Manage review timeline",
-          action: () => navigate('/appraisal-cycles'),
+          action: () => Promise.resolve(navigate('/appraisal-cycles')),
           variant: "outline" as const
         }
       );
