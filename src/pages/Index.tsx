@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, BarChart3, Users, Shield, Clock } from 'lucide-react';
 import { DashboardLayout } from '@/components/DashboardLayout';
+import { RecentActivityCard } from '@/components/RecentActivityCard';
+import { FunctionalQuickActions } from '@/components/FunctionalQuickActions';
 
 export default function Index() {
   const { user, loading } = useAuthContext();
@@ -79,60 +81,8 @@ export default function Index() {
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Latest appraisal activities</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">John Doe completed self-appraisal</p>
-                      <p className="text-xs text-muted-foreground">2 hours ago</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">Manager review pending for Jane Smith</p>
-                      <p className="text-xs text-muted-foreground">1 day ago</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">Q2 appraisal cycle started</p>
-                      <p className="text-xs text-muted-foreground">3 days ago</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-                <CardDescription>Common tasks and shortcuts</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <Button className="w-full justify-start" variant="outline">
-                    <BarChart3 className="mr-2 h-4 w-4" />
-                    Start New Appraisal
-                  </Button>
-                  <Button className="w-full justify-start" variant="outline">
-                    <Users className="mr-2 h-4 w-4" />
-                    View Team Performance
-                  </Button>
-                  <Button className="w-full justify-start" variant="outline">
-                    <Shield className="mr-2 h-4 w-4" />
-                    Generate Reports
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <RecentActivityCard />
+            <FunctionalQuickActions />
           </div>
         </div>
       </DashboardLayout>
