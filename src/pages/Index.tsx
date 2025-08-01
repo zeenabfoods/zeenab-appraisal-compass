@@ -1,12 +1,11 @@
+
 import { useAuthContext } from '@/components/AuthProvider';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, BarChart3, Users, Shield, Clock } from 'lucide-react';
-import { DashboardLayout } from '@/components/DashboardLayout';
-import { RecentActivityCard } from '@/components/RecentActivityCard';
-import { FunctionalQuickActions } from '@/components/FunctionalQuickActions';
+import { Dashboard } from '@/components/Dashboard';
 
 export default function Index() {
   const { user, loading } = useAuthContext();
@@ -22,71 +21,9 @@ export default function Index() {
     );
   }
 
-  // If user is authenticated, show the dashboard with sidebar
+  // If user is authenticated, show the real Dashboard component
   if (user) {
-    return (
-      <DashboardLayout>
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-              <p className="text-gray-600">Welcome back! Here's what's happening.</p>
-            </div>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Appraisals</CardTitle>
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">45</div>
-                <p className="text-xs text-muted-foreground">+12% from last month</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Pending Reviews</CardTitle>
-                <Clock className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">12</div>
-                <p className="text-xs text-muted-foreground">3 due this week</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Team Members</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">28</div>
-                <p className="text-xs text-muted-foreground">Active employees</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Completion Rate</CardTitle>
-                <Shield className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">89%</div>
-                <p className="text-xs text-muted-foreground">+5% from last quarter</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            <RecentActivityCard />
-            <FunctionalQuickActions />
-          </div>
-        </div>
-      </DashboardLayout>
-    );
+    return <Dashboard />;
   }
 
   // Show landing page for unauthenticated users
