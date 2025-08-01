@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,6 +12,7 @@ import { EmployeeProfileCard } from '@/components/EmployeeProfileCard';
 import { CompanyPerformanceTrend } from '@/components/CompanyPerformanceTrend';
 import { PerformanceScoreCalculator } from '@/components/PerformanceScoreCalculator';
 import { HRAnalytics } from '@/components/HRAnalytics';
+import { RecentActivityCard } from '@/components/RecentActivityCard';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Profile } from '@/hooks/useAuth';
 import { EmployeeProfileService, ExtendedProfile } from '@/services/employeeProfileService';
@@ -447,8 +447,13 @@ export function Dashboard() {
         </Card>
       </div>
 
-      {/* Company Performance Trend - Replaces Recent Activity and Quick Actions */}
-      <CompanyPerformanceTrend />
+      {/* Recent Activity with Real Data */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <RecentActivityCard />
+        
+        {/* Company Performance Trend */}
+        <CompanyPerformanceTrend />
+      </div>
 
       {/* HR Analytics for HR/Admin users */}
       {currentProfile && (currentProfile.role === 'hr' || currentProfile.role === 'admin') && (
