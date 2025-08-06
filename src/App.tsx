@@ -20,6 +20,7 @@ import EmployeeQuestionsView from "./pages/EmployeeQuestionsView";
 import Committee from "./pages/Committee";
 import CompanyReports from "./pages/CompanyReports";
 import Notifications from "./pages/Notifications";
+import Profile from "./pages/Profile";
 import AppraisalPage from "./pages/AppraisalPage";
 import NewAppraisalPage from "./pages/NewAppraisalPage";
 import NotFound from "./pages/NotFound";
@@ -94,6 +95,7 @@ function App() {
                   <Route path="/committee" element={<ProtectedRoute><Committee /></ProtectedRoute>} />
                   <Route path="/company-reports" element={<ProtectedRoute><CompanyReports /></ProtectedRoute>} />
                   <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+                  <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </div>
