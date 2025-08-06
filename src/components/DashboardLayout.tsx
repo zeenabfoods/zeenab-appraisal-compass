@@ -56,31 +56,6 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
     return () => clearTimeout(timer);
   }, [pageTitle]);
 
-  // Debug protocol for development
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      const debugTimer = setTimeout(() => {
-        const headers = document.querySelectorAll('header, h1, h2');
-        console.table({
-          'Header Count': document.querySelectorAll('header').length,
-          'Main Titles': document.querySelectorAll('h1').length,
-          'Sub Headers': document.querySelectorAll('h2').length,
-          'Expected Headers': 1
-        });
-
-        // Visual debug for duplicates
-        headers.forEach((h, i) => {
-          if (i > 0 && h.tagName === 'HEADER') {
-            (h as HTMLElement).style.outline = '2px dashed red';
-            (h as HTMLElement).setAttribute('data-debug', 'DUPLICATE-HEADER');
-          }
-        });
-      }, 200);
-
-      return () => clearTimeout(debugTimer);
-    }
-  }, []);
-
   if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-white to-red-50">
@@ -108,12 +83,12 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
   console.log('🎯 DashboardLayout: Rendering SINGLE CONSOLIDATED header with title:', pageTitle);
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row w-full bg-gradient-to-br from-orange-50/50 via-white to-red-50/50">
+    <div className="min-h-screen flex flex-col md:flex-row w-full bg-gradient-to-br from-orange-50/50 via-white to-red-50/50">
       {/* Responsive Sidebar */}
       <ResponsiveSidebar />
       
       {/* Main Content Area - Responsive layout */}
-      <div className="flex-1 flex flex-col min-w-0 lg:ml-64 pb-16 lg:pb-0">
+      <div className="flex-1 flex flex-col min-w-0 md:ml-64 pb-20 md:pb-0">
         {/* 🎯 SINGLE CONSOLIDATED HEADER - Responsive design */}
         <header 
           data-testid="app-header"
@@ -121,12 +96,10 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
         >
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-3">
-              {/* Mobile menu trigger */}
-              <div className="lg:hidden">
-                <ResponsiveSidebar />
-              </div>
+              {/* Mobile menu trigger - only show on mobile */}
+              {isMobile && <ResponsiveSidebar />}
               
-              <div className="hidden sm:flex items-center space-x-3">
+              <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 rounded-lg overflow-hidden shadow-md">
                   <img 
                     src="/lovable-uploads/382d6c71-33c6-4592-bd0f-0fb453a48ecf.png" 
@@ -138,10 +111,6 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
                   {pageTitle}
                 </h1>
               </div>
-              {/* Mobile: Show only page title */}
-              <h1 className="sm:hidden text-lg font-semibold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent truncate">
-                {pageTitle}
-              </h1>
             </div>
           </div>
           
@@ -158,7 +127,7 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
             )}
             
             {/* Desktop-only items */}
-            <div className="hidden lg:flex items-center space-x-4">
+            <div className="hidden md:flex items-center space-x-4">
               {/* Notification Bell */}
               <NotificationBell onClick={handleNotificationClick} />
               
@@ -203,7 +172,7 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
         </main>
       </div>
       
-      {/* Mobile Bottom Navigation */}
+      {/* Mobile Bottom Navigation - Always render on mobile */}
       <BottomNavigation />
     </div>
   )

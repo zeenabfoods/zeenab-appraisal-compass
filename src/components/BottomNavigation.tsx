@@ -47,8 +47,8 @@ export function BottomNavigation() {
   ];
 
   return (
-    <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg">
-      <div className="flex items-center justify-around py-2 px-4 safe-area-bottom">
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg md:hidden">
+      <div className="flex items-center justify-around py-2 px-2">
         {navItems.map((item) => (
           <Link
             key={item.path}
@@ -60,10 +60,10 @@ export function BottomNavigation() {
                 : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
             )}
           >
-            <div className="relative">
-              <item.icon className="h-5 w-5 mb-1" />
+            <div className="relative mb-1">
+              <item.icon className="h-5 w-5" />
               {item.badge && (
-                <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center min-w-4">
+                <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center min-w-4">
                   {item.badge > 9 ? '9+' : item.badge}
                 </div>
               )}

@@ -126,17 +126,15 @@ export function ResponsiveSidebar() {
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
-      {/* Header - Only show close button for mobile */}
+      {/* Header */}
       <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md">
-              <ClipboardList className="size-4" />
-            </div>
-            <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-semibold text-gray-900">Appraisal System</span>
-              <span className="truncate text-xs text-gray-600">Performance Management</span>
-            </div>
+        <div className="flex items-center space-x-2">
+          <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md">
+            <ClipboardList className="size-4" />
+          </div>
+          <div className="grid flex-1 text-left text-sm leading-tight">
+            <span className="truncate font-semibold text-gray-900">Appraisal System</span>
+            <span className="truncate text-xs text-gray-600">Performance Management</span>
           </div>
         </div>
       </div>
@@ -207,12 +205,12 @@ export function ResponsiveSidebar() {
     </div>
   )
 
-  // Mobile sidebar (drawer) - Return only the trigger, content handled by DashboardLayout
+  // Mobile sidebar (drawer)
   if (isMobile) {
     return (
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetTrigger asChild>
-          <Button variant="ghost" size="sm" className="lg:hidden">
+          <Button variant="ghost" size="sm" className="md:hidden">
             <Menu className="h-5 w-5" />
           </Button>
         </SheetTrigger>
@@ -225,7 +223,7 @@ export function ResponsiveSidebar() {
 
   // Desktop sidebar
   return (
-    <div className="hidden lg:block fixed top-0 left-0 h-screen w-64 bg-white shadow-lg border-r border-gray-200 z-30">
+    <div className="hidden md:block fixed top-0 left-0 h-screen w-64 bg-white shadow-lg border-r border-gray-200 z-30">
       <SidebarContent />
     </div>
   )
