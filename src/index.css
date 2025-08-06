@@ -221,6 +221,11 @@
   }
 }
 
+/* Safe area handling for bottom navigation */
+.safe-area-bottom {
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+}
+
 /* Improved mobile touch interactions */
 @media (hover: none) and (pointer: coarse) {
   /* Touch-friendly hover states */
@@ -230,5 +235,12 @@
   
   .hover\:bg-orange-100:hover {
     background-color: rgb(254 237 215);
+  }
+}
+
+/* Bottom navigation specific styles */
+@media (max-width: 1024px) {
+  .bottom-nav-spacing {
+    margin-bottom: 72px; /* Space for bottom nav */
   }
 }

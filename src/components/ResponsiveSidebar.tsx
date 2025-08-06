@@ -126,7 +126,7 @@ export function ResponsiveSidebar() {
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
-      {/* Header */}
+      {/* Header - Only show close button for mobile */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -138,16 +138,6 @@ export function ResponsiveSidebar() {
               <span className="truncate text-xs text-gray-600">Performance Management</span>
             </div>
           </div>
-          {isMobile && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsOpen(false)}
-              className="lg:hidden"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
         </div>
       </div>
       
@@ -217,7 +207,7 @@ export function ResponsiveSidebar() {
     </div>
   )
 
-  // Mobile sidebar (drawer)
+  // Mobile sidebar (drawer) - Return only the trigger, content handled by DashboardLayout
   if (isMobile) {
     return (
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -226,7 +216,7 @@ export function ResponsiveSidebar() {
             <Menu className="h-5 w-5" />
           </Button>
         </SheetTrigger>
-        <SheetContent side="left" className="w-64 p-0">
+        <SheetContent side="left" className="w-80 p-0">
           <SidebarContent />
         </SheetContent>
       </Sheet>

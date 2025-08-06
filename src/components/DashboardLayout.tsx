@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ResponsiveSidebar } from '@/components/ResponsiveSidebar';
 import { NotificationBell } from '@/components/NotificationBell';
+import { BottomNavigation } from '@/components/BottomNavigation';
 import { LogOut, User, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
@@ -112,7 +113,7 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
       <ResponsiveSidebar />
       
       {/* Main Content Area - Responsive layout */}
-      <div className="flex-1 flex flex-col min-w-0 lg:ml-64">
+      <div className="flex-1 flex flex-col min-w-0 lg:ml-64 pb-16 lg:pb-0">
         {/* 🎯 SINGLE CONSOLIDATED HEADER - Responsive design */}
         <header 
           data-testid="app-header"
@@ -120,7 +121,11 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
         >
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-3">
-              {/* Mobile menu trigger is now in ResponsiveSidebar */}
+              {/* Mobile menu trigger */}
+              <div className="lg:hidden">
+                <ResponsiveSidebar />
+              </div>
+              
               <div className="hidden sm:flex items-center space-x-3">
                 <div className="w-8 h-8 rounded-lg overflow-hidden shadow-md">
                   <img 
@@ -141,12 +146,7 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
           </div>
           
           <div className="flex items-center space-x-2 md:space-x-4">
-            {/* Mobile sidebar trigger */}
-            <div className="lg:hidden">
-              <ResponsiveSidebar />
-            </div>
-            
-            {/* INTEGRATED SEARCH BAR - Responsive */}
+            {/* INTEGRATED SEARCH BAR - Desktop only */}
             {showSearch && (
               <div className="relative hidden md:block" data-testid="integrated-search">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -157,37 +157,40 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
               </div>
             )}
             
-            {/* Notification Bell */}
-            <NotificationBell onClick={handleNotificationClick} />
-            
-            {/* USER PROFILE - Responsive */}
-            <div className="flex items-center space-x-3 border-l pl-3 md:pl-4 border-gray-200" data-testid="user-profile">
-              <div className="flex items-center space-x-2">
-                <User className="h-5 w-5 text-gray-400" />
-                <div className="text-sm hidden md:block">
-                  <div className="flex items-center space-x-2">
-                    <span className="font-medium text-gray-700 truncate max-w-24 lg:max-w-none">
-                      {profile.first_name} {profile.last_name}
-                    </span>
-                    <Badge className={`${getRoleBadgeColor(profile.role)} text-xs`}>
-                      {profile.role.toUpperCase()}
-                    </Badge>
+            {/* Desktop-only items */}
+            <div className="hidden lg:flex items-center space-x-4">
+              {/* Notification Bell */}
+              <NotificationBell onClick={handleNotificationClick} />
+              
+              {/* USER PROFILE */}
+              <div className="flex items-center space-x-3 border-l pl-4 border-gray-200" data-testid="user-profile">
+                <div className="flex items-center space-x-2">
+                  <User className="h-5 w-5 text-gray-400" />
+                  <div className="text-sm">
+                    <div className="flex items-center space-x-2">
+                      <span className="font-medium text-gray-700 truncate max-w-24 lg:max-w-none">
+                        {profile.first_name} {profile.last_name}
+                      </span>
+                      <Badge className={`${getRoleBadgeColor(profile.role)} text-xs`}>
+                        {profile.role.toUpperCase()}
+                      </Badge>
+                    </div>
+                    {profile.department && (
+                      <div className="text-xs text-gray-500 mt-1 truncate">
+                        Dept: {profile.department.name}
+                      </div>
+                    )}
+                    {profile.position && (
+                      <div className="text-xs text-gray-500 truncate">
+                        Role: {profile.position}
+                      </div>
+                    )}
                   </div>
-                  {profile.department && (
-                    <div className="text-xs text-gray-500 mt-1 truncate">
-                      Dept: {profile.department.name}
-                    </div>
-                  )}
-                  {profile.position && (
-                    <div className="text-xs text-gray-500 truncate">
-                      Role: {profile.position}
-                    </div>
-                  )}
                 </div>
+                <Button variant="ghost" size="sm" onClick={signOut} className="hover:bg-gray-100">
+                  <LogOut className="h-4 w-4" />
+                </Button>
               </div>
-              <Button variant="ghost" size="sm" onClick={signOut} className="hover:bg-gray-100">
-                <LogOut className="h-4 w-4" />
-              </Button>
             </div>
           </div>
         </header>
@@ -199,6 +202,9 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
           </div>
         </main>
       </div>
+      
+      {/* Mobile Bottom Navigation */}
+      <BottomNavigation />
     </div>
   )
 }
