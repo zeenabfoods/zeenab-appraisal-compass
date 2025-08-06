@@ -1,4 +1,3 @@
-
 import { useAuthContext } from '@/components/AuthProvider';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -89,15 +88,6 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
       
       {/* Main Content Area - Responsive layout */}
       <div className="flex-1 flex flex-col min-w-0 md:ml-64 pb-20 md:pb-0">
-        {/* Mobile-only caption */}
-        {isMobile && (
-          <div className="bg-white border-b border-gray-200 px-4 py-2">
-            <h1 className="text-lg font-bold text-center bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
-              Zeenab Appraisal System
-            </h1>
-          </div>
-        )}
-
         {/* 🎯 SINGLE CONSOLIDATED HEADER - Responsive design */}
         <header 
           data-testid="app-header"
