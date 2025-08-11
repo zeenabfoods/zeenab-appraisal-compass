@@ -1,4 +1,3 @@
-
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useAuthContext } from '@/components/AuthProvider';
 import { useQuery } from '@tanstack/react-query';
@@ -217,7 +216,7 @@ export default function MyAppraisals() {
         {/* Appraisals List */}
         {appraisals && appraisals.length > 0 ? (
           <div className="grid gap-4">
-            {appraisals.map((appraisal) => (
+            {appraisals.map((appraisal: any) => (
               <Card key={appraisal.id} className="hover:shadow-md transition-shadow">
                 <CardHeader className="pb-3">
                   <div className="flex justify-between items-start">
