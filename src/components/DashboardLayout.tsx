@@ -106,8 +106,9 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
                     className="w-full h-full object-contain"
                   />
                 </div>
-                <h1 className="text-lg md:text-xl font-semibold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
-                  {pageTitle}
+                {/* Mobile: Show "Zeenab Appraisal System", Desktop: Show page title */}
+                <h1 className="text-base md:text-xl font-semibold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+                  {isMobile ? "Zeenab Appraisal System" : pageTitle}
                 </h1>
               </div>
             </div>
