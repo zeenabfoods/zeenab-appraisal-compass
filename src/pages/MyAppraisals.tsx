@@ -6,38 +6,89 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { FileText, Calendar, Eye, Plus } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { FileText, Calendar, Eye, Plus, Search, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 
 export default function MyAppraisals() {
   const { profile } = useAuthContext();
   const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState('');
 
   console.log('🔍 MyAppraisals: Loading for profile:', profile?.id, 'role:', profile?.role);
 
+  const isHR = profile?.role === 'hr';
+
   const { data: appraisals, isLoading, error } = useQuery({
-    queryKey: ['my-appraisals', profile?.id],
+    queryKey: ['my-appraisals', profile?.id, searchTerm, isHR],
     queryFn: async () => {
       if (!profile?.id) return [];
       
-      console.log('📋 MyAppraisals: Fetching appraisals for employee:', profile.id);
-      
-      const { data, error } = await supabase
-        .from('appraisals')
-        .select(`
-          *,
-          cycle:appraisal_cycles(name, year, quarter, status)
-        `)
-        .eq('employee_id', profile.id)
-        .order('created_at', { ascending: false });
-      
-      if (error) {
-        console.error('❌ MyAppraisals: Error fetching appraisals:', error);
-        throw error;
-      }
+      if (isHR) {
+        console.log('📋 HR Search: Searching for appraisals with term:', searchTerm);
+        
+        let query = supabase
+          .from('appraisals')
+          .select(`
+            *,
+            cycle:appraisal_cycles(name, year, quarter, status),
+            employee:profiles!appraisals_employee_id_fkey(first_name, last_name, email, position)
+          `)
+          .order('created_at', { ascending: false });
 
-      console.log('✅ MyAppraisals: Fetched appraisals:', data?.length || 0, data);
-      return data || [];
+        // If there's a search term, filter by employee name
+        if (searchTerm.trim()) {
+          const { data: employeeData, error: employeeError } = await supabase
+            .from('profiles')
+            .select('id')
+            .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%`)
+            .eq('is_active', true);
+
+          if (employeeError) {
+            console.error('❌ Error searching employees:', employeeError);
+            throw employeeError;
+          }
+
+          if (employeeData && employeeData.length > 0) {
+            const employeeIds = employeeData.map(emp => emp.id);
+            query = query.in('employee_id', employeeIds);
+          } else {
+            // No matching employees found
+            return [];
+          }
+        }
+
+        const { data, error } = await query;
+        
+        if (error) {
+          console.error('❌ HR Search: Error fetching appraisals:', error);
+          throw error;
+        }
+
+        console.log('✅ HR Search: Fetched appraisals:', data?.length || 0, data);
+        return data || [];
+      } else {
+        // Regular employee view
+        console.log('📋 MyAppraisals: Fetching appraisals for employee:', profile.id);
+        
+        const { data, error } = await supabase
+          .from('appraisals')
+          .select(`
+            *,
+            cycle:appraisal_cycles(name, year, quarter, status)
+          `)
+          .eq('employee_id', profile.id)
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          console.error('❌ MyAppraisals: Error fetching appraisals:', error);
+          throw error;
+        }
+
+        console.log('✅ MyAppraisals: Fetched appraisals:', data?.length || 0, data);
+        return data || [];
+      }
     },
     enabled: !!profile?.id
   });
@@ -86,7 +137,7 @@ export default function MyAppraisals() {
 
   if (isLoading) {
     return (
-      <DashboardLayout pageTitle="My Appraisals" showSearch={true}>
+      <DashboardLayout pageTitle={isHR ? "Employee Appraisals" : "My Appraisals"} showSearch={true}>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="flex items-center space-x-3">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
@@ -104,11 +155,13 @@ export default function MyAppraisals() {
   const hasActiveCycles = activeCycles && activeCycles.length > 0;
 
   return (
-    <DashboardLayout pageTitle="My Appraisals" showSearch={true}>
+    <DashboardLayout pageTitle={isHR ? "Employee Appraisals" : "My Appraisals"} showSearch={true}>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <p className="text-gray-600">Track your performance appraisal progress</p>
-          {hasActiveCycles && (
+          <p className="text-gray-600">
+            {isHR ? "Search and view employee appraisals" : "Track your performance appraisal progress"}
+          </p>
+          {!isHR && hasActiveCycles && (
             <Button onClick={() => navigate('/appraisal/new')}>
               <Plus className="h-4 w-4 mr-2" />
               Start New Appraisal
@@ -116,8 +169,21 @@ export default function MyAppraisals() {
           )}
         </div>
 
-        {/* Show cycle status info */}
-        {!hasActiveCycles && (
+        {/* Search Bar for HR */}
+        {isHR && (
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input 
+              placeholder="Search employee appraisals by name..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        )}
+
+        {/* Show cycle status info for employees */}
+        {!isHR && !hasActiveCycles && (
           <Card className="border-orange-200 bg-orange-50">
             <CardContent className="p-4">
               <div className="flex items-center space-x-2">
@@ -133,6 +199,21 @@ export default function MyAppraisals() {
           </Card>
         )}
 
+        {/* No results message for HR search */}
+        {isHR && searchTerm.trim() && appraisals && appraisals.length === 0 && (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <User className="h-12 w-12 text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Appraisals Found</h3>
+              <p className="text-gray-600 text-center">
+                No appraisals found for employee "{searchTerm}". 
+                <br />
+                The employee may not have completed any appraisals yet.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Appraisals List */}
         {appraisals && appraisals.length > 0 ? (
           <div className="grid gap-4">
@@ -144,11 +225,24 @@ export default function MyAppraisals() {
                       <FileText className="h-5 w-5 text-gray-500" />
                       <div>
                         <CardTitle className="text-lg">
-                          {appraisal.cycle?.name || `Q${appraisal.quarter || '?'} ${appraisal.year || '?'}`}
+                          {isHR && appraisal.employee ? (
+                            `${appraisal.employee.first_name} ${appraisal.employee.last_name}`
+                          ) : (
+                            appraisal.cycle?.name || `Q${appraisal.quarter || '?'} ${appraisal.year || '?'}`
+                          )}
                         </CardTitle>
                         <p className="text-sm text-gray-600">
-                          {appraisal.cycle?.year || appraisal.year} - Quarter {appraisal.cycle?.quarter || appraisal.quarter}
+                          {isHR && appraisal.employee ? (
+                            <>
+                              {appraisal.employee.position || 'No Position'} • {appraisal.cycle?.name || `Q${appraisal.quarter || '?'} ${appraisal.year || '?'}`}
+                            </>
+                          ) : (
+                            `${appraisal.cycle?.year || appraisal.year} - Quarter ${appraisal.cycle?.quarter || appraisal.quarter}`
+                          )}
                         </p>
+                        {isHR && appraisal.employee && (
+                          <p className="text-xs text-gray-500">{appraisal.employee.email}</p>
+                        )}
                       </div>
                     </div>
                     <Badge className={getStatusColor(appraisal.status || 'draft')}>
@@ -188,14 +282,14 @@ export default function MyAppraisals() {
                       onClick={() => navigate(`/appraisal/${appraisal.id}`)}
                     >
                       <Eye className="h-4 w-4 mr-2" />
-                      {appraisal.status === 'draft' ? 'Continue' : 'View'}
+                      {appraisal.status === 'draft' && !isHR ? 'Continue' : 'View'}
                     </Button>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
-        ) : (
+        ) : !isHR ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <FileText className="h-12 w-12 text-gray-400 mb-4" />
@@ -212,7 +306,7 @@ export default function MyAppraisals() {
               )}
             </CardContent>
           </Card>
-        )}
+        ) : null}
       </div>
     </DashboardLayout>
   );
