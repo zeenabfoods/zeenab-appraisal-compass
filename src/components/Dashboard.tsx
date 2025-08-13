@@ -30,12 +30,12 @@ export function Dashboard() {
         console.error('Error fetching appraisals:', appraisalsError);
       }
 
-      // Get pending reviews (appraisals in review status)
+      // Get pending reviews (appraisals that are not completed or draft)
       const { data: pendingReviews, error: pendingError } = await supabase
         .from('appraisals')
         .select('id')
         .eq('employee_id', profile?.id)
-        .eq('status', 'in_review');
+        .in('status', ['submitted', 'manager_review', 'hr_review', 'committee_review']);
 
       if (pendingError) {
         console.error('Error fetching pending reviews:', pendingError);
