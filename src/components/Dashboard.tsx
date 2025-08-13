@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -387,64 +388,106 @@ export function Dashboard() {
         <EmployeeAssignedQuestions employeeId={currentProfile.id} />
       )}
 
-      {/* Stats Grid - Show real data from database */}
+      {/* Beautiful 3D Stats Cards - Real data from database */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Appraisals</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardLoading ? '...' : stats.totalAppraisals}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.totalAppraisals === 0 ? 'No appraisals yet' : 'Your appraisals'}
-            </p>
-          </CardContent>
-        </Card>
+        {/* Total Appraisals Card */}
+        <div className="group perspective-1000">
+          <div className="relative preserve-3d transform transition-all duration-300 hover:rotate-y-12 hover:scale-105">
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl transform translate-z-4 shadow-2xl"></div>
+            <Card className="relative bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-xl overflow-hidden">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+                <CardTitle className="text-sm font-medium text-orange-800">Total Appraisals</CardTitle>
+                <div className="p-2 bg-orange-200 rounded-lg">
+                  <TrendingUp className="h-4 w-4 text-orange-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="relative z-10">
+                <div className="text-3xl font-bold text-orange-900 mb-1">
+                  {dashboardLoading ? '...' : stats.totalAppraisals}
+                </div>
+                <p className="text-xs text-orange-600">
+                  {stats.totalAppraisals === 0 ? 'No appraisals yet' : 'Your appraisals'}
+                </p>
+                <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-orange-200/30 to-transparent rounded-full transform translate-x-8 -translate-y-8"></div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
 
-        <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Reviews</CardTitle>
-            <Clock className="h-4 w-4 text-orange-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardLoading ? '...' : stats.pendingAppraisals}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.pendingAppraisals === 0 ? 'No pending reviews' : 'Awaiting completion'}
-            </p>
-          </CardContent>
-        </Card>
+        {/* Pending Reviews Card */}
+        <div className="group perspective-1000">
+          <div className="relative preserve-3d transform transition-all duration-300 hover:rotate-y-12 hover:scale-105">
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-amber-600 rounded-xl transform translate-z-4 shadow-2xl"></div>
+            <Card className="relative bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-xl overflow-hidden">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+                <CardTitle className="text-sm font-medium text-amber-800">Pending Reviews</CardTitle>
+                <div className="p-2 bg-amber-200 rounded-lg">
+                  <Clock className="h-4 w-4 text-amber-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="relative z-10">
+                <div className="text-3xl font-bold text-amber-900 mb-1">
+                  {dashboardLoading ? '...' : stats.pendingAppraisals}
+                </div>
+                <p className="text-xs text-amber-600">
+                  {stats.pendingAppraisals === 0 ? 'No pending reviews' : 'Awaiting completion'}
+                </p>
+                <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-amber-200/30 to-transparent rounded-full transform translate-x-8 -translate-y-8"></div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
 
-        <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {currentProfile?.role === 'hr' || currentProfile?.role === 'admin' ? 'All Employees' : 'Team Members'}
-            </CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardLoading ? '...' : stats.teamMembers}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.teamMembers === 0 ? 'No team members' : 
-               currentProfile?.role === 'hr' || currentProfile?.role === 'admin' ? 'Total employees' : 'Your team'}
-            </p>
-          </CardContent>
-        </Card>
+        {/* Team Members Card */}
+        <div className="group perspective-1000">
+          <div className="relative preserve-3d transform transition-all duration-300 hover:rotate-y-12 hover:scale-105">
+            <div className="absolute inset-0 bg-gradient-to-br from-red-400 to-red-600 rounded-xl transform translate-z-4 shadow-2xl"></div>
+            <Card className="relative bg-gradient-to-br from-red-50 to-red-100 border-red-200 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-xl overflow-hidden">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+                <CardTitle className="text-sm font-medium text-red-800">
+                  {currentProfile?.role === 'hr' || currentProfile?.role === 'admin' ? 'All Employees' : 'Team Members'}
+                </CardTitle>
+                <div className="p-2 bg-red-200 rounded-lg">
+                  <Users className="h-4 w-4 text-red-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="relative z-10">
+                <div className="text-3xl font-bold text-red-900 mb-1">
+                  {dashboardLoading ? '...' : stats.teamMembers}
+                </div>
+                <p className="text-xs text-red-600">
+                  {stats.teamMembers === 0 ? 'No team members' : 
+                   currentProfile?.role === 'hr' || currentProfile?.role === 'admin' ? 'Total employees' : 'Your team'}
+                </p>
+                <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-red-200/30 to-transparent rounded-full transform translate-x-8 -translate-y-8"></div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
 
-        <Card className="backdrop-blur-md bg-white/60 border-white/40 shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completion Rate</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {dashboardLoading ? '...' : stats.completionRate > 0 ? `${stats.completionRate}%` : 'N/A'}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {stats.totalAppraisals === 0 ? 'No appraisals to track' : 'Completed appraisals'}
-            </p>
-          </CardContent>
-        </Card>
+        {/* Completion Rate Card */}
+        <div className="group perspective-1000">
+          <div className="relative preserve-3d transform transition-all duration-300 hover:rotate-y-12 hover:scale-105">
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl transform translate-z-4 shadow-2xl"></div>
+            <Card className="relative bg-gradient-to-br from-orange-50 to-red-50 border-orange-200 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-xl overflow-hidden">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+                <CardTitle className="text-sm font-medium text-red-800">Completion Rate</CardTitle>
+                <div className="p-2 bg-gradient-to-br from-orange-200 to-red-200 rounded-lg">
+                  <CheckCircle className="h-4 w-4 text-red-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="relative z-10">
+                <div className="text-3xl font-bold text-red-900 mb-1">
+                  {dashboardLoading ? '...' : stats.completionRate > 0 ? `${stats.completionRate}%` : '0%'}
+                </div>
+                <p className="text-xs text-red-600">
+                  {stats.totalAppraisals === 0 ? 'No appraisals to track' : 'Completed appraisals'}
+                </p>
+                <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-orange-200/30 to-red-200/30 rounded-full transform translate-x-8 -translate-y-8"></div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
 
       {/* Recent Activity with Real Data */}
