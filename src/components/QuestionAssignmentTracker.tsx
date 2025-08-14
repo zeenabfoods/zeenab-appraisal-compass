@@ -2,16 +2,10 @@
 import React from 'react';
 import { AssignmentStatsCards } from '@/components/AssignmentStatsCards';
 import { AssignmentTable } from '@/components/AssignmentTable';
-import { EmployeeProfileFixer } from '@/components/EmployeeProfileFixer';
 import { useQuestionAssignmentData } from '@/hooks/useQuestionAssignmentData';
 
 export function QuestionAssignmentTracker() {
   const { stats, assignments, loading, refetch } = useQuestionAssignmentData();
-
-  const handleFixCompleted = () => {
-    console.log('Fix completed, refreshing assignment data...');
-    refetch();
-  };
 
   if (loading) {
     return (
@@ -23,7 +17,6 @@ export function QuestionAssignmentTracker() {
 
   return (
     <div className="space-y-6">
-      <EmployeeProfileFixer onFixCompleted={handleFixCompleted} />
       <AssignmentStatsCards stats={stats} />
       <AssignmentTable assignments={assignments} />
     </div>
