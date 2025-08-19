@@ -70,11 +70,27 @@ export default function Auth() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-white to-red-50 px-4 relative overflow-hidden">
+    <div 
+      className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden"
+      style={{
+        backgroundImage: 'url(/lovable-uploads/61d42ae6-37c2-4d92-98d3-90d3902cdd5d.png)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }}
+    >
+      {/* Dark overlay for better visibility */}
+      <div className="absolute inset-0 bg-black/50 z-0"></div>
+
       <AuthBackground />
 
-      <Card className="w-full max-w-md backdrop-blur-md bg-white/60 border-white/40 shadow-2xl relative z-10">
+      <Card className="w-full max-w-md backdrop-blur-md bg-white/80 border-white/50 shadow-2xl relative z-10">
         <CardHeader className="text-center">
+          {/* Added title above the logo */}
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent mb-6">
+            Zeenab Appraisal System
+          </h1>
+          
           <div className="flex items-center justify-center space-x-3 mb-4">
             <div className="w-12 h-12 rounded-xl overflow-hidden shadow-lg">
               <img 
@@ -93,7 +109,7 @@ export default function Auth() {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-white/50">
+            <TabsList className="grid w-full grid-cols-2 bg-white/60">
               <TabsTrigger value="signin" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white">Sign In</TabsTrigger>
               <TabsTrigger value="signup" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white">Sign Up</TabsTrigger>
             </TabsList>
