@@ -1,3 +1,4 @@
+
 import { Routes, Route } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/components/AuthProvider';
@@ -5,10 +6,9 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { LayoutGuard } from '@/components/LayoutGuard';
 import Auth from '@/pages/Auth';
-import Dashboard from '@/pages/Dashboard';
-import EmployeeQuestionManagerPage from '@/pages/EmployeeQuestionManagerPage';
-import AppraisalCyclesPage from '@/pages/AppraisalCyclesPage';
-import PerformanceAnalyticsPage from '@/pages/PerformanceAnalyticsPage';
+import Index from '@/pages/Index';
+import EmployeeQuestions from '@/pages/EmployeeQuestions';
+import AppraisalCycles from '@/pages/AppraisalCycles';
 import NotFound from '@/pages/NotFound';
 import TrainingDashboard from '@/pages/TrainingDashboard';
 
@@ -25,10 +25,9 @@ function App() {
                 <ProtectedRoute>
                   <DashboardLayout>
                     <Routes>
-                      <Route path="/" element={<Dashboard />} />
-                      <Route path="/employee-question-manager" element={<EmployeeQuestionManagerPage />} />
-                      <Route path="/appraisal-cycles" element={<AppraisalCyclesPage />} />
-                      <Route path="/performance-analytics" element={<PerformanceAnalyticsPage />} />
+                      <Route path="/" element={<Index />} />
+                      <Route path="/employee-questions" element={<EmployeeQuestions />} />
+                      <Route path="/appraisal-cycles" element={<AppraisalCycles />} />
                       
                       {/* New Training Module Route - Isolated */}
                       <Route path="/training" element={<TrainingDashboard />} />
