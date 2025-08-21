@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -446,6 +446,60 @@ export type Database = {
           },
         ]
       }
+      disciplinary_panels: {
+        Row: {
+          created_at: string
+          decision: string | null
+          decision_notes: string | null
+          employee_id: string
+          id: string
+          panel_members: string[]
+          review_date: string | null
+          status: string
+          training_assignment_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          decision?: string | null
+          decision_notes?: string | null
+          employee_id: string
+          id?: string
+          panel_members: string[]
+          review_date?: string | null
+          status?: string
+          training_assignment_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          decision?: string | null
+          decision_notes?: string | null
+          employee_id?: string
+          id?: string
+          panel_members?: string[]
+          review_date?: string | null
+          status?: string
+          training_assignment_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "disciplinary_panels_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "disciplinary_panels_training_assignment_id_fkey"
+            columns: ["training_assignment_id"]
+            isOneToOne: false
+            referencedRelation: "training_assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_appraisal_questions: {
         Row: {
           assigned_at: string | null
@@ -795,6 +849,352 @@ export type Database = {
           },
         ]
       }
+      quiz_attempts: {
+        Row: {
+          answers: Json | null
+          assignment_id: string
+          attempt_number: number
+          completed_at: string | null
+          id: string
+          passed: boolean
+          score_percentage: number | null
+          started_at: string
+          time_taken_minutes: number | null
+        }
+        Insert: {
+          answers?: Json | null
+          assignment_id: string
+          attempt_number: number
+          completed_at?: string | null
+          id?: string
+          passed?: boolean
+          score_percentage?: number | null
+          started_at?: string
+          time_taken_minutes?: number | null
+        }
+        Update: {
+          answers?: Json | null
+          assignment_id?: string
+          attempt_number?: number
+          completed_at?: string | null
+          id?: string
+          passed?: boolean
+          score_percentage?: number | null
+          started_at?: string
+          time_taken_minutes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_attempts_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "training_assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string
+          due_date: string
+          employee_id: string
+          id: string
+          request_id: string | null
+          status: string
+          training_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by: string
+          due_date: string
+          employee_id: string
+          id?: string
+          request_id?: string | null
+          status?: string
+          training_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string
+          due_date?: string
+          employee_id?: string
+          id?: string
+          request_id?: string | null
+          status?: string
+          training_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_assignments_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "training_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_assignments_training_id_fkey"
+            columns: ["training_id"]
+            isOneToOne: false
+            referencedRelation: "trainings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
+      training_progress: {
+        Row: {
+          assignment_id: string
+          completed_at: string | null
+          id: string
+          last_position: string | null
+          progress_percentage: number
+          time_spent_minutes: number
+          updated_at: string
+        }
+        Insert: {
+          assignment_id: string
+          completed_at?: string | null
+          id?: string
+          last_position?: string | null
+          progress_percentage?: number
+          time_spent_minutes?: number
+          updated_at?: string
+        }
+        Update: {
+          assignment_id?: string
+          completed_at?: string | null
+          id?: string
+          last_position?: string | null
+          progress_percentage?: number
+          time_spent_minutes?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_progress_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "training_assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_quiz_questions: {
+        Row: {
+          correct_answer: string
+          id: string
+          is_active: boolean
+          options: Json | null
+          points: number
+          question_text: string
+          question_type: string
+          sort_order: number
+          training_id: string
+        }
+        Insert: {
+          correct_answer: string
+          id?: string
+          is_active?: boolean
+          options?: Json | null
+          points?: number
+          question_text: string
+          question_type?: string
+          sort_order?: number
+          training_id: string
+        }
+        Update: {
+          correct_answer?: string
+          id?: string
+          is_active?: boolean
+          options?: Json | null
+          points?: number
+          question_text?: string
+          question_type?: string
+          sort_order?: number
+          training_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_quiz_questions_training_id_fkey"
+            columns: ["training_id"]
+            isOneToOne: false
+            referencedRelation: "trainings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_requests: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          employee_id: string
+          id: string
+          justification: string
+          processed_at: string | null
+          processed_by: string | null
+          recommended_training_type: string | null
+          requested_by: string
+          status: string
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          employee_id: string
+          id?: string
+          justification: string
+          processed_at?: string | null
+          processed_by?: string | null
+          recommended_training_type?: string | null
+          requested_by: string
+          status?: string
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+          justification?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          recommended_training_type?: string | null
+          requested_by?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_requests_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "training_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_requests_processed_by_fkey"
+            columns: ["processed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trainings: {
+        Row: {
+          category_id: string | null
+          content_type: string
+          content_url: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          duration_minutes: number | null
+          file_path: string | null
+          id: string
+          is_active: boolean
+          max_attempts: number
+          pass_mark: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category_id?: string | null
+          content_type: string
+          content_url?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          duration_minutes?: number | null
+          file_path?: string | null
+          id?: string
+          is_active?: boolean
+          max_attempts?: number
+          pass_mark?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string | null
+          content_type?: string
+          content_url?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          duration_minutes?: number | null
+          file_path?: string | null
+          id?: string
+          is_active?: boolean
+          max_attempts?: number
+          pass_mark?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trainings_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "training_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trainings_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -824,23 +1224,23 @@ export type Database = {
         Args: { manager_id_param: string }
         Returns: {
           appraisal_id: string
+          cycle_id: string
+          cycle_name: string
           employee_id: string
           employee_name: string
-          cycle_name: string
           status: Database["public"]["Enums"]["appraisal_status"]
           submitted_at: string
-          cycle_id: string
         }[]
       }
       get_team_members: {
         Args: { manager_id_param: string }
         Returns: {
-          id: string
-          first_name: string
-          last_name: string
-          email: string
-          position: string
           department_name: string
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          position: string
         }[]
       }
       is_cycle_accessible_to_employee: {
@@ -853,9 +1253,9 @@ export type Database = {
       }
       notify_line_manager: {
         Args: {
+          assigned_by_param: string
           employee_id_param: string
           question_ids_param: string[]
-          assigned_by_param: string
         }
         Returns: undefined
       }
