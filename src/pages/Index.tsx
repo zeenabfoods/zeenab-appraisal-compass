@@ -1,3 +1,4 @@
+
 import { useAuthContext } from '@/components/AuthProvider';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -21,10 +22,10 @@ export default function Index() {
     );
   }
 
-  // If user is authenticated, show the dashboard with sidebar
+  // If user is authenticated, show the dashboard content INSIDE DashboardLayout
   if (user) {
     return (
-      <DashboardLayout>
+      <DashboardLayout pageTitle="Dashboard">
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -110,7 +111,7 @@ export default function Index() {
     );
   }
 
-  // Show landing page for unauthenticated users
+  // Show landing page for unauthenticated users - NO header element
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-red-50 relative overflow-hidden">
       {/* Floating glass orbs for background effect */}
@@ -118,8 +119,8 @@ export default function Index() {
       <div className="absolute top-60 right-20 w-48 h-48 bg-gradient-to-r from-red-400/15 to-orange-400/15 rounded-full blur-2xl"></div>
       <div className="absolute bottom-40 left-1/4 w-40 h-40 bg-gradient-to-r from-orange-300/10 to-red-300/10 rounded-full blur-xl"></div>
 
-      {/* Header */}
-      <header className="container mx-auto px-4 py-6 relative z-10">
+      {/* Navigation Bar - using div instead of header */}
+      <div className="container mx-auto px-4 py-6 relative z-10">
         <div className="flex justify-between items-center backdrop-blur-sm bg-white/60 rounded-2xl px-6 py-4 border border-white/30 shadow-lg">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg">
@@ -140,7 +141,7 @@ export default function Index() {
             </a>
           </Button>
         </div>
-      </header>
+      </div>
 
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-20 text-center relative z-10">
