@@ -5,12 +5,14 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { EmployeeAssignment } from '@/hooks/useQuestionAssignmentData';
+import { AssignmentRowActions } from './AssignmentRowActions';
 
 interface AssignmentTableProps {
   assignments: EmployeeAssignment[];
+  onRefresh: () => void;
 }
 
-export function AssignmentTable({ assignments }: AssignmentTableProps) {
+export function AssignmentTable({ assignments, onRefresh }: AssignmentTableProps) {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
@@ -55,6 +57,7 @@ export function AssignmentTable({ assignments }: AssignmentTableProps) {
                 <TableHead>Questions Assigned</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Assigned Date</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -81,6 +84,13 @@ export function AssignmentTable({ assignments }: AssignmentTableProps) {
                   </TableCell>
                   <TableCell>
                     {new Date(assignment.assigned_date).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>
+                    <AssignmentRowActions
+                      employeeId={assignment.employee_id}
+                      employeeName={assignment.employee_name}
+                      onDelete={onRefresh}
+                    />
                   </TableCell>
                 </TableRow>
               ))}

@@ -18,7 +18,7 @@ export function QuestionAssignmentTracker() {
   return (
     <div className="space-y-6">
       <AssignmentStatsCards stats={stats} />
-      <AssignmentTable assignments={assignments} />
+      <AssignmentTable assignments={assignments} onRefresh={refetch} />
     </div>
   );
 }
