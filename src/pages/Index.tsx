@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, BarChart3, Users, Shield, Clock } from 'lucide-react';
 import { RecentActivityCard } from '@/components/RecentActivityCard';
+import { DashboardLayout } from '@/components/DashboardLayout';
 
 export default function Index() {
   const { user, loading } = useAuthContext();
@@ -21,90 +22,92 @@ export default function Index() {
     );
   }
 
-  // If user is authenticated, show the dashboard content (without wrapping in DashboardLayout again)
+  // If user is authenticated, show the dashboard content with DashboardLayout
   if (user) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-600">Welcome back! Here's what's happening.</p>
+      <DashboardLayout pageTitle="Dashboard">
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+              <p className="text-gray-600">Welcome back! Here's what's happening.</p>
+            </div>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Appraisals</CardTitle>
+                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">45</div>
+                <p className="text-xs text-muted-foreground">+12% from last month</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pending Reviews</CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">12</div>
+                <p className="text-xs text-muted-foreground">3 due this week</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Team Members</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">28</div>
+                <p className="text-xs text-muted-foreground">Active employees</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Completion Rate</CardTitle>
+                <Shield className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">89%</div>
+                <p className="text-xs text-muted-foreground">+5% from last quarter</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <RecentActivityCard />
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+                <CardDescription>Common tasks and shortcuts</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <Button className="w-full justify-start" variant="outline">
+                    <BarChart3 className="mr-2 h-4 w-4" />
+                    Start New Appraisal
+                  </Button>
+                  <Button className="w-full justify-start" variant="outline">
+                    <Users className="mr-2 h-4 w-4" />
+                    View Team Performance
+                  </Button>
+                  <Button className="w-full justify-start" variant="outline">
+                    <Shield className="mr-2 h-4 w-4" />
+                    Generate Reports
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
-
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Appraisals</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">45</div>
-              <p className="text-xs text-muted-foreground">+12% from last month</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Reviews</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">12</div>
-              <p className="text-xs text-muted-foreground">3 due this week</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Team Members</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">28</div>
-              <p className="text-xs text-muted-foreground">Active employees</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Completion Rate</CardTitle>
-              <Shield className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">89%</div>
-              <p className="text-xs text-muted-foreground">+5% from last quarter</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <RecentActivityCard />
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-              <CardDescription>Common tasks and shortcuts</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <Button className="w-full justify-start" variant="outline">
-                  <BarChart3 className="mr-2 h-4 w-4" />
-                  Start New Appraisal
-                </Button>
-                <Button className="w-full justify-start" variant="outline">
-                  <Users className="mr-2 h-4 w-4" />
-                  View Team Performance
-                </Button>
-                <Button className="w-full justify-start" variant="outline">
-                  <Shield className="mr-2 h-4 w-4" />
-                  Generate Reports
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
@@ -116,7 +119,7 @@ export default function Index() {
       <div className="absolute top-60 right-20 w-48 h-48 bg-gradient-to-r from-red-400/15 to-orange-400/15 rounded-full blur-2xl"></div>
       <div className="absolute bottom-40 left-1/4 w-40 h-40 bg-gradient-to-r from-orange-300/10 to-red-300/10 rounded-full blur-xl"></div>
 
-      {/* Header */}
+      {/* Header - using div instead of header to avoid conflicts */}
       <div className="container mx-auto px-4 py-6 relative z-10">
         <div className="flex justify-between items-center backdrop-blur-sm bg-white/60 rounded-2xl px-6 py-4 border border-white/30 shadow-lg">
           <div className="flex items-center space-x-3">

@@ -4,7 +4,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/components/AuthProvider';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { DashboardLayout } from '@/components/DashboardLayout';
 import { LayoutGuard } from '@/components/LayoutGuard';
 import Auth from '@/pages/Auth';
 import Index from '@/pages/Index';
@@ -36,9 +35,7 @@ function App() {
                   path="/"
                   element={
                     <ProtectedRoute>
-                      <DashboardLayout>
-                        <Index />
-                      </DashboardLayout>
+                      <Index />
                     </ProtectedRoute>
                   }
                 />
@@ -46,9 +43,7 @@ function App() {
                   path="/employee-questions"
                   element={
                     <ProtectedRoute>
-                      <DashboardLayout>
-                        <EmployeeQuestions />
-                      </DashboardLayout>
+                      <EmployeeQuestions />
                     </ProtectedRoute>
                   }
                 />
@@ -56,9 +51,7 @@ function App() {
                   path="/appraisal-cycles"
                   element={
                     <ProtectedRoute>
-                      <DashboardLayout>
-                        <AppraisalCycles />
-                      </DashboardLayout>
+                      <AppraisalCycles />
                     </ProtectedRoute>
                   }
                 />
@@ -66,9 +59,7 @@ function App() {
                   path="/training"
                   element={
                     <ProtectedRoute>
-                      <DashboardLayout>
-                        <TrainingDashboard />
-                      </DashboardLayout>
+                      <TrainingDashboard />
                     </ProtectedRoute>
                   }
                 />
@@ -76,9 +67,7 @@ function App() {
                   path="*"
                   element={
                     <ProtectedRoute>
-                      <DashboardLayout>
-                        <NotFound />
-                      </DashboardLayout>
+                      <NotFound />
                     </ProtectedRoute>
                   }
                 />
