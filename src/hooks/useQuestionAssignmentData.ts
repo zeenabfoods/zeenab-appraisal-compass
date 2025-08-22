@@ -35,7 +35,7 @@ export function useQuestionAssignmentData() {
   const fetchAssignmentData = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Starting fixed assignment data fetch...');
+      console.log('🔄 Starting enhanced assignment data fetch...');
 
       // First, get all active employees with basic info
       const { data: allEmployees, error: employeesError } = await supabase
@@ -65,7 +65,7 @@ export function useQuestionAssignmentData() {
         departmentMap.set(dept.id, dept.name);
       });
 
-      // Create manager lookup map by getting all profiles that could be managers
+      // Create manager lookup map
       const managerIds = Array.from(new Set(allEmployees?.map(emp => emp.line_manager_id).filter(Boolean) || []));
       const managerMap = new Map<string, string>();
       
@@ -100,7 +100,7 @@ export function useQuestionAssignmentData() {
       // Get appraisals for status tracking
       const { data: appraisals, error: appraisalsError } = await supabase
         .from('appraisals')
-        .select('id, employee_id, status');
+        .select('id, employee_id, status, created_at');
 
       if (appraisalsError) {
         console.error('❌ Error fetching appraisals:', appraisalsError);
@@ -125,9 +125,15 @@ export function useQuestionAssignmentData() {
         }
       });
 
-      // Create assignment records for employees with questions
+      // Create a map of employees with appraisals
+      const employeeAppraisalMap = new Map<string, any>();
+      appraisals?.forEach(appraisal => {
+        employeeAppraisalMap.set(appraisal.employee_id, appraisal);
+      });
+
+      // Create assignment records for employees with either questions OR appraisals
       const employeeAssignments = allEmployees
-        ?.filter(emp => assignmentCounts.has(emp.id))
+        ?.filter(emp => assignmentCounts.has(emp.id) || employeeAppraisalMap.has(emp.id))
         .map(emp => {
           // Get department name from lookup map
           const departmentName = emp.department_id ? departmentMap.get(emp.department_id) || 'Unknown Department' : 'No Department';
@@ -136,14 +142,26 @@ export function useQuestionAssignmentData() {
           const managerName = emp.line_manager_id ? managerMap.get(emp.line_manager_id) || 'Unknown Manager' : 'No Manager';
           
           // Get appraisal status
-          const employeeAppraisal = appraisals?.find(a => a.employee_id === emp.id);
+          const employeeAppraisal = employeeAppraisalMap.get(emp.id);
           const appraisalStatus = employeeAppraisal?.status || 'not_started';
+          
+          // Get assignment date - use appraisal created date if no assignment date
+          let assignedDate = assignmentDates.get(emp.id);
+          if (!assignedDate && employeeAppraisal) {
+            assignedDate = employeeAppraisal.created_at;
+          }
+          if (!assignedDate) {
+            assignedDate = new Date().toISOString();
+          }
+          
+          const questionsCount = assignmentCounts.get(emp.id) || 0;
           
           console.log(`📋 Processing employee ${emp.first_name} ${emp.last_name}:`, {
             department: departmentName,
             manager: managerName,
-            questions: assignmentCounts.get(emp.id),
-            status: appraisalStatus
+            questions: questionsCount,
+            status: appraisalStatus,
+            hasAppraisal: !!employeeAppraisal
           });
           
           return {
@@ -152,26 +170,31 @@ export function useQuestionAssignmentData() {
             email: emp.email || 'No email',
             department: departmentName,
             line_manager: managerName,
-            questions_assigned: assignmentCounts.get(emp.id) || 0,
+            questions_assigned: questionsCount,
             appraisal_status: appraisalStatus,
-            assigned_date: assignmentDates.get(emp.id) || new Date().toISOString()
+            assigned_date: assignedDate
           };
         }) || [];
 
       console.log('✅ Final processed assignments:', employeeAssignments);
       setAssignments(employeeAssignments);
 
-      // Update stats
+      // Update stats - count employees with either questions or appraisals
+      const employeesWithActivity = new Set([
+        ...Array.from(assignmentCounts.keys()),
+        ...Array.from(employeeAppraisalMap.keys())
+      ]).size;
+
       setStats({
         totalEmployees: allEmployees?.length || 0,
-        employeesWithQuestions: employeeAssignments.length,
+        employeesWithQuestions: employeesWithActivity,
         totalQuestionsAssigned: allAssignments?.length || 0,
         completedAppraisals: appraisals?.filter(a => a.status === 'completed').length || 0
       });
 
       console.log('📊 Updated stats:', {
         totalEmployees: allEmployees?.length || 0,
-        employeesWithQuestions: employeeAssignments.length,
+        employeesWithQuestions: employeesWithActivity,
         totalQuestionsAssigned: allAssignments?.length || 0,
         completedAppraisals: appraisals?.filter(a => a.status === 'completed').length || 0
       });
