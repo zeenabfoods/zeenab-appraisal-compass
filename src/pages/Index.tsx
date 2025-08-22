@@ -1,12 +1,11 @@
-
 import { useAuthContext } from '@/components/AuthProvider';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, BarChart3, Users, Shield, Clock } from 'lucide-react';
-import { RecentActivityCard } from '@/components/RecentActivityCard';
 import { DashboardLayout } from '@/components/DashboardLayout';
+import { RecentActivityCard } from '@/components/RecentActivityCard';
 
 export default function Index() {
   const { user, loading } = useAuthContext();
@@ -22,10 +21,10 @@ export default function Index() {
     );
   }
 
-  // If user is authenticated, show the dashboard content with DashboardLayout
+  // If user is authenticated, show the dashboard with sidebar
   if (user) {
     return (
-      <DashboardLayout pageTitle="Dashboard">
+      <DashboardLayout>
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -119,8 +118,8 @@ export default function Index() {
       <div className="absolute top-60 right-20 w-48 h-48 bg-gradient-to-r from-red-400/15 to-orange-400/15 rounded-full blur-2xl"></div>
       <div className="absolute bottom-40 left-1/4 w-40 h-40 bg-gradient-to-r from-orange-300/10 to-red-300/10 rounded-full blur-xl"></div>
 
-      {/* Header - using div instead of header to avoid conflicts */}
-      <div className="container mx-auto px-4 py-6 relative z-10">
+      {/* Header */}
+      <header className="container mx-auto px-4 py-6 relative z-10">
         <div className="flex justify-between items-center backdrop-blur-sm bg-white/60 rounded-2xl px-6 py-4 border border-white/30 shadow-lg">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg">
@@ -141,7 +140,7 @@ export default function Index() {
             </a>
           </Button>
         </div>
-      </div>
+      </header>
 
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-20 text-center relative z-10">
@@ -228,7 +227,7 @@ export default function Index() {
           <Card className="text-center backdrop-blur-md bg-white/40 border-white/40 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
             <CardHeader>
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 flex items-center justify-center shadow-lg">
-             <Clock className="h-8 w-8 text-white" />
+                <Clock className="h-8 w-8 text-white" />
               </div>
               <CardTitle>Automated Workflows</CardTitle>
             </CardHeader>
