@@ -41,6 +41,12 @@ export function CreateTrainingDialog({ onTrainingCreated }: CreateTrainingDialog
 
     setIsSubmitting(true);
     try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
       let filePath = '';
       let contentUrl = formData.content_url;
 
@@ -77,6 +83,7 @@ export function CreateTrainingDialog({ onTrainingCreated }: CreateTrainingDialog
           file_path: filePath,
           duration_minutes: formData.duration_minutes,
           pass_mark: formData.pass_mark,
+          created_by: user.id,
           is_active: true
         });
 

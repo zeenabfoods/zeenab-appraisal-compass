@@ -44,7 +44,14 @@ export function TrainingContentList() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setTrainings(data || []);
+      
+      // Transform the data to handle the assignment count properly
+      const transformedData = (data || []).map(training => ({
+        ...training,
+        assignment_count: training.assignment_count?.[0]?.count || 0
+      }));
+      
+      setTrainings(transformedData);
     } catch (error: any) {
       console.error('Error fetching trainings:', error);
       toast({
