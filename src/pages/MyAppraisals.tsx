@@ -1,4 +1,3 @@
-
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useAuthContext } from '@/components/AuthProvider';
 import { useQuery } from '@tanstack/react-query';
@@ -49,7 +48,7 @@ export default function MyAppraisals() {
     enabled: !!profile?.id
   });
 
-  // Query for other employee appraisals (only for HR)
+  // Query for other employee appraisals (only for HR) - updated to exclude deleted assignments
   const { data: employeeAppraisals, isLoading: employeeAppraisalsLoading, error: employeeAppraisalsError } = useQuery({
     queryKey: ['employee-appraisals-search', profile?.id, searchTerm],
     queryFn: async () => {
@@ -57,6 +56,27 @@ export default function MyAppraisals() {
       
       console.log('📋 HR Search: Searching for employee appraisals with term:', searchTerm);
       
+      // First, get employees who have active (non-deleted) question assignments
+      const { data: activeAssignments, error: assignmentsError } = await supabase
+        .from('employee_appraisal_questions')
+        .select('employee_id')
+        .eq('is_active', true)
+        .is('deleted_at', null);
+
+      if (assignmentsError) {
+        console.error('❌ Error fetching active assignments:', assignmentsError);
+        throw assignmentsError;
+      }
+
+      const activeEmployeeIds = Array.from(new Set(activeAssignments?.map(a => a.employee_id) || []));
+      console.log('📋 Active employee IDs with assignments:', activeEmployeeIds);
+
+      // If no active assignments, return empty array
+      if (activeEmployeeIds.length === 0) {
+        console.log('📋 No active employee assignments found');
+        return [];
+      }
+
       let query = supabase
         .from('appraisals')
         .select(`
@@ -65,6 +85,7 @@ export default function MyAppraisals() {
           employee:profiles!appraisals_employee_id_fkey(first_name, last_name, email, position)
         `)
         .neq('employee_id', profile.id) // Exclude HR's own appraisals from this search
+        .in('employee_id', activeEmployeeIds) // Only include employees with active assignments
         .order('created_at', { ascending: false });
 
       // If there's a search term, filter by employee name
@@ -74,7 +95,8 @@ export default function MyAppraisals() {
           .select('id')
           .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%`)
           .eq('is_active', true)
-          .neq('id', profile.id); // Exclude HR user from search results
+          .neq('id', profile.id) // Exclude HR user from search results
+          .in('id', activeEmployeeIds); // Only search within active employees
 
         if (employeeError) {
           console.error('❌ Error searching employees:', employeeError);
@@ -325,7 +347,7 @@ export default function MyAppraisals() {
                     <p className="text-gray-600 text-center">
                       No appraisals found for employee "{searchTerm}". 
                       <br />
-                      The employee may not have completed any appraisals yet.
+                      The employee may not have completed any appraisals yet or their assignment may have been removed.
                     </p>
                   </CardContent>
                 </Card>
@@ -346,6 +368,8 @@ export default function MyAppraisals() {
                     <h3 className="text-lg font-medium text-gray-900 mb-2">Search Employee Appraisals</h3>
                     <p className="text-gray-600 text-center">
                       Use the search bar above to find appraisals by employee name.
+                      <br />
+                      Only employees with active assignments will appear in results.
                     </p>
                   </CardContent>
                 </Card>
