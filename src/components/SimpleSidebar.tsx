@@ -11,6 +11,7 @@ import {
   UserCheck,
   Scale,
   Settings2,
+  User,
 } from "lucide-react"
 
 import { useAuthContext } from "@/components/AuthProvider"
@@ -37,6 +38,11 @@ export function SimpleSidebar() {
         title: "My Appraisals",
         url: "/my-appraisals",
         icon: ClipboardList,
+      },
+      {
+        title: "Profile",
+        url: "/profile",
+        icon: User,
       },
     ]
 
