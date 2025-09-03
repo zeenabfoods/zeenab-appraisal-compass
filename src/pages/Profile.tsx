@@ -1,6 +1,7 @@
 
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { EmployeeProfileCard } from '@/components/EmployeeProfileCard';
+import { PasswordChangeForm } from '@/components/PasswordChangeForm';
 import { useEnhancedProfile } from '@/hooks/useEnhancedProfile';
 
 export default function Profile() {
@@ -28,10 +29,11 @@ export default function Profile() {
 
   return (
     <DashboardLayout pageTitle="My Profile">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto space-y-6">
         <EmployeeProfileCard 
           profile={enhancedProfile}
         />
+        <PasswordChangeForm />
       </div>
     </DashboardLayout>
   );
