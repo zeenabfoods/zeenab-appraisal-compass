@@ -26,7 +26,9 @@ const ALLOWED_DOMAINS = [
   '@cnthlimited.com',
   '@nigerianexportershub.com',
   '@zeenabgroup.com',
-  '@zeenabfoods.com'
+  '@zeenabfoods.com',
+  '@habrisfoods.com',
+  '@azenaboroilpalms.com'
 ];
 
 export function useAuth() {
@@ -176,7 +178,7 @@ export function useAuth() {
         const error = new Error('Email provider not accepted');
         toast({
           title: "Sign Up Error",
-          description: "Email provider not accepted. Please use an email from one of the allowed domains: @cnthlimited.com, @nigerianexportershub.com, @zeenabgroup.com, @zeenabfoods.com",
+          description: `Email provider not accepted. Please use an email from one of the allowed domains: ${ALLOWED_DOMAINS.join(', ')}`,
           variant: "destructive"
         });
         return { error };
