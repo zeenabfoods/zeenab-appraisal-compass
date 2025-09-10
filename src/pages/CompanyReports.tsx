@@ -71,10 +71,10 @@ export default function CompanyReports() {
   // Department statistics
   const departmentStats = departments.map(dept => {
     const deptAppraisals = appraisals.filter(a => a.employee?.department_id === dept.id);
-    const avgScore = deptAppraisals
-      .filter(a => a.overall_score)
-      .reduce((sum, a) => sum + (a.overall_score || 0), 0) / 
-      deptAppraisals.filter(a => a.overall_score).length || 0;
+    const appraisalsWithScores = deptAppraisals.filter(a => a.overall_score);
+    const avgScore = appraisalsWithScores.length > 0 
+      ? appraisalsWithScores.reduce((sum, a) => sum + (a.overall_score || 0), 0) / appraisalsWithScores.length 
+      : 0;
     
     return {
       name: dept.name,
