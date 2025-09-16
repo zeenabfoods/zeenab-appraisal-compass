@@ -43,25 +43,45 @@ export function GroupedQuestionRenderer({
   // Sort sections to ensure consistent order
   const sectionOrder = [
     'FINANCIAL SECTION',
-    'OPERATIONAL SECTION', 
-    'BEHAVIOURAL SECTION',
-    'GOALS FOR NEXT REVIEW',
-    'TRAINING NEEDS',
-    'EMPLOYEE\'S COMMENT'
+    'OPERATIONAL EFFICIENCY SECTION',
+    'BEHAVIOURAL PERFORMANCE SECTION',
+    'Noteworthy Achievements',
+    'Training Needs',
+    'Goals',
+    'Additional Comments'
   ];
 
   const sortedSections = Object.keys(groupedQuestions).sort((a, b) => {
-    // Normalize section names for comparison
-    const normalizeSection = (section: string) => section.toUpperCase().trim();
-    const aNormalized = normalizeSection(a);
-    const bNormalized = normalizeSection(b);
-    
-    const aIndex = sectionOrder.findIndex(section => 
-      aNormalized.includes(section) || section.includes(aNormalized)
-    );
-    const bIndex = sectionOrder.findIndex(section => 
-      bNormalized.includes(section) || section.includes(bNormalized)
-    );
+    const aIndex = sectionOrder.findIndex(section => {
+      // Exact match first
+      if (a === section) return true;
+      // Then check if section contains keywords
+      const sectionUpper = section.toUpperCase();
+      const aUpper = a.toUpperCase();
+      if (sectionUpper.includes('FINANCIAL') && aUpper.includes('FINANCIAL')) return true;
+      if (sectionUpper.includes('OPERATIONAL') && aUpper.includes('OPERATIONAL')) return true;
+      if (sectionUpper.includes('BEHAVIOURAL') && aUpper.includes('BEHAVIOURAL')) return true;
+      if (sectionUpper.includes('NOTEWORTHY') && aUpper.includes('NOTEWORTHY')) return true;
+      if (sectionUpper.includes('TRAINING') && aUpper.includes('TRAINING')) return true;
+      if (sectionUpper.includes('GOALS') && aUpper.includes('GOALS')) return true;
+      if (sectionUpper.includes('ADDITIONAL') && aUpper.includes('ADDITIONAL')) return true;
+      return false;
+    });
+    const bIndex = sectionOrder.findIndex(section => {
+      // Exact match first
+      if (b === section) return true;
+      // Then check if section contains keywords
+      const sectionUpper = section.toUpperCase();
+      const bUpper = b.toUpperCase();
+      if (sectionUpper.includes('FINANCIAL') && bUpper.includes('FINANCIAL')) return true;
+      if (sectionUpper.includes('OPERATIONAL') && bUpper.includes('OPERATIONAL')) return true;
+      if (sectionUpper.includes('BEHAVIOURAL') && bUpper.includes('BEHAVIOURAL')) return true;
+      if (sectionUpper.includes('NOTEWORTHY') && bUpper.includes('NOTEWORTHY')) return true;
+      if (sectionUpper.includes('TRAINING') && bUpper.includes('TRAINING')) return true;
+      if (sectionUpper.includes('GOALS') && bUpper.includes('GOALS')) return true;
+      if (sectionUpper.includes('ADDITIONAL') && bUpper.includes('ADDITIONAL')) return true;
+      return false;
+    });
     
     if (aIndex === -1 && bIndex === -1) return a.localeCompare(b);
     if (aIndex === -1) return 1;
@@ -72,10 +92,13 @@ export function GroupedQuestionRenderer({
 
   // Check if section should not show ratings
   const isNonRatingSection = (sectionName: string) => {
+    const sectionUpper = sectionName.toUpperCase();
     return hideRatingsForTextSections && (
-      sectionName.includes('GOALS FOR NEXT REVIEW') ||
-      sectionName.includes('TRAINING NEEDS') ||
-      sectionName.includes('EMPLOYEE\'S COMMENT')
+      sectionUpper.includes('GOALS') ||
+      sectionUpper.includes('TRAINING') ||
+      sectionUpper.includes('NOTEWORTHY') ||
+      sectionUpper.includes('ADDITIONAL') ||
+      sectionUpper.includes('COMMENT')
     );
   };
 
@@ -84,9 +107,10 @@ export function GroupedQuestionRenderer({
     if (normalizedName.includes('FINANCIAL')) return '💰';
     if (normalizedName.includes('OPERATIONAL')) return '⚙️';
     if (normalizedName.includes('BEHAVIOURAL')) return '🧠';
-    if (normalizedName.includes('GOALS')) return '🎯';
+    if (normalizedName.includes('NOTEWORTHY')) return '🏆';
     if (normalizedName.includes('TRAINING')) return '📚';
-    if (normalizedName.includes('COMMENT')) return '💬';
+    if (normalizedName.includes('GOALS')) return '🎯';
+    if (normalizedName.includes('ADDITIONAL') || normalizedName.includes('COMMENT')) return '💬';
     return '📋';
   };
 
@@ -95,9 +119,10 @@ export function GroupedQuestionRenderer({
     if (normalizedName.includes('FINANCIAL')) return 'from-green-100 to-emerald-100 border-green-200';
     if (normalizedName.includes('OPERATIONAL')) return 'from-blue-100 to-cyan-100 border-blue-200';
     if (normalizedName.includes('BEHAVIOURAL')) return 'from-purple-100 to-indigo-100 border-purple-200';
-    if (normalizedName.includes('GOALS')) return 'from-orange-100 to-amber-100 border-orange-200';
+    if (normalizedName.includes('NOTEWORTHY')) return 'from-yellow-100 to-amber-100 border-yellow-200';
     if (normalizedName.includes('TRAINING')) return 'from-pink-100 to-rose-100 border-pink-200';
-    if (normalizedName.includes('COMMENT')) return 'from-gray-100 to-slate-100 border-gray-200';
+    if (normalizedName.includes('GOALS')) return 'from-orange-100 to-amber-100 border-orange-200';
+    if (normalizedName.includes('ADDITIONAL') || normalizedName.includes('COMMENT')) return 'from-gray-100 to-slate-100 border-gray-200';
     return 'from-gray-100 to-slate-100 border-gray-200';
   };
 
