@@ -43,7 +43,7 @@ export function GroupedQuestionRenderer({
   // Sort sections to ensure consistent order
   const sectionOrder = [
     'FINANCIAL SECTION',
-    'OPERATIONAL EFFICIENCY SECTION',
+    'OPERATIONAL EFFICIENCY SECTION', 
     'BEHAVIOURAL PERFORMANCE SECTION',
     'Noteworthy Achievements',
     'Training Needs',
@@ -127,7 +127,7 @@ export function GroupedQuestionRenderer({
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       {sortedSections.map((sectionName) => {
         const sectionQuestions = groupedQuestions[sectionName];
         const sectionIcon = getSectionIcon(sectionName);
@@ -135,36 +135,27 @@ export function GroupedQuestionRenderer({
         
         return (
           <div key={sectionName} className={`border rounded-lg ${sectionColorClass.split(' ')[2]}`}>
-            {/* Section Header */}
-            <div className={`bg-gradient-to-r ${sectionColorClass.split(' ')[0]} ${sectionColorClass.split(' ')[1]} border-b p-4`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center bg-white rounded-full shadow-sm">
-                    <span className="text-lg">{sectionIcon}</span>
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-gray-900">
-                      {sectionName}
-                    </h2>
-                    {employeeName && (
-                      <p className="text-sm text-gray-600 mt-1">
-                        Employee: {employeeName}
-                      </p>
-                    )}
-                  </div>
+            {/* Compact Section Header */}
+            <div className={`bg-gradient-to-r ${sectionColorClass.split(' ')[0]} ${sectionColorClass.split(' ')[1]} p-3`}>
+              <div className="flex items-center space-x-2">
+                <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center bg-white rounded-full shadow-sm">
+                  <span className="text-sm">{sectionIcon}</span>
                 </div>
-                <div className="flex items-center space-x-4 text-sm text-gray-600">
-                  <div className="bg-white px-2 py-1 rounded shadow-sm">
-                    <span className="font-medium">{sectionQuestions.length} questions</span>
-                  </div>
+                <div>
+                  <h2 className="text-base font-semibold text-gray-900">
+                    {sectionName} {employeeName}
+                  </h2>
                 </div>
               </div>
             </div>
 
-            {/* Questions List */}
-            <div className="p-6 space-y-6 bg-white">
+            {/* Compact Questions List */}
+            <div className="p-4 space-y-3 bg-white">
               {sectionQuestions.map((question, index) => (
-                <div key={question.id} className="border-b border-gray-100 pb-6 last:border-b-0">
+                <div key={question.id} className="space-y-2">
+                  <div className="text-sm font-medium text-gray-700">
+                    Q{index + 1}: {question.question_text}
+                  </div>
                   <AppraisalQuestionRenderer
                     question={question}
                     value={values[question.id]}
@@ -173,6 +164,7 @@ export function GroupedQuestionRenderer({
                     questionNumber={index + 1}
                     showSectionHeader={false}
                     employeeName=""
+                    compact={true}
                   />
                 </div>
               ))}

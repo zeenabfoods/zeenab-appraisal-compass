@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 
 interface Question {
@@ -26,6 +25,7 @@ interface AppraisalQuestionRendererProps {
   questionNumber?: number;
   showSectionHeader?: boolean;
   employeeName?: string;
+  compact?: boolean;
 }
 
 export function AppraisalQuestionRenderer({ 
@@ -33,11 +33,11 @@ export function AppraisalQuestionRenderer({
   value, 
   onChange, 
   disabled = false,
-  questionNumber,
-  showSectionHeader = false,
-  employeeName = ''
+  questionNumber = 1,
+  showSectionHeader = true,
+  employeeName = '',
+  compact = false
 }: AppraisalQuestionRendererProps) {
-  const [localValue, setLocalValue] = useState(value || '');
 
   // Console verification check
   useEffect(() => {
@@ -48,8 +48,19 @@ export function AppraisalQuestionRenderer({
     );
   }, []);
 
-  const handleValueChange = (newValue: any) => {
-    setLocalValue(newValue);
+  const handleRatingChange = (rating: string) => {
+    const newValue = {
+      ...value,
+      emp_rating: parseInt(rating)
+    };
+    onChange(question.id, newValue);
+  };
+
+  const handleCommentChange = (comment: string) => {
+    const newValue = {
+      ...value,
+      emp_comment: comment
+    };
     onChange(question.id, newValue);
   };
 
@@ -71,73 +82,34 @@ export function AppraisalQuestionRenderer({
   };
 
   const renderRatingInput = () => {
-    if (question.question_type === 'rating') {
+    if (disabled) {
       return (
-        <div className="flex items-center space-x-2">
-          <div className="relative">
-            <input 
-              type="checkbox" 
-              className="sr-only"
-              checked={localValue > 0}
-              onChange={() => handleValueChange(localValue > 0 ? 0 : 3)}
-              disabled={disabled}
-            />
-            <div className={`w-12 h-6 rounded-full transition-colors ${
-              localValue > 0 ? 'bg-gray-800' : 'bg-gray-300'
-            }`}>
-              <div className={`w-5 h-5 bg-white rounded-full transition-transform transform ${
-                localValue > 0 ? 'translate-x-6' : 'translate-x-0.5'
-              } mt-0.5`} />
-            </div>
-          </div>
-          <span className="text-sm text-gray-600">
-            {localValue > 0 ? `${localValue} - ${getRatingLabel(localValue)}` : 'Not rated'}
-          </span>
+        <div className="p-2 bg-gray-100 rounded border">
+          {value?.emp_rating 
+            ? `${value.emp_rating} - ${getRatingLabel(value.emp_rating)}`
+            : 'Not Rated'
+          }
         </div>
       );
     }
 
-    if (question.question_type === 'yes_no') {
-      return (
-        <RadioGroup
-          value={localValue}
-          onValueChange={handleValueChange}
-          disabled={disabled}
-          className="flex space-x-6"
-        >
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="yes" id={`${question.id}-yes`} />
-            <Label htmlFor={`${question.id}-yes`} className="font-medium">Yes</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="no" id={`${question.id}-no`} />
-            <Label htmlFor={`${question.id}-no`} className="font-medium">No</Label>
-          </div>
-        </RadioGroup>
-      );
-    }
-
-    if (question.question_type === 'multiple_choice') {
-      return (
-        <RadioGroup
-          value={localValue}
-          onValueChange={handleValueChange}
-          disabled={disabled}
-          className="space-y-2"
-        >
-          {question.multiple_choice_options?.map((option, index) => (
-            <div key={index} className="flex items-center space-x-2">
-              <RadioGroupItem value={option} id={`${question.id}-option-${index}`} />
-              <Label htmlFor={`${question.id}-option-${index}`} className="font-medium">
-                {option}
-              </Label>
-            </div>
-          ))}
-        </RadioGroup>
-      );
-    }
-
-    return <span className="text-sm text-gray-500">Text response</span>;
+    return (
+      <Select
+        value={value?.emp_rating ? value.emp_rating.toString() : ''}
+        onValueChange={handleRatingChange}
+      >
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder="Select a rating" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="1">1 - Poor</SelectItem>
+          <SelectItem value="2">2 - Fair</SelectItem>
+          <SelectItem value="3">3 - Good</SelectItem>
+          <SelectItem value="4">4 - Very Good</SelectItem>
+          <SelectItem value="5">5 - Excellent</SelectItem>
+        </SelectContent>
+      </Select>
+    );
   };
 
   const getRatingLabel = (rating: number) => {
@@ -156,21 +128,23 @@ export function AppraisalQuestionRenderer({
     (value.emp_rating || value.mgr_rating || value.emp_comment || value.mgr_comment);
 
   return (
-    <div className="question-item space-y-6">
-      {/* Section Header */}
-      {showSectionHeader && (
+    <div className="question-item">
+      {/* Section Header - only for non-compact mode */}
+      {showSectionHeader && !compact && (
         <h2 className="text-lg font-bold mb-4">
           # {question.section?.name || 'GENERAL SECTION'} {employeeName}
         </h2>
       )}
 
-      {/* Question Header */}
-      <div className="mb-4">
-        <h3 className="text-base font-semibold mb-3">
-          Q{questionNumber}. {question.question_text}
-          {question.is_required && <span className="text-red-500 ml-1">*</span>}
-        </h3>
-      </div>
+      {/* Question Header - compact vs normal */}
+      {!compact && (
+        <div className="mb-4">
+          <h3 className="text-base font-semibold mb-3">
+            Q{questionNumber}. {question.question_text}
+            {question.is_required && <span className="text-red-500 ml-1">*</span>}
+          </h3>
+        </div>
+      )}
 
       {/* Response Display for Committee Review */}
       {isCommitteeReview ? (
@@ -197,28 +171,30 @@ export function AppraisalQuestionRenderer({
           </div>
 
           {/* Manager Response */}
-          <div className="bg-green-50 p-4 rounded-lg">
-            <h4 className="font-semibold text-green-900 mb-3">Manager Response</h4>
-            <div className="space-y-3">
-              <div>
-                <Label className="font-medium text-sm text-green-800">Rating:</Label>
-                <div className="mt-1">
-                  {renderRatingDisplay(value.mgr_rating, 'Manager')}
+          {value.mgr_rating && (
+            <div className="bg-green-50 p-4 rounded-lg">
+              <h4 className="font-semibold text-green-900 mb-3">Manager Response</h4>
+              <div className="space-y-3">
+                <div>
+                  <Label className="font-medium text-sm text-green-800">Rating:</Label>
+                  <div className="mt-1">
+                    {renderRatingDisplay(value.mgr_rating, 'Manager')}
+                  </div>
                 </div>
-              </div>
-              <div>
-                <Label className="font-medium text-sm text-green-800">Comment:</Label>
-                <div className="mt-1 p-3 bg-white rounded border">
-                  <p className="text-sm text-gray-700">
-                    {value.mgr_comment || 'No comment provided'}
-                  </p>
+                <div>
+                  <Label className="font-medium text-sm text-green-800">Comment:</Label>
+                  <div className="mt-1 p-3 bg-white rounded border">
+                    <p className="text-sm text-gray-700">
+                      {value.mgr_comment || 'No comment provided'}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Committee Response (if available) */}
-          {(value.committee_rating || value.committee_comment) && (
+          {/* Committee Response */}
+          {value.committee_rating && (
             <div className="bg-purple-50 p-4 rounded-lg">
               <h4 className="font-semibold text-purple-900 mb-3">Committee Response</h4>
               <div className="space-y-3">
@@ -241,48 +217,30 @@ export function AppraisalQuestionRenderer({
           )}
         </div>
       ) : (
-        /* Regular Rating and Comment Grid for active forms */
-        <div className="grid gap-2 mt-4">
-          {/* Your Rating */}
-          <div className="mb-3">
-            <Label className="font-bold text-sm mb-2 block">Your Rating:</Label>
+        /* Active Form View */
+        <div className={compact ? "grid grid-cols-2 gap-3" : "space-y-4"}>
+          <div className="space-y-1">
+            <Label className="text-sm font-medium">Your Rating</Label>
             {renderRatingInput()}
           </div>
-
-          {/* Your Comment */}
-          <div className="mb-4">
-            <Label className="font-bold text-sm mb-2 block">Your Comment:</Label>
-            <Textarea
-              value={localValue}
-              onChange={(e) => handleValueChange(e.target.value)}
-              placeholder="Enter your comment..."
-              disabled={disabled}
-              rows={3}
-              className="resize-none p-3"
-            />
-          </div>
-
-          {/* Manager Rating */}
-          <div className="mb-3">
-            <Label className="font-bold text-sm mb-2 block">Manager Rating:</Label>
-            <span className="text-sm text-gray-500">To be completed by manager</span>
-          </div>
-
-          {/* Manager Comment */}
-          <div className="mb-4">
-            <Label className="font-bold text-sm mb-2 block">Manager Comment:</Label>
-            <Textarea
-              placeholder="Manager comment will appear here..."
-              disabled={true}
-              rows={3}
-              className="resize-none p-3 bg-gray-50"
-            />
+          
+          <div className="space-y-1">
+            <Label className="text-sm font-medium">Your Comment</Label>
+            {disabled ? (
+              <div className="p-2 bg-gray-100 rounded border min-h-[60px]">
+                {value?.emp_comment || 'No comment provided'}
+              </div>
+            ) : (
+              <Textarea
+                placeholder="Enter your comment"
+                value={value?.emp_comment || ''}
+                onChange={(e) => handleCommentChange(e.target.value)}
+                className={compact ? "min-h-[60px] text-sm" : "min-h-[80px]"}
+              />
+            )}
           </div>
         </div>
       )}
-
-      {/* Horizontal Divider */}
-      <div className="border-t border-gray-300 my-6"></div>
     </div>
   );
 }

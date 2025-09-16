@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { formatCycleName } from '@/utils/cycleFormatting';
+import { GroupedQuestionRenderer } from './GroupedQuestionRenderer';
 
 // Browser-native UUID generation with fallback
 const generateId = () => {
@@ -330,8 +331,50 @@ useEffect(() => {
   const handleResponseChange = (responseId: string, field: string, value: any) => {
     setResponses((prevResponses) =>
       prevResponses.map((response) => {
-        if (response.id === responseId) {
+        if (response.id === responseId || response.question_id === responseId) {
           return { ...response, [field]: value };
+        }
+        return response;
+      })
+    );
+  };
+
+  // Convert responses to values format for GroupedQuestionRenderer
+  const getQuestionValues = () => {
+    const values: Record<string, any> = {};
+    responses.forEach((response) => {
+      const questionId = response.question_id || response.id;
+      if (questionId) {
+        values[questionId] = {
+          emp_rating: response.emp_rating,
+          emp_comment: response.emp_comment,
+          mgr_rating: response.mgr_rating,
+          mgr_comment: response.mgr_comment
+        };
+      }
+    });
+    return values;
+  };
+
+  // Convert questions from responses for GroupedQuestionRenderer
+  const getQuestionsFromResponses = () => {
+    return responses
+      .filter(response => response.question)
+      .map(response => ({
+        id: response.question!.id,
+        question_text: response.question!.question_text,
+        question_type: 'rating',
+        is_required: true,
+        section: response.question!.appraisal_question_sections
+      }));
+  };
+
+  const handleQuestionChange = (questionId: string, value: any) => {
+    // Find the response by question_id and update it
+    setResponses((prevResponses) =>
+      prevResponses.map((response) => {
+        if (response.question_id === questionId) {
+          return { ...response, ...value };
         }
         return response;
       })
@@ -536,92 +579,17 @@ useEffect(() => {
         </Card>
       )}
 
-      {/* Appraisal Form */}
-      <div className="grid md:grid-cols-2 gap-6">
-        {responses?.map((response) => (
-          <Card key={response.id || generateId()}>
-            <CardHeader>
-              <CardTitle>{response.question?.question_text}</CardTitle>
-              <p className="text-sm text-gray-500">
-                Section: {response.question?.appraisal_question_sections?.name}
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor={`employee-rating-${response.id}`}>Your Rating</Label>
-                {isReadOnly ? (
-                  <div className="p-2 bg-gray-100 rounded border">
-                    {response.emp_rating 
-                      ? `${response.emp_rating} - ${['Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][response.emp_rating - 1]}`
-                      : 'Not Rated'
-                    }
-                  </div>
-                ) : (
-                  <Select
-                    value={response.emp_rating !== null ? response.emp_rating.toString() : ''}
-                    onValueChange={(value) =>
-                      handleResponseChange(response.id || '', 'emp_rating', parseInt(value))
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select a rating" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">1 - Poor</SelectItem>
-                      <SelectItem value="2">2 - Fair</SelectItem>
-                      <SelectItem value="3">3 - Good</SelectItem>
-                      <SelectItem value="4">4 - Very Good</SelectItem>
-                      <SelectItem value="5">5 - Excellent</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor={`employee-comment-${response.id}`}>Your Comment</Label>
-                {isReadOnly ? (
-                  <div className="p-2 bg-gray-100 rounded border min-h-[80px]">
-                    {response.emp_comment || 'No comment provided'}
-                  </div>
-                ) : (
-                  <Textarea
-                    id={`employee-comment-${response.id}`}
-                    placeholder="Enter your comment"
-                    value={response.emp_comment || ''}
-                    onChange={(e) =>
-                      handleResponseChange(response.id || '', 'emp_comment', e.target.value)
-                    }
-                  />
-                )}
-              </div>
-              {!isReadOnly && (
-                <Button onClick={() => handleSaveResponse(response)} disabled={isSubmitting}>
-                  Save Response
-                </Button>
-              )}
-
-              {/* Show manager ratings if available */}
-              {response.mgr_rating && (
-                <div className="pt-4 border-t">
-                  <div className="space-y-2">
-                    <Label>Manager Rating</Label>
-                    <div className="p-2 bg-blue-50 rounded border">
-                      {response.mgr_rating} - {['Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][response.mgr_rating - 1]}
-                    </div>
-                  </div>
-                  {response.mgr_comment && (
-                    <div className="space-y-2 mt-2">
-                      <Label>Manager Comment</Label>
-                      <div className="p-2 bg-blue-50 rounded border">
-                        {response.mgr_comment}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* Appraisal Questions - Grouped by Section */}
+      {responses && responses.length > 0 && (
+        <GroupedQuestionRenderer
+          questions={getQuestionsFromResponses()}
+          values={getQuestionValues()}
+          onChange={handleQuestionChange}
+          disabled={isReadOnly}
+          employeeName={`${appraisalData?.employee?.first_name} ${appraisalData?.employee?.last_name}`}
+          hideRatingsForTextSections={false}
+        />
+      )}
 
       {/* Additional Sections */}
       <Card>
