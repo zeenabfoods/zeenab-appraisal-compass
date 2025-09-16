@@ -172,9 +172,55 @@ export function AppraisalForm({ appraisalId: propsAppraisalId }: AppraisalFormPr
       return data as AppraisalResponse[];
     },
     enabled: !!appraisalId,
+});
+
+  // Fetch assigned questions (ensures questions appear even when responses haven't been created yet)
+  const { data: assignedQuestions } = useQuery({
+    queryKey: ['assigned-questions', (appraisalQuery as any)?.employee_id, (appraisalQuery as any)?.cycle_id],
+    queryFn: async () => {
+      if (!appraisalQuery) throw new Error('Appraisal data not loaded');
+
+      // 1) Active, non-deleted assignments for this employee and cycle
+      const { data: assignments, error: assignmentsError } = await supabase
+        .from('employee_appraisal_questions')
+        .select('question_id')
+        .eq('employee_id', (appraisalQuery as any).employee_id)
+        .eq('cycle_id', (appraisalQuery as any).cycle_id)
+        .eq('is_active', true)
+        .is('deleted_at', null);
+
+      if (assignmentsError) {
+        console.error('❌ AppraisalForm: Error fetching assignments:', assignmentsError);
+        throw assignmentsError;
+      }
+
+      const questionIds = (assignments || []).map(a => a.question_id).filter(Boolean);
+      if (questionIds.length === 0) return [] as any[];
+
+      // 2) Load question details
+      const { data: questions, error: questionsError } = await supabase
+        .from('appraisal_questions')
+        .select(`
+          id,
+          question_text,
+          weight,
+          section_id,
+          appraisal_question_sections(name)
+        `)
+        .in('id', questionIds);
+
+      if (questionsError) {
+        console.error('❌ AppraisalForm: Error fetching questions:', questionsError);
+        throw questionsError;
+      }
+
+      console.log('✅ AppraisalForm: Assigned questions loaded:', questions?.length || 0);
+      return questions || [];
+    },
+    enabled: !!(appraisalQuery as any)?.employee_id && !!(appraisalQuery as any)?.cycle_id,
   });
 
-  useEffect(() => {
+useEffect(() => {
     if (appraisalQuery) {
       console.log('📋 AppraisalForm: Setting appraisal data from query');
       setAppraisalData(appraisalQuery as AppraisalData);
@@ -186,12 +232,35 @@ export function AppraisalForm({ appraisalId: propsAppraisalId }: AppraisalFormPr
     }
   }, [appraisalQuery]);
 
-  useEffect(() => {
-    if (responsesQuery) {
-      console.log('📋 AppraisalForm: Setting responses from query');
-      setResponses(responsesQuery);
-    }
-  }, [responsesQuery]);
+useEffect(() => {
+    // Merge existing responses with placeholders for assigned questions so all assigned items are visible
+    if (!responsesQuery && !assignedQuestions) return;
+
+    const existingByQuestion = new Map(
+      (responsesQuery || []).map((r: any) => [r.question_id, r])
+    );
+
+    const placeholders: AppraisalResponse[] = (assignedQuestions || [])
+      .filter((q: any) => !existingByQuestion.has(q.id))
+      .map((q: any) => ({
+        question_id: q.id,
+        emp_rating: null,
+        mgr_rating: null,
+        emp_comment: '',
+        mgr_comment: '',
+        question: {
+          id: q.id,
+          question_text: q.question_text,
+          weight: q.weight,
+          section_id: q.section_id,
+          appraisal_question_sections: { name: q.appraisal_question_sections?.name || '' }
+        }
+      }));
+
+    const merged = ([...(responsesQuery || []), ...placeholders]);
+    console.log('🧩 AppraisalForm: Merged responses count:', merged.length);
+    setResponses(merged);
+  }, [responsesQuery, assignedQuestions]);
 
   // Check if the appraisal is in read-only mode
   const isReadOnly = appraisalData?.status !== 'draft' || appraisalData?.employee_id !== profile?.id;
