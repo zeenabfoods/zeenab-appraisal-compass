@@ -180,12 +180,48 @@ export function TrainingDashboard() {
     }
   };
 
-  const getDaysUntilDue = (dueDate: string) => {
+  const getTimeUntilDue = (dueDate: string, trainingDurationMinutes: number) => {
     const due = new Date(dueDate);
     const now = new Date();
     const diffTime = due.getTime() - now.getTime();
+    
+    // If overdue, return negative values
+    if (diffTime < 0) {
+      const diffDays = Math.ceil(Math.abs(diffTime) / (1000 * 60 * 60 * 24));
+      return {
+        isOverdue: true,
+        display: diffDays === 1 ? '1 day overdue' : `${diffDays} days overdue`,
+        value: -diffDays
+      };
+    }
+    
+    const diffMinutes = Math.floor(diffTime / (1000 * 60));
+    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
+    
+    // For trainings under 2 hours, show time in hours/minutes if due within 24 hours
+    if (trainingDurationMinutes <= 120 && diffHours < 24) {
+      if (diffHours < 1) {
+        return {
+          isOverdue: false,
+          display: diffMinutes <= 1 ? '1 minute left' : `${diffMinutes} minutes left`,
+          value: diffMinutes
+        };
+      } else {
+        return {
+          isOverdue: false,
+          display: diffHours === 1 ? '1 hour left' : `${diffHours} hours left`,
+          value: diffHours
+        };
+      }
+    }
+    
+    // For longer trainings or longer timeframes, show days
+    return {
+      isOverdue: false,
+      display: diffDays === 1 ? '1 day left' : `${diffDays} days left`,
+      value: diffDays
+    };
   };
 
   if (isLoading) {
@@ -200,10 +236,10 @@ export function TrainingDashboard() {
   const completedAssignments = assignments?.filter(a => 
     a.quiz_attempts?.some(attempt => attempt.passed)
   ) || [];
-  const overdueAssignments = activeAssignments.filter(a => 
-    new Date(a.due_date) < new Date() && 
-    !a.quiz_attempts?.some(attempt => attempt.passed)
-  );
+  const overdueAssignments = activeAssignments.filter(a => {
+    const timeInfo = getTimeUntilDue(a.due_date, a.training.duration_minutes);
+    return timeInfo.isOverdue && !a.quiz_attempts?.some(attempt => attempt.passed);
+  });
 
   return (
     <div className="space-y-6">
@@ -271,7 +307,7 @@ export function TrainingDashboard() {
             <div className="grid gap-4">
               {activeAssignments.map((assignment) => {
                 const progress = assignment.progress?.progress_percentage || 0;
-                const daysUntilDue = getDaysUntilDue(assignment.due_date);
+                const timeInfo = getTimeUntilDue(assignment.due_date, assignment.training.duration_minutes);
                 
                 return (
                   <Card key={assignment.id} className="border-l-4 border-l-blue-500">
@@ -288,9 +324,9 @@ export function TrainingDashboard() {
                         </div>
                         <div className="flex flex-col items-end space-y-2">
                           {getStatusBadge(assignment)}
-                          <div className="flex items-center text-xs text-gray-500">
+                          <div className={`flex items-center text-xs ${timeInfo.isOverdue ? 'text-red-500' : 'text-gray-500'}`}>
                             <Calendar className="h-3 w-3 mr-1" />
-                            {daysUntilDue >= 0 ? `${daysUntilDue} days left` : `${Math.abs(daysUntilDue)} days overdue`}
+                            {timeInfo.display}
                           </div>
                         </div>
                       </div>
