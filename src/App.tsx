@@ -98,6 +98,7 @@ function App() {
                   <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
                   <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                   <Route path="/training" element={<ProtectedRoute><Training /></ProtectedRoute>} />
+                  <Route path="/training-management" element={<ProtectedRoute><Training /></ProtectedRoute>} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </div>

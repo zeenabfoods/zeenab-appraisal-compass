@@ -82,6 +82,11 @@ export function SimpleSidebar() {
         icon: Settings2,
       },
       {
+        title: "Training Management",
+        url: "/training-management", 
+        icon: BookOpen,
+      },
+      {
         title: "Appraisal Cycles",
         url: "/appraisal-cycles",
         icon: Calendar,
