@@ -671,7 +671,7 @@ useEffect(() => {
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="goals">Goals</Label>
-              {isReadOnly ? (
+              {(isReadOnly || isManagerReviewer) ? (
                 <div className="p-2 bg-gray-100 rounded border min-h-[80px]">
                   {goals || 'No goals specified'}
                 </div>
@@ -686,7 +686,7 @@ useEffect(() => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="training-needs">Training Needs</Label>
-              {isReadOnly ? (
+              {(isReadOnly || isManagerReviewer) ? (
                 <div className="p-2 bg-gray-100 rounded border min-h-[80px]">
                   {trainingNeeds || 'No training needs specified'}
                 </div>
@@ -702,7 +702,7 @@ useEffect(() => {
           </div>
           <div className="space-y-2">
             <Label htmlFor="noteworthy">Noteworthy Achievements</Label>
-            {isReadOnly ? (
+            {(isReadOnly || isManagerReviewer) ? (
               <div className="p-2 bg-gray-100 rounded border min-h-[80px]">
                 {noteworthy || 'No achievements noted'}
               </div>
@@ -718,7 +718,7 @@ useEffect(() => {
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="employee-comments">Additional Comments</Label>
-              {isReadOnly ? (
+              {(isReadOnly || isManagerReviewer) ? (
                 <div className="p-2 bg-gray-100 rounded border min-h-[80px]">
                   {empComments || 'No additional comments'}
                 </div>
@@ -733,9 +733,18 @@ useEffect(() => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="manager-comments">Manager Comments</Label>
-              <div className="p-2 bg-gray-100 rounded border min-h-[80px]">
-                {mgrComments || 'No manager comments'}
-              </div>
+              {isManagerReviewer ? (
+                <Textarea
+                  id="manager-comments"
+                  placeholder="Enter your manager comments"
+                  value={mgrComments}
+                  onChange={(e) => handleInputChange('mgr_comments', e.target.value)}
+                />
+              ) : (
+                <div className="p-2 bg-gray-100 rounded border min-h-[80px]">
+                  {mgrComments || 'No manager comments'}
+                </div>
+              )}
             </div>
           </div>
         </CardContent>
