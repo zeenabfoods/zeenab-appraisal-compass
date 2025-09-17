@@ -237,7 +237,13 @@ useEffect(() => {
 
 useEffect(() => {
     // Merge existing responses with placeholders for assigned questions so all assigned items are visible
+    // Only return early if we don't have either data set - we need at least one to proceed
     if (!responsesQuery && !assignedQuestions) return;
+
+    console.log('🧩 AppraisalForm: Merging responses...', {
+      existingResponses: responsesQuery?.length || 0,
+      assignedQuestions: assignedQuestions?.length || 0
+    });
 
     const existingByQuestion = new Map(
       (responsesQuery || []).map((r: any) => [r.question_id, r])
@@ -262,6 +268,8 @@ useEffect(() => {
 
     const merged = ([...(responsesQuery || []), ...placeholders]);
     console.log('🧩 AppraisalForm: Merged responses count:', merged.length);
+    console.log('🧩 AppraisalForm: Existing responses:', responsesQuery?.length || 0);
+    console.log('🧩 AppraisalForm: New placeholders:', placeholders.length);
     setResponses(merged);
   }, [responsesQuery, assignedQuestions]);
 
