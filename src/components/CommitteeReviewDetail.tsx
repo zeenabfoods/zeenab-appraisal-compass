@@ -186,6 +186,26 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
         .eq('id', appraisalId);
 
       if (appraisalError) throw appraisalError;
+
+      // Calculate and save performance analytics
+      try {
+        const { PerformanceCalculationService } = await import('@/services/performanceCalculationService');
+        const calculation = await PerformanceCalculationService.calculatePerformanceScore(
+          appraisalData?.employee_id,
+          appraisalData?.cycle_id
+        );
+        
+        if (calculation) {
+          await PerformanceCalculationService.savePerformanceAnalytics(
+            appraisalData?.employee_id,
+            appraisalData?.cycle_id,
+            calculation
+          );
+        }
+      } catch (perfError) {
+        console.error('Performance calculation error:', perfError);
+        // Don't fail the main operation if performance calculation fails
+      }
       
       console.log('✅ CommitteeReviewDetail: Review submitted successfully');
       setIsSubmitting(false);
