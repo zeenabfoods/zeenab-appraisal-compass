@@ -70,6 +70,7 @@ interface AppraisalData {
     last_name: string;
     position: string;
     email: string;
+    line_manager_id: string | null;
     department: {
       name: string;
     };
