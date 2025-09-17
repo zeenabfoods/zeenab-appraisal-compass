@@ -73,7 +73,7 @@ export function TrainingManagement() {
   const { data: trainingRequests } = useQuery({
     queryKey: ['training-requests'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('training_requests')
         .select(`
           *,
@@ -90,7 +90,7 @@ export function TrainingManagement() {
   const { data: trainings } = useQuery({
     queryKey: ['trainings'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('trainings')
         .select('*')
         .order('created_at', { ascending: false });
@@ -104,7 +104,7 @@ export function TrainingManagement() {
     mutationFn: async (trainingData: typeof newTraining) => {
       const { data: user } = await supabase.auth.getUser();
       
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('trainings')
         .insert({
           ...trainingData,
@@ -150,7 +150,7 @@ export function TrainingManagement() {
         const request = trainingRequests?.find(r => r.id === requestId);
         if (request) {
           // Create training assignment
-          const { error: assignmentError } = await supabase
+          const { error: assignmentError } = await (supabase as any)
             .from('training_assignments')
             .insert({
               employee_id: request.employee_id,
@@ -165,7 +165,7 @@ export function TrainingManagement() {
       }
 
       // Update request status
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('training_requests')
         .update({
           status: action === 'approve' ? 'approved' : 'rejected',

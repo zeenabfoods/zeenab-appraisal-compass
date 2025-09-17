@@ -212,19 +212,23 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
       
       // Submit training recommendation if provided
       if (trainingRecommendation.trim() && trainingJustification.trim()) {
-        const { error: trainingError } = await supabase
-          .from('training_requests')
-          .insert({
-            employee_id: appraisalData?.employee_id,
-            requested_by: (await supabase.auth.getUser()).data.user?.id,
-            recommended_training_type: recommendedTrainingType,
-            justification: trainingJustification,
-            status: 'pending'
-          });
+        try {
+          const { error: trainingError } = await supabase
+            .from('training_requests' as any)
+            .insert({
+              employee_id: appraisalData?.employee_id,
+              requested_by: (await supabase.auth.getUser()).data.user?.id,
+              recommended_training_type: recommendedTrainingType,
+              justification: trainingJustification,
+              status: 'pending'
+            });
 
-        if (trainingError) {
-          console.error('Training recommendation error:', trainingError);
-          // Don't fail the main operation if training recommendation fails
+          if (trainingError) {
+            console.error('Training recommendation error:', trainingError);
+            // Don't fail the main operation if training recommendation fails
+          }
+        } catch (err) {
+          console.error('Training recommendation failed:', err);
         }
       }
       

@@ -12,6 +12,7 @@ import {
   Scale,
   Settings2,
   User,
+  BookOpen,
 } from "lucide-react"
 
 import { useAuthContext } from "@/components/AuthProvider"
@@ -38,6 +39,11 @@ export function SimpleSidebar() {
         title: "My Appraisals",
         url: "/my-appraisals",
         icon: ClipboardList,
+      },
+      {
+        title: "Training Center",
+        url: "/training",
+        icon: BookOpen,
       },
       {
         title: "Profile",

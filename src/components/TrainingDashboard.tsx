@@ -66,7 +66,7 @@ export function TrainingDashboard() {
   const { data: assignments, isLoading } = useQuery({
     queryKey: ['training-assignments', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('training_assignments')
         .select(`
           *,
@@ -89,7 +89,7 @@ export function TrainingDashboard() {
       progress: number;
       position?: string;
     }) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('training_progress')
         .upsert({
           assignment_id: assignmentId,

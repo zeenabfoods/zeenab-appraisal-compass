@@ -21,6 +21,7 @@ import Committee from "./pages/Committee";
 import CompanyReports from "./pages/CompanyReports";
 import Notifications from "./pages/Notifications";
 import Profile from "./pages/Profile";
+import Training from "./pages/Training";
 import AppraisalPage from "./pages/AppraisalPage";
 import NewAppraisalPage from "./pages/NewAppraisalPage";
 import NotFound from "./pages/NotFound";
@@ -96,6 +97,7 @@ function App() {
                   <Route path="/company-reports" element={<ProtectedRoute><CompanyReports /></ProtectedRoute>} />
                   <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
                   <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+                  <Route path="/training" element={<ProtectedRoute><Training /></ProtectedRoute>} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </div>

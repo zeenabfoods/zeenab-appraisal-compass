@@ -61,7 +61,7 @@ export function TrainingQuiz({
   const { data: questions, isLoading: questionsLoading } = useQuery({
     queryKey: ['training-quiz-questions', trainingId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('training_quiz_questions')
         .select('*')
         .eq('training_id', trainingId)
@@ -78,7 +78,7 @@ export function TrainingQuiz({
   const { data: attempts } = useQuery({
     queryKey: ['quiz-attempts', assignmentId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('quiz_attempts')
         .select('*')
         .eq('assignment_id', assignmentId)
@@ -128,7 +128,7 @@ export function TrainingQuiz({
       const attemptNumber = (attempts?.length || 0) + 1;
 
       // Save attempt
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('quiz_attempts')
         .insert({
           assignment_id: assignmentId,
@@ -144,7 +144,7 @@ export function TrainingQuiz({
 
       // Update assignment status if passed
       if (passed) {
-        await supabase
+        await (supabase as any)
           .from('training_assignments')
           .update({ status: 'completed' })
           .eq('id', assignmentId);
