@@ -141,6 +141,75 @@ export function CommitteeAnalytics({
   };
 
   const riskLevel = assessRisk();
+
+  // Employee Gap Analysis Logic
+  const calculateEmployeeGaps = () => {
+    const gaps = sectionData.map(section => {
+      const empScore = section.employee;
+      const mgrScore = section.manager;
+      const avgScore = (empScore + mgrScore) / 2;
+      
+      // Performance gap: Both scores below target
+      const performanceGap = avgScore < 3.5 ? (4.0 - avgScore) : 0;
+      
+      // Self-assessment gap: Employee overrating significantly
+      const selfAssessmentGap = Math.max(0, empScore - mgrScore - 0.5);
+      
+      // Confidence gap: Manager rating significantly higher
+      const confidenceGap = Math.max(0, mgrScore - empScore - 0.5);
+      
+      // Overall gap severity
+      const severity = performanceGap * 2 + selfAssessmentGap + confidenceGap;
+      
+      return {
+        section: section.name,
+        empScore,
+        mgrScore,
+        avgScore,
+        performanceGap,
+        selfAssessmentGap,
+        confidenceGap,
+        severity,
+        gapType: performanceGap > 0 ? 'performance' : 
+                 selfAssessmentGap > confidenceGap ? 'overconfidence' : 
+                 confidenceGap > 0 ? 'underconfidence' : 'aligned'
+      };
+    }).filter(gap => gap.severity > 0);
+    
+    return gaps.sort((a, b) => b.severity - a.severity);
+  };
+
+  const employeeGaps = calculateEmployeeGaps();
+  
+  const getGapRiskLevel = () => {
+    const totalSeverity = employeeGaps.reduce((sum, gap) => sum + gap.severity, 0);
+    const criticalGaps = employeeGaps.filter(gap => gap.performanceGap > 1).length;
+    
+    if (totalSeverity > 6 || criticalGaps > 2) return { level: 'HIGH', color: 'text-red-600', bgColor: 'bg-red-50 border-red-200' };
+    if (totalSeverity > 3 || criticalGaps > 1) return { level: 'MEDIUM', color: 'text-orange-600', bgColor: 'bg-orange-50 border-orange-200' };
+    if (totalSeverity > 0) return { level: 'LOW', color: 'text-yellow-600', bgColor: 'bg-yellow-50 border-yellow-200' };
+    return { level: 'MINIMAL', color: 'text-green-600', bgColor: 'bg-green-50 border-green-200' };
+  };
+
+  const gapRisk = getGapRiskLevel();
+
+  const getGapTypeIcon = (type: string) => {
+    switch (type) {
+      case 'performance': return '🔴';
+      case 'overconfidence': return '🟡';
+      case 'underconfidence': return '🔵';
+      default: return '✅';
+    }
+  };
+
+  const getGapTypeLabel = (type: string) => {
+    switch (type) {
+      case 'performance': return 'Performance Gap';
+      case 'overconfidence': return 'Self-Assessment Gap';
+      case 'underconfidence': return 'Confidence Gap';
+      default: return 'Well Aligned';
+    }
+  };
   
   return (
     <div className="space-y-6">
@@ -470,6 +539,119 @@ export function CommitteeAnalytics({
                 </div>
               ))}
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Employee Gap Analysis */}
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-600" />
+              Employee Gap Analysis
+            </CardTitle>
+            <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${gapRisk.bgColor} ${gapRisk.color}`}>
+              Gap Risk Level: {gapRisk.level}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {employeeGaps.length > 0 ? (
+              <div className="space-y-4">
+                {/* Top 3 Problem Areas */}
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Top Performance Issues</h4>
+                  <div className="space-y-3">
+                    {employeeGaps.slice(0, 3).map((gap, index) => (
+                      <div key={gap.section} className="bg-gray-50 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{getGapTypeIcon(gap.gapType)}</span>
+                            <span className="text-sm font-medium text-gray-800">
+                              {index + 1}. {gap.section}
+                            </span>
+                          </div>
+                          <Badge variant="secondary" className="text-xs">
+                            {getGapTypeLabel(gap.gapType)}
+                          </Badge>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-blue-600">Employee:</span>
+                            <span className="font-medium">{gap.empScore.toFixed(1)}/5</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-green-600">Manager:</span>
+                            <span className="font-medium">{gap.mgrScore.toFixed(1)}/5</span>
+                          </div>
+                        </div>
+                        
+                        {/* Gap Severity Bar */}
+                        <div className="mt-2">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-xs text-gray-600">Gap Severity</span>
+                            <span className="text-xs font-medium text-red-600">
+                              {gap.severity.toFixed(1)}
+                            </span>
+                          </div>
+                          <Progress 
+                            value={Math.min(gap.severity * 20, 100)} 
+                            className="h-2"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Gap Type Distribution */}
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Gap Types</h4>
+                  <div className="space-y-2">
+                    {['performance', 'overconfidence', 'underconfidence'].map(type => {
+                      const count = employeeGaps.filter(gap => gap.gapType === type).length;
+                      if (count === 0) return null;
+                      
+                      return (
+                        <div key={type} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span>{getGapTypeIcon(type)}</span>
+                            <span className="text-sm text-gray-700">{getGapTypeLabel(type)}</span>
+                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            {count} area{count !== 1 ? 's' : ''}
+                          </Badge>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Action Items */}
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Recommended Actions</h4>
+                  <div className="text-xs text-gray-600 space-y-1">
+                    {employeeGaps.slice(0, 3).map((gap, index) => (
+                      <div key={gap.section} className="flex items-start gap-2">
+                        <span className="text-red-500 mt-0.5">•</span>
+                        <span>
+                          {gap.gapType === 'performance' && `Focus on improving ${gap.section.toLowerCase()} skills`}
+                          {gap.gapType === 'overconfidence' && `Align self-assessment in ${gap.section.toLowerCase()}`}
+                          {gap.gapType === 'underconfidence' && `Build confidence in ${gap.section.toLowerCase()}`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
+                <p className="text-sm font-medium text-green-700">No Significant Gaps Detected</p>
+                <p className="text-xs text-gray-600 mt-1">
+                  Employee and manager assessments are well-aligned across all areas
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
