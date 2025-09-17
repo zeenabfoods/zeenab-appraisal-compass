@@ -293,6 +293,7 @@ export function EmployeeAssignedQuestions({ employeeId }: EmployeeAssignedQuesti
                     onChange={handleResponseChange}
                     disabled={false}
                     employeeName={`${currentAppraisal.employee?.first_name} ${currentAppraisal.employee?.last_name}`}
+                    mode={'employee'}
                   />
 
                   <div className="flex justify-between items-center mt-8 pt-6 border-t">
@@ -389,6 +390,7 @@ export function EmployeeAssignedQuestions({ employeeId }: EmployeeAssignedQuesti
                       disabled={true}
                       employeeName={`${appraisal.employee?.first_name} ${appraisal.employee?.last_name}`}
                       hideRatingsForTextSections={true}
+                      mode={'employee'}
                     />
                   </CardContent>
                 </Card>

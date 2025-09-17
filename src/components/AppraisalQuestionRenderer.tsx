@@ -26,6 +26,7 @@ interface AppraisalQuestionRendererProps {
   showSectionHeader?: boolean;
   employeeName?: string;
   compact?: boolean;
+  mode?: 'employee' | 'manager';
 }
 
 export function AppraisalQuestionRenderer({ 
@@ -36,7 +37,8 @@ export function AppraisalQuestionRenderer({
   questionNumber = 1,
   showSectionHeader = true,
   employeeName = '',
-  compact = false
+  compact = false,
+  mode = 'employee'
 }: AppraisalQuestionRendererProps) {
 
   // Console verification check
@@ -48,18 +50,21 @@ export function AppraisalQuestionRenderer({
     );
   }, []);
 
+  const ratingKey = mode === 'manager' ? 'mgr_rating' : 'emp_rating';
+  const commentKey = mode === 'manager' ? 'mgr_comment' : 'emp_comment';
+
   const handleRatingChange = (rating: string) => {
-    const newValue = {
+    const newValue: any = {
       ...value,
-      emp_rating: parseInt(rating)
+      [ratingKey]: parseInt(rating)
     };
     onChange(question.id, newValue);
   };
 
   const handleCommentChange = (comment: string) => {
-    const newValue = {
+    const newValue: any = {
       ...value,
-      emp_comment: comment
+      [commentKey]: comment
     };
     onChange(question.id, newValue);
   };
@@ -85,8 +90,8 @@ export function AppraisalQuestionRenderer({
     if (disabled) {
       return (
         <div className="p-2 bg-gray-100 rounded border">
-          {value?.emp_rating 
-            ? `${value.emp_rating} - ${getRatingLabel(value.emp_rating)}`
+          {value?.[ratingKey] 
+            ? `${value[ratingKey]} - ${getRatingLabel(value[ratingKey])}`
             : 'Not Rated'
           }
         </div>
@@ -95,7 +100,7 @@ export function AppraisalQuestionRenderer({
 
     return (
       <Select
-        value={value?.emp_rating ? value.emp_rating.toString() : ''}
+        value={value?.[ratingKey] ? String(value[ratingKey]) : ''}
         onValueChange={handleRatingChange}
       >
         <SelectTrigger className="w-full">
@@ -111,7 +116,6 @@ export function AppraisalQuestionRenderer({
       </Select>
     );
   };
-
   const getRatingLabel = (rating: number) => {
     const labels = {
       1: 'Poor',

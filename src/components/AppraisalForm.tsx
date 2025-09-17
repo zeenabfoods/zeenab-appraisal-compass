@@ -109,21 +109,22 @@ export function AppraisalForm({ appraisalId: propsAppraisalId }: AppraisalFormPr
 
       console.log('📋 AppraisalForm: Fetching appraisal data for ID:', appraisalId);
 
-      const { data, error } = await supabase
-        .from('appraisals')
-        .select(`
-          *,
-          cycle:appraisal_cycles(name, quarter, year),
-          employee:profiles!appraisals_employee_id_fkey(
-            first_name,
-            last_name,
-            position,
-            email,
-            department:departments!profiles_department_id_fkey(name)
-          )
-        `)
-        .eq('id', appraisalId)
-        .single();
+          const { data, error } = await supabase
+            .from('appraisals')
+            .select(`
+              *,
+              cycle:appraisal_cycles(name, quarter, year),
+              employee:profiles!appraisals_employee_id_fkey(
+                first_name,
+                last_name,
+                position,
+                email,
+                line_manager_id,
+                department:departments!profiles_department_id_fkey(name)
+              )
+            `)
+            .eq('id', appraisalId)
+            .single();
 
       if (error) {
         console.error("❌ AppraisalForm: Error fetching appraisal:", error);
@@ -263,10 +264,9 @@ useEffect(() => {
     setResponses(merged);
   }, [responsesQuery, assignedQuestions]);
 
-  // Check if the appraisal is in read-only mode
-  const isReadOnly = appraisalData?.status !== 'draft' || appraisalData?.employee_id !== profile?.id;
-
-  console.log('🔒 AppraisalForm: Read-only mode:', isReadOnly, 'Status:', appraisalData?.status, 'Employee matches profile:', appraisalData?.employee_id === profile?.id);
+  const isEmployee = appraisalData?.employee_id === profile?.id;
+  const isManagerReviewer = profile?.id && appraisalData?.employee?.line_manager_id === profile?.id && ['submitted','manager_review'].includes(appraisalData?.status || '');
+  const isReadOnly = isEmployee ? (appraisalData?.status !== 'draft') : !isManagerReviewer;
 
   const updateResponseMutation = useMutation({
     mutationFn: async (updatedResponse: AppraisalResponse) => {
@@ -422,6 +422,31 @@ useEffect(() => {
     }
   };
 
+  const saveResponses = async () => {
+    if (!appraisalId) throw new Error("Appraisal ID is required");
+    const payload = responses.map((r) => ({
+      id: r.id, // may be undefined for new
+      appraisal_id: appraisalId,
+      question_id: r.question_id,
+      emp_rating: r.emp_rating,
+      emp_comment: r.emp_comment,
+      mgr_rating: r.mgr_rating,
+      mgr_comment: r.mgr_comment,
+    }));
+
+    if (payload.length === 0) return;
+
+    const { error } = await supabase
+      .from('appraisal_responses')
+      .upsert(payload, { onConflict: 'id' })
+      .select();
+
+    if (error) {
+      console.error('Error upserting responses:', error);
+      throw error;
+    }
+  };
+
   const handleSaveChanges = async () => {
     if (isReadOnly) return;
     
@@ -429,6 +454,10 @@ useEffect(() => {
     try {
       if (!appraisalId) throw new Error("Appraisal ID is required");
 
+      // 1) Persist responses
+      await saveResponses();
+
+      // 2) Update top-level fields
       const { error } = await supabase
         .from('appraisals')
         .update({
@@ -447,13 +476,13 @@ useEffect(() => {
 
       toast({
         title: "Success",
-        description: "Appraisal saved successfully."
+        description: "Changes saved successfully."
       });
     } catch (error) {
-      console.error("Error updating appraisal:", error);
+      console.error("Error saving changes:", error);
       toast({
         title: "Error",
-        description: "Failed to save appraisal. Please try again.",
+        description: "Failed to save changes. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -468,11 +497,13 @@ useEffect(() => {
     try {
       if (!appraisalId) throw new Error("Appraisal ID is required");
 
-      // Submit the appraisal
+      // Ensure responses are saved before submission
+      await saveResponses();
+
       const { error: submitError } = await supabase
         .from('appraisals')
         .update({
-          status: 'submitted' as any, // Type assertion to fix the TypeScript error
+          status: 'submitted' as any,
           employee_submitted_at: new Date().toISOString(),
           submitted_at: new Date().toISOString()
         })
@@ -579,7 +610,6 @@ useEffect(() => {
         </Card>
       )}
 
-      {/* Appraisal Questions - Grouped by Section */}
       {responses && responses.length > 0 && (
         <GroupedQuestionRenderer
           questions={getQuestionsFromResponses()}
@@ -588,6 +618,7 @@ useEffect(() => {
           disabled={isReadOnly}
           employeeName={`${appraisalData?.employee?.first_name} ${appraisalData?.employee?.last_name}`}
           hideRatingsForTextSections={false}
+          mode={isManagerReviewer ? 'manager' : 'employee'}
         />
       )}
 

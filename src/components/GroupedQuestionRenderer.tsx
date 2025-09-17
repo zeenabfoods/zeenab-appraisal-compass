@@ -20,6 +20,7 @@ interface GroupedQuestionRendererProps {
   disabled?: boolean;
   employeeName?: string;
   hideRatingsForTextSections?: boolean;
+  mode?: 'employee' | 'manager';
 }
 
 export function GroupedQuestionRenderer({
@@ -28,7 +29,8 @@ export function GroupedQuestionRenderer({
   onChange,
   disabled = false,
   employeeName = '',
-  hideRatingsForTextSections = false
+  hideRatingsForTextSections = false,
+  mode = 'employee'
 }: GroupedQuestionRendererProps) {
   // Group questions by section
   const groupedQuestions = questions.reduce((acc, question) => {
@@ -165,6 +167,7 @@ export function GroupedQuestionRenderer({
                     showSectionHeader={false}
                     employeeName=""
                     compact={true}
+                    mode={mode}
                   />
                 </div>
               ))}
