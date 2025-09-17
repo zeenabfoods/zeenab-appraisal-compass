@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Users, BarChart3, Clock, Target, Send, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { CommitteeScoreComparison } from './CommitteeScoreComparison';
+import { GroupedCommitteeScoreReview } from './GroupedCommitteeScoreReview';
 import { CommitteeAnalytics } from './CommitteeAnalytics';
 import { GroupedQuestionRenderer } from './GroupedQuestionRenderer';
 
@@ -353,10 +353,12 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
               </p>
             </CardHeader>
             <CardContent>
-              <CommitteeScoreComparison
+              <GroupedCommitteeScoreReview
                 responses={responses}
+                appraisalData={appraisalData}
                 committeeScores={committeeScores}
                 onScoreChange={handleScoreChange}
+                employeeName={`${employee?.first_name} ${employee?.last_name}`}
               />
             </CardContent>
           </Card>
