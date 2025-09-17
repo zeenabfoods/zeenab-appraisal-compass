@@ -73,17 +73,39 @@ export function TrainingManagement() {
   const { data: trainingRequests } = useQuery({
     queryKey: ['training-requests'],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      // First get training requests
+      const { data: requests, error: requestsError } = await supabase
         .from('training_requests')
-        .select(`
-          *,
-          employee:profiles!training_requests_employee_id_fkey(first_name, last_name, email),
-          requester:profiles!training_requests_requested_by_fkey(first_name, last_name)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return data as TrainingRequest[];
+      if (requestsError) throw requestsError;
+
+      // Then get employee and requester details for each request
+      const enrichedRequests = await Promise.all(
+        (requests || []).map(async (request) => {
+          const [employeeResult, requesterResult] = await Promise.all([
+            supabase
+              .from('profiles')
+              .select('first_name, last_name, email')
+              .eq('id', request.employee_id)
+              .single(),
+            supabase
+              .from('profiles')
+              .select('first_name, last_name')
+              .eq('id', request.requested_by)
+              .single()
+          ]);
+
+          return {
+            ...request,
+            employee: employeeResult.data || { first_name: '', last_name: '', email: '' },
+            requester: requesterResult.data || { first_name: '', last_name: '' }
+          };
+        })
+      );
+
+      return enrichedRequests as TrainingRequest[];
     }
   });
 
