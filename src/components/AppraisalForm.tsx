@@ -425,26 +425,57 @@ useEffect(() => {
 
   const saveResponses = async () => {
     if (!appraisalId) throw new Error("Appraisal ID is required");
-    const payload = responses.map((r) => ({
-      id: r.id, // may be undefined for new
-      appraisal_id: appraisalId,
-      question_id: r.question_id,
-      emp_rating: r.emp_rating,
-      emp_comment: r.emp_comment,
-      mgr_rating: r.mgr_rating,
-      mgr_comment: r.mgr_comment,
-    }));
 
-    if (payload.length === 0) return;
+    // Split into inserts vs updates while avoiding undefined IDs (which cause NOT NULL violations)
+    const toInsert = responses
+      .filter((r) => !r.id)
+      .map((r) => ({
+        appraisal_id: appraisalId,
+        question_id: r.question_id,
+        emp_rating: r.emp_rating,
+        emp_comment: r.emp_comment,
+        mgr_rating: r.mgr_rating,
+        mgr_comment: r.mgr_comment,
+      }));
 
-    const { error } = await supabase
-      .from('appraisal_responses')
-      .upsert(payload, { onConflict: 'id' })
-      .select();
+    const toUpsert = responses
+      .filter((r) => !!r.id)
+      .map((r) => ({
+        id: r.id as string,
+        appraisal_id: appraisalId,
+        question_id: r.question_id,
+        emp_rating: r.emp_rating,
+        emp_comment: r.emp_comment,
+        mgr_rating: r.mgr_rating,
+        mgr_comment: r.mgr_comment,
+      }));
 
-    if (error) {
-      console.error('Error upserting responses:', error);
-      throw error;
+    if (toInsert.length === 0 && toUpsert.length === 0) return;
+
+    // 1) Insert new responses
+    if (toInsert.length > 0) {
+      const { error: insertError } = await supabase
+        .from('appraisal_responses')
+        .insert(toInsert)
+        .select();
+
+      if (insertError) {
+        console.error('Error inserting responses:', insertError);
+        throw insertError;
+      }
+    }
+
+    // 2) Upsert existing responses by id
+    if (toUpsert.length > 0) {
+      const { error: upsertError } = await supabase
+        .from('appraisal_responses')
+        .upsert(toUpsert, { onConflict: 'id' })
+        .select();
+
+      if (upsertError) {
+        console.error('Error upserting responses:', upsertError);
+        throw upsertError;
+      }
     }
   };
 
