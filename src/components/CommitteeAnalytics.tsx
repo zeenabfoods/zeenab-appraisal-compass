@@ -33,8 +33,23 @@ export function CommitteeAnalytics({
   const sectionPerformance = responses.reduce((acc, response) => {
     if (!response.question?.section?.name) return acc;
     
-    const sectionName = response.question.section.name;
-    const mainSection = mainSections.find(section => sectionName.includes(section));
+    const sectionName = response.question.section.name.toUpperCase();
+    // More flexible matching for section names
+    let mainSection = mainSections.find(section => 
+      sectionName.includes(section) || 
+      sectionName.includes(section.replace(' SECTION', ''))
+    );
+    
+    // Handle variations in section names
+    if (!mainSection) {
+      if (sectionName.includes('FINANCIAL') || sectionName.includes('FINANCE')) {
+        mainSection = 'FINANCIAL SECTION';
+      } else if (sectionName.includes('OPERATIONAL') || sectionName.includes('OPERATION') || sectionName.includes('EFFICIENCY')) {
+        mainSection = 'OPERATIONAL SECTION';
+      } else if (sectionName.includes('BEHAVIOURAL') || sectionName.includes('BEHAVIORAL') || sectionName.includes('BEHAVIOUR') || sectionName.includes('BEHAVIOR')) {
+        mainSection = 'BEHAVIOURAL SECTION';
+      }
+    }
     
     if (!mainSection) return acc;
     
@@ -63,13 +78,31 @@ export function CommitteeAnalytics({
     variance: Math.abs(Number(((data.empTotal - data.mgrTotal) / data.count).toFixed(1)))
   }));
 
-  // Data for line chart showing weaknesses
-  const weaknessData = sectionData.map(section => ({
-    name: section.name,
-    score: section.current,
-    target: 4.0, // Target performance level
-    gap: Math.max(0, 4.0 - section.current)
-  }));
+  // Ensure all three main sections are represented in the chart
+  const allSectionsData = mainSections.map(sectionName => {
+    const sectionKey = sectionName.replace(' SECTION', '');
+    const existingSection = sectionData.find(s => s.name === sectionKey);
+    
+    if (existingSection) {
+      return {
+        name: sectionKey,
+        score: existingSection.current,
+        target: 4.0, // Target performance level
+        gap: Math.max(0, 4.0 - existingSection.current)
+      };
+    } else {
+      // If no data exists for this section, show as not evaluated
+      return {
+        name: sectionKey,
+        score: 0,
+        target: 4.0,
+        gap: 4.0,
+        noData: true
+      };
+    }
+  });
+
+  const weaknessData = allSectionsData;
 
   // Historical trend data
   const trendData = appraisalHistory.map((appraisal, index) => ({
@@ -270,7 +303,41 @@ export function CommitteeAnalytics({
                     height={80}
                   />
                   <YAxis domain={[0, 5]} tick={{ fontSize: 12 }} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartTooltip 
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-white p-3 border rounded shadow-lg">
+                            <p className="font-semibold">{label}</p>
+                            <div className="space-y-1 text-sm">
+                              <div className="flex justify-between gap-4">
+                                <span className="text-green-600">Target:</span>
+                                <span className="font-medium">{data.target}/5</span>
+                              </div>
+                              <div className="flex justify-between gap-4">
+                                <span className="text-orange-600">Current:</span>
+                                <span className="font-medium">
+                                  {data.noData ? 'Not Evaluated' : `${data.score}/5`}
+                                </span>
+                              </div>
+                              {!data.noData && (
+                                <div className="flex justify-between gap-4">
+                                  <span className={data.score >= data.target ? "text-green-600" : "text-red-600"}>
+                                    {data.score >= data.target ? 'Exceeding by:' : 'Gap:'}
+                                  </span>
+                                  <span className="font-medium">
+                                    {Math.abs(data.score - data.target).toFixed(1)}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
                   <Legend />
                   <Line 
                     type="monotone" 
@@ -286,7 +353,20 @@ export function CommitteeAnalytics({
                     dataKey="score" 
                     stroke="#F59E0B" 
                     strokeWidth={4}
-                    dot={{ fill: "#F59E0B", strokeWidth: 2, r: 8 }}
+                    dot={(props) => {
+                      const { payload } = props;
+                      if (payload?.noData) {
+                        return <circle 
+                          {...props} 
+                          fill="#9CA3AF" 
+                          stroke="#6B7280" 
+                          strokeWidth={2} 
+                          r={6}
+                          strokeDasharray="2,2"
+                        />;
+                      }
+                      return <circle {...props} fill="#F59E0B" strokeWidth={2} r={8} />;
+                    }}
                     name="Current Performance"
                   />
                 </LineChart>
