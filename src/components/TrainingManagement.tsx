@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { 
   Plus, 
   BookOpen, 
@@ -19,9 +20,13 @@ import {
   Video,
   Volume2,
   FileText,
-  Settings
+  Settings,
+  Edit,
+  Trash2,
+  MoreHorizontal
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 interface TrainingRequest {
   id: string;
@@ -60,6 +65,8 @@ export function TrainingManagement() {
   const queryClient = useQueryClient();
   
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingTraining, setEditingTraining] = useState<Training | null>(null);
   const [newTraining, setNewTraining] = useState({
     title: '',
     description: '',
@@ -161,6 +168,77 @@ export function TrainingManagement() {
       console.error('Create training error:', error);
     }
   });
+
+  const updateTrainingMutation = useMutation({
+    mutationFn: async (trainingData: Training) => {
+      const { error } = await (supabase as any)
+        .from('trainings')
+        .update({
+          title: trainingData.title,
+          description: trainingData.description,
+          content_type: trainingData.content_type,
+          content_url: trainingData.content_url,
+          duration_minutes: trainingData.duration_minutes,
+          pass_mark: trainingData.pass_mark,
+          max_attempts: trainingData.max_attempts
+        })
+        .eq('id', trainingData.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Training Updated",
+        description: "Training has been updated successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['trainings'] });
+      setIsEditDialogOpen(false);
+      setEditingTraining(null);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to update training. Please try again.",
+        variant: "destructive",
+      });
+      console.error('Update training error:', error);
+    }
+  });
+
+  const deleteTrainingMutation = useMutation({
+    mutationFn: async (trainingId: string) => {
+      const { error } = await (supabase as any)
+        .from('trainings')
+        .update({ is_active: false })
+        .eq('id', trainingId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Training Deleted",
+        description: "Training has been deactivated successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['trainings'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to delete training. Please try again.",
+        variant: "destructive",
+      });
+      console.error('Delete training error:', error);
+    }
+  });
+
+  const handleEditTraining = (training: Training) => {
+    setEditingTraining(training);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDeleteTraining = (trainingId: string) => {
+    deleteTrainingMutation.mutate(trainingId);
+  };
 
   const processRequestMutation = useMutation({
     mutationFn: async ({ requestId, action, trainingId }: {
@@ -353,6 +431,107 @@ export function TrainingManagement() {
         </Dialog>
       </div>
 
+      {/* Edit Training Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Training</DialogTitle>
+          </DialogHeader>
+          {editingTraining && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-title">Training Title</Label>
+                <Input
+                  id="edit-title"
+                  value={editingTraining.title}
+                  onChange={(e) => setEditingTraining(prev => prev ? { ...prev, title: e.target.value } : null)}
+                  placeholder="Enter training title"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-description">Description</Label>
+                <Textarea
+                  id="edit-description"
+                  value={editingTraining.description}
+                  onChange={(e) => setEditingTraining(prev => prev ? { ...prev, description: e.target.value } : null)}
+                  placeholder="Enter training description"
+                  rows={3}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-content-type">Content Type</Label>
+                <select
+                  id="edit-content-type"
+                  value={editingTraining.content_type}
+                  onChange={(e) => setEditingTraining(prev => prev ? { ...prev, content_type: e.target.value } : null)}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                >
+                  <option value="video">Video (YouTube)</option>
+                  <option value="audio">Audio (YouTube)</option>
+                  <option value="document">Document (Google Drive)</option>
+                  <option value="text">Text Content</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-content-url">Content URL</Label>
+                <Input
+                  id="edit-content-url"
+                  value={editingTraining.content_url}
+                  onChange={(e) => setEditingTraining(prev => prev ? { ...prev, content_url: e.target.value } : null)}
+                  placeholder="Enter YouTube or Google Drive URL"
+                />
+                <p className="text-xs text-gray-500">
+                  For YouTube: Use unlisted video links. For Google Drive: Use shareable links
+                </p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="edit-duration">Duration (min)</Label>
+                  <Input
+                    id="edit-duration"
+                    type="number"
+                    value={editingTraining.duration_minutes}
+                    onChange={(e) => setEditingTraining(prev => prev ? { ...prev, duration_minutes: parseInt(e.target.value) } : null)}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="edit-pass-mark">Pass Mark (%)</Label>
+                  <Input
+                    id="edit-pass-mark"
+                    type="number"
+                    value={editingTraining.pass_mark}
+                    onChange={(e) => setEditingTraining(prev => prev ? { ...prev, pass_mark: parseInt(e.target.value) } : null)}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="edit-max-attempts">Max Attempts</Label>
+                  <Input
+                    id="edit-max-attempts"
+                    type="number"
+                    value={editingTraining.max_attempts}
+                    onChange={(e) => setEditingTraining(prev => prev ? { ...prev, max_attempts: parseInt(e.target.value) } : null)}
+                  />
+                </div>
+              </div>
+
+              <Button 
+                onClick={() => updateTrainingMutation.mutate(editingTraining)}
+                disabled={!editingTraining.title || !editingTraining.content_url}
+                className="w-full"
+              >
+                Update Training
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Tabs defaultValue="requests" className="space-y-4">
         <TabsList>
           <TabsTrigger value="requests">Training Requests ({pendingRequests.length})</TabsTrigger>
@@ -453,9 +632,51 @@ export function TrainingManagement() {
                       </CardTitle>
                       <p className="text-sm text-gray-600 mt-1">{training.description}</p>
                     </div>
-                    <Badge className={training.is_active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
-                      {training.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
+                    <div className="flex items-center space-x-2">
+                      <Badge className={training.is_active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
+                        {training.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem onClick={() => handleEditTraining(training)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          {training.is_active && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This will deactivate the training "{training.title}". This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteTraining(training.id)}
+                                    className="bg-red-600 hover:bg-red-700"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -477,6 +698,11 @@ export function TrainingManagement() {
                       <p className="text-gray-600 capitalize">{training.content_type}</p>
                     </div>
                   </div>
+                  {training.content_url && (
+                    <div className="mt-2 text-xs text-gray-500">
+                      <span className="font-medium">URL:</span> {training.content_url}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
