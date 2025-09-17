@@ -598,14 +598,18 @@ export function TrainingDashboard() {
                       }
                     })()}
                     
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Training Progress</span>
-                        <span>{Math.round((currentTime / duration) * 100) || 0}%</span>
-                      </div>
-                      <Progress value={Math.round((currentTime / duration) * 100) || 0} className="h-2" />
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Training Progress</span>
+                      <span>{currentTraining.progress?.progress_percentage || 0}%</span>
                     </div>
+                    <Progress 
+                      value={currentTraining.progress?.progress_percentage || 0} 
+                      className="h-2" 
+                    />
+                  </div>
 
+                  {(currentTraining.progress?.progress_percentage || 0) < 100 && (
                     <Button
                       onClick={() => {
                         updateProgressMutation.mutate({
@@ -619,6 +623,7 @@ export function TrainingDashboard() {
                     >
                       Mark as Completed
                     </Button>
+                  )}
                   </div>
                 )}
 
@@ -629,17 +634,21 @@ export function TrainingDashboard() {
                       className="w-full h-96 border rounded-lg"
                       title={currentTraining.training.title}
                     />
-                    <Button
-                      onClick={() => {
-                        updateProgressMutation.mutate({
-                          assignmentId: currentTraining.id,
-                          progress: 100
-                        });
-                      }}
-                      className="w-full"
-                    >
-                      Mark as Completed
-                    </Button>
+                    {(currentTraining.progress?.progress_percentage || 0) < 100 && (
+                      <Button
+                        onClick={() => {
+                          updateProgressMutation.mutate({
+                            assignmentId: currentTraining.id,
+                            progress: 100,
+                            position: 'manual-complete'
+                          });
+                        }}
+                        className="w-full"
+                        variant="outline"
+                      >
+                        Mark as Completed
+                      </Button>
+                    )}
                   </div>
                 )}
 

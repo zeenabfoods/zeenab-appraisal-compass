@@ -689,6 +689,7 @@ export function TrainingManagement() {
           <TabsTrigger value="requests">Training Requests ({pendingRequests.length})</TabsTrigger>
           <TabsTrigger value="trainings">All Trainings</TabsTrigger>
           <TabsTrigger value="quiz">Quiz Management</TabsTrigger>
+          <TabsTrigger value="progress">Progress & Results</TabsTrigger>
           <TabsTrigger value="history">Request History</TabsTrigger>
         </TabsList>
 
@@ -1111,6 +1112,132 @@ export function TrainingManagement() {
             </div>
           </DialogContent>
         </Dialog>
+
+        <TabsContent value="progress" className="space-y-4">
+          {(() => {
+            const { data: progressData } = useQuery({
+              queryKey: ['training-progress-hr'],
+              queryFn: async () => {
+                const { data, error } = await supabase
+                  .from('training_assignments')
+                  .select(`
+                    *,
+                    employee:profiles!training_assignments_employee_id_fkey(first_name, last_name, email),
+                    training:trainings(title, pass_mark),
+                    progress:training_progress(*),
+                    quiz_attempts(*)
+                  `)
+                  .order('assigned_at', { ascending: false });
+
+                if (error) throw error;
+                return data;
+              }
+            });
+
+            return (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold">Training Progress & Quiz Results</h3>
+                </div>
+
+                {!progressData || progressData.length === 0 ? (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-12">
+                      <BookOpen className="h-12 w-12 text-gray-400 mb-4" />
+                      <p className="text-gray-600">No training assignments found</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid gap-4">
+                    {progressData.map((assignment: any) => {
+                      const progress = assignment.progress?.progress_percentage || 0;
+                      const lastAttempt = assignment.quiz_attempts?.length > 0 
+                        ? assignment.quiz_attempts[assignment.quiz_attempts.length - 1] 
+                        : null;
+                      
+                      return (
+                        <Card key={assignment.id} className="border-l-4 border-l-blue-500">
+                          <CardHeader>
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <CardTitle className="text-lg">
+                                  {assignment.employee?.first_name} {assignment.employee?.last_name}
+                                </CardTitle>
+                                <p className="text-sm text-gray-500">
+                                  {assignment.training?.title}
+                                </p>
+                                <p className="text-xs text-gray-400">
+                                  Assigned: {new Date(assignment.assigned_at).toLocaleDateString()} • 
+                                  Due: {new Date(assignment.due_date).toLocaleDateString()}
+                                </p>
+                              </div>
+                              <div className="text-right space-y-1">
+                                {progress === 100 && lastAttempt?.passed && (
+                                  <Badge className="bg-green-100 text-green-800">Completed</Badge>
+                                )}
+                                {progress === 100 && !lastAttempt && (
+                                  <Badge className="bg-yellow-100 text-yellow-800">Ready for Quiz</Badge>
+                                )}
+                                {progress < 100 && (
+                                  <Badge variant="outline">In Progress</Badge>
+                                )}
+                                {lastAttempt && !lastAttempt.passed && (
+                                  <Badge className="bg-red-100 text-red-800">Quiz Failed</Badge>
+                                )}
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            <div>
+                              <div className="flex justify-between text-sm mb-1">
+                                <span>Training Progress</span>
+                                <span>{progress}%</span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div 
+                                  className={`h-2 rounded-full ${progress === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
+                                  style={{ width: `${progress}%` }}
+                                />
+                              </div>
+                            </div>
+
+                            {assignment.quiz_attempts && assignment.quiz_attempts.length > 0 && (
+                              <div className="space-y-2">
+                                <h4 className="font-medium text-sm">Quiz Attempts</h4>
+                                <div className="grid gap-2">
+                                  {assignment.quiz_attempts.map((attempt: any, index: number) => (
+                                    <div key={attempt.id} className="flex justify-between items-center text-sm p-2 bg-gray-50 rounded">
+                                      <span>Attempt {attempt.attempt_number}</span>
+                                      <div className="flex items-center gap-2">
+                                        <span className={`font-medium ${attempt.passed ? 'text-green-600' : 'text-red-600'}`}>
+                                          {attempt.score_percentage}% 
+                                          {attempt.passed ? ' (Pass)' : ` (Fail - Need ${assignment.training?.pass_mark}%)`}
+                                        </span>
+                                        <span className="text-gray-500">
+                                          {new Date(attempt.completed_at).toLocaleDateString()}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {assignment.progress?.completed_at && (
+                              <p className="text-xs text-gray-500">
+                                Training completed: {new Date(assignment.progress.completed_at).toLocaleDateString()}
+                              </p>
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </TabsContent>
 
         <TabsContent value="history" className="space-y-4">
           <div className="grid gap-4">
