@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
-import { Users, BarChart3, Clock, Target, Send, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Users, BarChart3, Clock, Target, Send, CheckCircle, AlertTriangle, BookOpen, GraduationCap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { GroupedCommitteeScoreReview } from './GroupedCommitteeScoreReview';
 import { CommitteeAnalytics } from './CommitteeAnalytics';
@@ -22,6 +22,9 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
   const [committeeScores, setCommitteeScores] = useState<Record<string, number>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingError, setLoadingError] = useState<string | null>(null);
+  const [trainingRecommendation, setTrainingRecommendation] = useState('');
+  const [recommendedTrainingType, setRecommendedTrainingType] = useState('');
+  const [trainingJustification, setTrainingJustification] = useState('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -207,6 +210,24 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
         // Don't fail the main operation if performance calculation fails
       }
       
+      // Submit training recommendation if provided
+      if (trainingRecommendation.trim() && trainingJustification.trim()) {
+        const { error: trainingError } = await supabase
+          .from('training_requests')
+          .insert({
+            employee_id: appraisalData?.employee_id,
+            requested_by: (await supabase.auth.getUser()).data.user?.id,
+            recommended_training_type: recommendedTrainingType,
+            justification: trainingJustification,
+            status: 'pending'
+          });
+
+        if (trainingError) {
+          console.error('Training recommendation error:', trainingError);
+          // Don't fail the main operation if training recommendation fails
+        }
+      }
+      
       console.log('✅ CommitteeReviewDetail: Review submitted successfully');
       setIsSubmitting(false);
     },
@@ -345,10 +366,14 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
       </Card>
 
       <Tabs defaultValue="scores" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="scores" className="flex items-center space-x-2">
             <BarChart3 className="h-4 w-4" />
             <span>Score Review</span>
+          </TabsTrigger>
+          <TabsTrigger value="training" className="flex items-center space-x-2">
+            <GraduationCap className="h-4 w-4" />
+            <span>Training Recommendation</span>
           </TabsTrigger>
           <TabsTrigger value="analytics" className="flex items-center space-x-2">
             <Target className="h-4 w-4" />
@@ -422,6 +447,73 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
                   </span>
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="training" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <GraduationCap className="h-5 w-5" />
+                <span>Training Recommendation</span>
+              </CardTitle>
+              <p className="text-sm text-gray-600">
+                Recommend specific training for this employee based on their performance review
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="training-type">Recommended Training Type</Label>
+                <select
+                  id="training-type"
+                  value={recommendedTrainingType}
+                  onChange={(e) => setRecommendedTrainingType(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  <option value="">Select training type...</option>
+                  <option value="technical_skills">Technical Skills Development</option>
+                  <option value="leadership">Leadership & Management</option>
+                  <option value="communication">Communication Skills</option>
+                  <option value="compliance">Compliance & Safety</option>
+                  <option value="soft_skills">Soft Skills Development</option>
+                  <option value="project_management">Project Management</option>
+                  <option value="customer_service">Customer Service</option>
+                  <option value="other">Other (specify in justification)</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="training-justification">Training Justification & Details</Label>
+                <Textarea
+                  id="training-justification"
+                  placeholder="Provide detailed justification for why this training is recommended based on the employee's performance review. Include specific areas for improvement, expected outcomes, and any urgency considerations..."
+                  value={trainingJustification}
+                  onChange={(e) => setTrainingJustification(e.target.value)}
+                  rows={4}
+                  className="resize-none"
+                />
+                <p className="text-xs text-gray-500">
+                  This will be sent to HR for training assignment consideration
+                </p>
+              </div>
+
+              {(recommendedTrainingType && trainingJustification.trim()) && (
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-start space-x-2">
+                    <BookOpen className="h-5 w-5 text-green-600 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-green-800">Training Recommendation Summary</h4>
+                      <p className="text-sm text-green-700 mt-1">
+                        <strong>Type:</strong> {recommendedTrainingType.replace('_', ' ').toUpperCase()}
+                      </p>
+                      <p className="text-sm text-green-700 mt-1">
+                        This recommendation will be sent to HR for review and training assignment.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

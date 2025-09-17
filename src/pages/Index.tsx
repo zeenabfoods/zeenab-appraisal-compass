@@ -4,7 +4,7 @@ import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, BarChart3, Users, Shield, Clock } from 'lucide-react';
+import { ArrowRight, BarChart3, Users, Shield, Clock, BookOpen } from 'lucide-react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { RecentActivityCard } from '@/components/RecentActivityCard';
 
@@ -97,6 +97,12 @@ export default function Index() {
                   <Button className="w-full justify-start" variant="outline">
                     <Users className="mr-2 h-4 w-4" />
                     View Team Performance
+                  </Button>
+                  <Button className="w-full justify-start" variant="outline" asChild>
+                    <a href="/training">
+                      <BookOpen className="mr-2 h-4 w-4" />
+                      Training Center
+                    </a>
                   </Button>
                   <Button className="w-full justify-start" variant="outline">
                     <Shield className="mr-2 h-4 w-4" />
