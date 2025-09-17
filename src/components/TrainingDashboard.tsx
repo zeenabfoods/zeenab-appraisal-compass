@@ -18,7 +18,8 @@ import {
   Video,
   Calendar,
   Award,
-  Target
+  Target,
+  RotateCcw
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthContext } from '@/components/AuthProvider';
@@ -27,6 +28,7 @@ import { TrainingQuiz } from '@/components/TrainingQuiz';
 interface TrainingAssignment {
   id: string;
   training_id: string;
+  employee_id: string;
   assigned_at: string;
   due_date: string;
   status: string;
@@ -40,22 +42,27 @@ interface TrainingAssignment {
     pass_mark: number;
     max_attempts: number;
   };
-  progress?: {
+  progress?: Array<{
     progress_percentage: number;
     time_spent_minutes: number;
     completed_at: string | null;
     last_position: string | null;
-  };
+  }>;
   quiz_attempts?: Array<{
     attempt_number: number;
     score_percentage: number;
     passed: boolean;
     completed_at: string;
   }>;
+  employee?: {
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
 }
 
 export function TrainingDashboard() {
-  const { user } = useAuthContext();
+  const { user, profile } = useAuthContext();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -65,29 +72,27 @@ export function TrainingDashboard() {
   const [duration, setDuration] = useState(0);
   const [showQuiz, setShowQuiz] = useState(false);
 
-  // Debug effect to track currentTraining changes
-  useEffect(() => {
-    console.log('currentTraining changed:', currentTraining);
-  }, [currentTraining]);
+  const isHR = profile?.role === 'hr' || profile?.role === 'admin';
 
-  // Debug effect to track isPlaying changes
-  useEffect(() => {
-    console.log('isPlaying changed:', isPlaying);
-  }, [isPlaying]);
-
+  // For HR: fetch all assignments system-wide, for employees: fetch their own
   const { data: assignments, isLoading } = useQuery({
-    queryKey: ['training-assignments', user?.id],
+    queryKey: ['training-assignments', user?.id, isHR],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      let query = supabase
         .from('training_assignments')
         .select(`
           *,
           training:trainings(*),
           progress:training_progress(*),
-          quiz_attempts(*)
-        `)
-        .eq('employee_id', user?.id)
-        .order('assigned_at', { ascending: false });
+          quiz_attempts(*),
+          employee:profiles!training_assignments_employee_id_fkey(first_name, last_name, email)
+        `);
+
+      if (!isHR) {
+        query = query.eq('employee_id', user?.id);
+      }
+
+      const { data, error } = await query.order('assigned_at', { ascending: false });
 
       if (error) throw error;
       return data as TrainingAssignment[];
@@ -101,32 +106,60 @@ export function TrainingDashboard() {
       progress: number;
       position?: string;
     }) => {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('training_progress')
         .upsert({
           assignment_id: assignmentId,
           progress_percentage: progress,
           time_spent_minutes: Math.floor(currentTime / 60),
           last_position: position,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          completed_at: progress === 100 ? new Date().toISOString() : null
         });
 
       if (error) throw error;
     },
     onSuccess: (_data, variables) => {
-      // Keep UI responsive by updating local state immediately
-      if (variables?.assignmentId && currentTraining?.id === variables.assignmentId) {
-        setCurrentTraining(prev => prev ? {
-          ...prev,
-          progress: {
-            progress_percentage: variables.progress,
-            time_spent_minutes: Math.floor(currentTime / 60),
-            completed_at: variables.progress === 100 ? new Date().toISOString() : (prev.progress?.completed_at || null),
-            last_position: variables.position || prev.progress?.last_position || null,
-          }
-        } : prev);
-      }
       queryClient.invalidateQueries({ queryKey: ['training-assignments'] });
+      if (variables.progress === 100) {
+        toast({
+          title: "Training Completed!",
+          description: "You can now take the quiz.",
+        });
+      }
+    }
+  });
+
+  const retakeTrainingMutation = useMutation({
+    mutationFn: async (assignmentId: string) => {
+      // Reset progress to 0
+      const { error: progressError } = await supabase
+        .from('training_progress')
+        .upsert({
+          assignment_id: assignmentId,
+          progress_percentage: 0,
+          time_spent_minutes: 0,
+          last_position: null,
+          completed_at: null,
+          updated_at: new Date().toISOString()
+        });
+
+      if (progressError) throw progressError;
+
+      // Clear quiz attempts
+      const { error: quizError } = await supabase
+        .from('quiz_attempts')
+        .delete()
+        .eq('assignment_id', assignmentId);
+
+      if (quizError) throw quizError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['training-assignments'] });
+      toast({
+        title: "Training Reset",
+        description: "You can now restart the training.",
+      });
     }
   });
 
@@ -166,26 +199,15 @@ export function TrainingDashboard() {
   };
 
   const togglePlayPause = () => {
-    console.log('togglePlayPause called');
     if (videoRef.current) {
-      console.log('Video element found:', videoRef.current);
-      console.log('Video paused state:', videoRef.current.paused);
-      console.log('Video readyState:', videoRef.current.readyState);
-      
       if (isPlaying) {
-        console.log('Pausing video...');
         videoRef.current.pause();
       } else {
-        console.log('Playing video...');
-        videoRef.current.play().then(() => {
-          console.log('Video play successful');
-        }).catch((error) => {
+        videoRef.current.play().catch((error) => {
           console.error('Video play failed:', error);
         });
       }
       setIsPlaying(!isPlaying);
-    } else {
-      console.error('No video element found');
     }
   };
 
@@ -198,7 +220,7 @@ export function TrainingDashboard() {
     }
   };
 
-  // Helper function to convert YouTube URLs to embed format (robust)
+  // Helper function to convert YouTube URLs to embed format
   const convertYouTubeUrl = (rawUrl: string) => {
     if (!rawUrl) return { embedUrl: rawUrl, isYouTube: false };
     const urlStr = rawUrl.trim();
@@ -210,12 +232,9 @@ export function TrainingDashboard() {
       let videoId: string | null = null;
 
       if (host === 'youtu.be') {
-        // Short link: youtu.be/<id>
         videoId = u.pathname.replace('/', '').split('?')[0] || null;
       } else if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'youtube-nocookie.com') {
-        // Standard watch URL
         videoId = u.searchParams.get('v');
-        // Or already an embed URL: /embed/<id>
         if (!videoId && u.pathname.startsWith('/embed/')) {
           videoId = u.pathname.split('/embed/')[1]?.split('/')[0] || null;
         }
@@ -228,7 +247,6 @@ export function TrainingDashboard() {
         };
       }
     } catch (e) {
-      // not a valid URL, fall back to regex
       const regExp = /^.*(?:youtu.be\/|v\/|\/u\/\w\/|embed\/|watch\?v=)([^#&?]*).*/;
       const match = urlStr.match(regExp);
       if (match && match[1]) {
@@ -242,8 +260,12 @@ export function TrainingDashboard() {
     return { embedUrl: urlStr, isYouTube: urlStr.includes('youtu') };
   };
 
+  const getProgressPercentage = (assignment: TrainingAssignment) => {
+    return assignment.progress?.[0]?.progress_percentage || 0;
+  };
+
   const getStatusBadge = (assignment: TrainingAssignment) => {
-    const progress = assignment.progress?.progress_percentage || 0;
+    const progress = getProgressPercentage(assignment);
     const hasAttempts = assignment.quiz_attempts && assignment.quiz_attempts.length > 0;
     const lastAttempt = hasAttempts ? assignment.quiz_attempts[assignment.quiz_attempts.length - 1] : null;
     const isPastDue = new Date(assignment.due_date) < new Date();
@@ -266,7 +288,6 @@ export function TrainingDashboard() {
     const now = new Date();
     const diffTime = due.getTime() - now.getTime();
     
-    // If overdue, return negative values
     if (diffTime < 0) {
       const diffDays = Math.ceil(Math.abs(diffTime) / (1000 * 60 * 60 * 24));
       return {
@@ -280,7 +301,6 @@ export function TrainingDashboard() {
     const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    // For trainings under 2 hours, show time in hours/minutes if due within 24 hours
     if (trainingDurationMinutes <= 120 && diffHours < 24) {
       if (diffHours < 1) {
         return {
@@ -297,7 +317,6 @@ export function TrainingDashboard() {
       }
     }
     
-    // For longer trainings or longer timeframes, show days
     return {
       isOverdue: false,
       display: diffDays === 1 ? '1 day left' : `${diffDays} days left`,
@@ -313,8 +332,11 @@ export function TrainingDashboard() {
     );
   }
 
-  const activeAssignments = assignments?.filter(a => a.status === 'assigned') || [];
-  const completedAssignments = assignments?.filter(a => 
+  // Filter assignments based on user role
+  const userAssignments = isHR ? assignments : assignments?.filter(a => a.employee_id === user?.id) || [];
+  
+  const activeAssignments = userAssignments?.filter(a => a.status === 'assigned') || [];
+  const completedAssignments = userAssignments?.filter(a => 
     a.quiz_attempts?.some(attempt => attempt.passed)
   ) || [];
   const overdueAssignments = activeAssignments.filter(a => {
@@ -322,9 +344,8 @@ export function TrainingDashboard() {
     return timeInfo.isOverdue && !a.quiz_attempts?.some(attempt => attempt.passed);
   });
 
-  console.log('TrainingDashboard: assignments data:', assignments);
-  console.log('TrainingDashboard: activeAssignments:', activeAssignments);
-  console.log('TrainingDashboard: currentTraining:', currentTraining);
+  // For HR: show system-wide stats
+  const statsAssignments = isHR ? assignments || [] : userAssignments;
 
   return (
     <div className="space-y-6">
@@ -336,7 +357,9 @@ export function TrainingDashboard() {
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{activeAssignments.length}</div>
+            <div className="text-2xl font-bold">
+              {isHR ? statsAssignments.filter(a => a.status === 'assigned').length : activeAssignments.length}
+            </div>
           </CardContent>
         </Card>
 
@@ -346,7 +369,9 @@ export function TrainingDashboard() {
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{completedAssignments.length}</div>
+            <div className="text-2xl font-bold text-green-600">
+              {isHR ? statsAssignments.filter(a => a.quiz_attempts?.some(attempt => attempt.passed)).length : completedAssignments.length}
+            </div>
           </CardContent>
         </Card>
 
@@ -356,7 +381,12 @@ export function TrainingDashboard() {
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{overdueAssignments.length}</div>
+            <div className="text-2xl font-bold text-red-600">
+              {isHR ? statsAssignments.filter(a => {
+                const timeInfo = getTimeUntilDue(a.due_date, a.training.duration_minutes);
+                return timeInfo.isOverdue && !a.quiz_attempts?.some(attempt => attempt.passed);
+              }).length : overdueAssignments.length}
+            </div>
           </CardContent>
         </Card>
 
@@ -367,7 +397,10 @@ export function TrainingDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {assignments?.length ? Math.round((completedAssignments.length / assignments.length) * 100) : 0}%
+              {statsAssignments?.length ? Math.round((
+                isHR ? statsAssignments.filter(a => a.quiz_attempts?.some(attempt => attempt.passed)).length 
+                : completedAssignments.length
+              ) / statsAssignments.length * 100) : 0}%
             </div>
           </CardContent>
         </Card>
@@ -377,13 +410,8 @@ export function TrainingDashboard() {
         <TabsList>
           <TabsTrigger value="active">Active Trainings</TabsTrigger>
           <TabsTrigger value="completed">Completed</TabsTrigger>
-          {currentTraining && (
-            <TabsTrigger 
-              value="viewer"
-              onClick={() => console.log('Training Viewer tab clicked')}
-            >
-              Training Viewer
-            </TabsTrigger>
+          {currentTraining && !isHR && (
+            <TabsTrigger value="viewer">Training Viewer</TabsTrigger>
           )}
         </TabsList>
 
@@ -398,8 +426,11 @@ export function TrainingDashboard() {
           ) : (
             <div className="grid gap-4">
               {activeAssignments.map((assignment) => {
-                const progress = assignment.progress?.progress_percentage || 0;
+                const progress = getProgressPercentage(assignment);
                 const timeInfo = getTimeUntilDue(assignment.due_date, assignment.training.duration_minutes);
+                const hasQuizAttempts = assignment.quiz_attempts && assignment.quiz_attempts.length > 0;
+                const lastAttempt = hasQuizAttempts ? assignment.quiz_attempts[assignment.quiz_attempts.length - 1] : null;
+                const isCompleted = lastAttempt?.passed;
                 
                 return (
                   <Card key={assignment.id} className="border-l-4 border-l-blue-500">
@@ -409,6 +440,11 @@ export function TrainingDashboard() {
                           <CardTitle className="flex items-center space-x-2">
                             {getTrainingIcon(assignment.training.content_type)}
                             <span>{assignment.training.title}</span>
+                            {isHR && assignment.employee && (
+                              <span className="text-sm font-normal text-gray-600">
+                                - {assignment.employee.first_name} {assignment.employee.last_name}
+                              </span>
+                            )}
                           </CardTitle>
                           <p className="text-sm text-gray-600 mt-1">
                             {assignment.training.description}
@@ -439,17 +475,44 @@ export function TrainingDashboard() {
                             {assignment.training.duration_minutes} minutes
                           </div>
                           
-                          <Button 
-                            onClick={() => {
-                              console.log('Start Training clicked for:', assignment);
-                              console.log('Current training before set:', currentTraining);
-                              setCurrentTraining(assignment);
-                              console.log('Current training after set:', assignment);
-                            }}
-                            size="sm"
-                          >
-                            {progress > 0 ? 'Continue' : 'Start Training'}
-                          </Button>
+                          <div className="flex gap-2">
+                            {!isHR && (
+                              <>
+                                {isCompleted ? (
+                                  <Button 
+                                    onClick={() => retakeTrainingMutation.mutate(assignment.id)}
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={retakeTrainingMutation.isPending}
+                                  >
+                                    <RotateCcw className="h-4 w-4 mr-2" />
+                                    Retake Lesson
+                                  </Button>
+                                ) : (
+                                  <>
+                                    <Button 
+                                      onClick={() => {
+                                        setCurrentTraining(assignment);
+                                      }}
+                                      size="sm"
+                                    >
+                                      {progress > 0 ? 'Continue' : 'Start Training'}
+                                    </Button>
+                                    
+                                    {progress === 100 && !hasQuizAttempts && (
+                                      <Button 
+                                        onClick={() => setShowQuiz(true)}
+                                        size="sm"
+                                        variant="outline"
+                                      >
+                                        Take Quiz
+                                      </Button>
+                                    )}
+                                  </>
+                                )}
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -481,24 +544,55 @@ export function TrainingDashboard() {
                           <CardTitle className="flex items-center space-x-2">
                             {getTrainingIcon(assignment.training.content_type)}
                             <span>{assignment.training.title}</span>
+                            {isHR && assignment.employee && (
+                              <span className="text-sm font-normal text-gray-600">
+                                - {assignment.employee.first_name} {assignment.employee.last_name}
+                              </span>
+                            )}
                           </CardTitle>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {assignment.training.description}
+                          </p>
                         </div>
                         <div className="flex flex-col items-end space-y-2">
                           <Badge className="bg-green-100 text-green-800">
                             <CheckCircle className="h-3 w-3 mr-1" />
                             Completed
                           </Badge>
-                          {lastAttempt && (
-                            <div className="text-xs text-gray-500">
-                              Score: {lastAttempt.score_percentage}%
-                            </div>
-                          )}
+                          <div className="text-xs text-gray-500">
+                            Score: {lastAttempt?.score_percentage || 0}%
+                          </div>
                         </div>
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-sm text-gray-600">
-                        Completed on: {lastAttempt ? new Date(lastAttempt.completed_at).toLocaleDateString() : 'Unknown'}
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>Progress</span>
+                            <span>100%</span>
+                          </div>
+                          <Progress value={100} className="h-2" />
+                        </div>
+                        
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center text-sm text-gray-500">
+                            <Clock className="h-4 w-4 mr-1" />
+                            Completed on {new Date(lastAttempt?.completed_at || '').toLocaleDateString()}
+                          </div>
+                          
+                          {!isHR && (
+                            <Button 
+                              onClick={() => retakeTrainingMutation.mutate(assignment.id)}
+                              size="sm"
+                              variant="outline"
+                              disabled={retakeTrainingMutation.isPending}
+                            >
+                              <RotateCcw className="h-4 w-4 mr-2" />
+                              Retake Lesson
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -508,169 +602,166 @@ export function TrainingDashboard() {
           )}
         </TabsContent>
 
-        {currentTraining && (
+        {currentTraining && !isHR && (
           <TabsContent value="viewer" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>{currentTraining.training.title}</CardTitle>
-                <p className="text-gray-600">{currentTraining.training.description}</p>
-                <div className="text-sm text-gray-500">
-                  <p>Content Type: {currentTraining.training.content_type}</p>
-                  <p>Content URL: {currentTraining.training.content_url}</p>
-                </div>
+                <CardTitle className="flex items-center space-x-2">
+                  {getTrainingIcon(currentTraining.training.content_type)}
+                  <span>{currentTraining.training.title}</span>
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                {currentTraining.training.content_type === 'video' && (
-                  <div className="space-y-4">
-                    {(() => {
-                      const urlInfo = convertYouTubeUrl(currentTraining.training.content_url);
-                      
-                      if (urlInfo?.isYouTube) {
-                        // YouTube video - use iframe
-                        return (
-                          <div className="space-y-4">
-                            <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-                              <iframe
-                                src={urlInfo.embedUrl}
-                                className="absolute top-0 left-0 w-full h-full rounded-lg"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowFullScreen
-                                title={currentTraining.training.title}
-                              />
-                            </div>
-                            <div className="text-sm text-blue-600">
-                              🎥 YouTube Video - Use video controls to play/pause
-                            </div>
-                          </div>
-                        );
-                      } else {
-                        // Direct video file - use video element
-                        return (
-                          <div className="space-y-4">
-                            <div className="relative">
-                              <video
-                                ref={videoRef}
-                                src={currentTraining.training.content_url}
-                                className="w-full rounded-lg"
-                                onTimeUpdate={handleVideoTimeUpdate}
-                                onEnded={handleVideoEnd}
-                                onLoadedMetadata={() => {
-                                  console.log('Video metadata loaded');
-                                  console.log('Video duration:', videoRef.current?.duration);
-                                }}
-                                onError={(e) => {
-                                  console.error('Video error:', e);
-                                  console.error('Video URL:', currentTraining.training.content_url);
-                                }}
-                                onCanPlay={() => console.log('Video can play')}
-                                onContextMenu={(e) => e.preventDefault()}
-                                controlsList="nodownload nofullscreen noremoteplayback"
-                                disablePictureInPicture
-                                controls
-                              />
-                              <div className="absolute bottom-4 left-4 right-4 bg-black/50 text-white p-2 rounded">
-                                <div className="flex items-center justify-between">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                      console.log('Play/Pause button clicked');
-                                      console.log('Current isPlaying state:', isPlaying);
-                                      console.log('Video element:', videoRef.current);
-                                      if (videoRef.current) {
-                                        console.log('Video readyState:', videoRef.current.readyState);
-                                        console.log('Video paused:', videoRef.current.paused);
-                                      }
-                                      togglePlayPause();
-                                    }}
-                                    className="text-white hover:bg-white/20"
-                                  >
-                                    {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                                  </Button>
-                                  <div className="text-sm">
-                                    {Math.floor(currentTime / 60)}:{Math.floor(currentTime % 60).toString().padStart(2, '0')} / {Math.floor(duration / 60)}:{Math.floor(duration % 60).toString().padStart(2, '0')}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      }
-                    })()}
-                    
+                <div className="space-y-4">
+                  {/* Progress Bar */}
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>Training Progress</span>
-                      <span>{currentTraining.progress?.progress_percentage || 0}%</span>
+                      <span>{getProgressPercentage(currentTraining)}%</span>
                     </div>
-                    <Progress 
-                      value={currentTraining.progress?.progress_percentage || 0} 
-                      className="h-2" 
-                    />
+                    <Progress value={getProgressPercentage(currentTraining)} className="h-2" />
                   </div>
 
-                  {(currentTraining.progress?.progress_percentage || 0) < 100 && (
-                    <Button
-                      onClick={() => {
-                        updateProgressMutation.mutate({
-                          assignmentId: currentTraining.id,
-                          progress: 100,
-                          position: 'manual-complete'
-                        });
-                      }}
-                      className="w-full"
-                      variant="outline"
-                    >
-                      Mark as Completed
-                    </Button>
+                  {currentTraining.training.content_type === 'video' && (
+                    <div className="space-y-4">
+                      {convertYouTubeUrl(currentTraining.training.content_url).isYouTube ? (
+                        <div className="aspect-video">
+                          <iframe
+                            src={convertYouTubeUrl(currentTraining.training.content_url).embedUrl}
+                            className="w-full h-full rounded-lg"
+                            allowFullScreen
+                            title={currentTraining.training.title}
+                          />
+                        </div>
+                      ) : (
+                        <div className="aspect-video bg-black rounded-lg overflow-hidden relative">
+                          <video
+                            ref={videoRef}
+                            src={currentTraining.training.content_url}
+                            className="w-full h-full object-contain"
+                            onTimeUpdate={handleVideoTimeUpdate}
+                            onEnded={handleVideoEnd}
+                          />
+                          
+                          <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                            <Button
+                              onClick={togglePlayPause}
+                              size="lg"
+                              variant="outline"
+                              className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20"
+                            >
+                              {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Mark as Complete Button */}
+                      {getProgressPercentage(currentTraining) < 100 && (
+                        <Button
+                          onClick={() => {
+                            updateProgressMutation.mutate({
+                              assignmentId: currentTraining.id,
+                              progress: 100,
+                              position: 'completed'
+                            });
+                          }}
+                          className="w-full mt-4"
+                          variant="outline"
+                          disabled={updateProgressMutation.isPending}
+                        >
+                          Mark as Completed
+                        </Button>
+                      )}
+
+                      {/* Quiz Button */}
+                      {getProgressPercentage(currentTraining) === 100 && !currentTraining.quiz_attempts?.some(attempt => attempt.passed) && (
+                        <Button
+                          onClick={() => setShowQuiz(true)}
+                          className="w-full mt-4"
+                          variant="default"
+                        >
+                          Take Quiz
+                        </Button>
+                      )}
+                    </div>
                   )}
-                  </div>
-                )}
 
-                {currentTraining.training.content_type === 'document' && (
-                  <div className="space-y-4">
-                    <iframe
-                      src={currentTraining.training.content_url}
-                      className="w-full h-96 border rounded-lg"
-                      title={currentTraining.training.title}
-                    />
-                    {(currentTraining.progress?.progress_percentage || 0) < 100 && (
-                      <Button
-                        onClick={() => {
-                          updateProgressMutation.mutate({
-                            assignmentId: currentTraining.id,
-                            progress: 100,
-                            position: 'manual-complete'
-                          });
-                        }}
-                        className="w-full"
-                        variant="outline"
-                      >
-                        Mark as Completed
-                      </Button>
-                    )}
-                  </div>
-                )}
+                  {currentTraining.training.content_type === 'document' && (
+                    <div className="space-y-4">
+                      <div className="bg-gray-50 p-6 rounded-lg">
+                        <div className="flex items-center space-x-2 mb-4">
+                          <FileText className="h-5 w-5 text-gray-600" />
+                          <span className="font-medium">Document Training</span>
+                        </div>
+                        
+                        {currentTraining.training.content_url && (
+                          <a
+                            href={currentTraining.training.content_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            Open Document
+                          </a>
+                        )}
+                      </div>
 
-                {/* Quiz CTA / Renderer */}
-                <div className="space-y-4 mt-4">
-                  {!showQuiz && (currentTraining.progress?.progress_percentage ?? 0) >= 100 && !(currentTraining.quiz_attempts?.some(a => a.passed)) && (
-                    <Button className="w-full" onClick={() => setShowQuiz(true)}>
-                      Take Quiz
-                    </Button>
+                      {/* Progress Bar for Document Training */}
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span>Reading Progress</span>
+                          <span>{getProgressPercentage(currentTraining)}%</span>
+                        </div>
+                        <Progress value={getProgressPercentage(currentTraining)} className="h-2" />
+                      </div>
+
+                      {/* Mark as Complete Button for Document */}
+                      {getProgressPercentage(currentTraining) < 100 && (
+                        <Button
+                          onClick={() => {
+                            updateProgressMutation.mutate({
+                              assignmentId: currentTraining.id,
+                              progress: 100,
+                              position: 'completed'
+                            });
+                          }}
+                          className="w-full mt-4"
+                          variant="outline"
+                          disabled={updateProgressMutation.isPending}
+                        >
+                          Mark as Completed
+                        </Button>
+                      )}
+
+                      {/* Quiz Button for Document */}
+                      {getProgressPercentage(currentTraining) === 100 && !currentTraining.quiz_attempts?.some(attempt => attempt.passed) && (
+                        <Button
+                          onClick={() => setShowQuiz(true)}
+                          className="w-full mt-4"
+                          variant="default"
+                        >
+                          Take Quiz
+                        </Button>
+                      )}
+                    </div>
                   )}
 
+                  {/* Quiz Section */}
                   {showQuiz && (
-                    <TrainingQuiz
-                      assignmentId={currentTraining.id}
-                      trainingId={currentTraining.training_id}
-                      maxAttempts={currentTraining.training.max_attempts}
-                      passmark={currentTraining.training.pass_mark}
-                      onQuizComplete={() => {
-                        setShowQuiz(false);
-                        queryClient.invalidateQueries({ queryKey: ['training-assignments'] });
-                      }}
-                    />
+                    <div className="space-y-4">
+                      <TrainingQuiz
+                        assignmentId={currentTraining.id}
+                        trainingId={currentTraining.training_id}
+                        maxAttempts={currentTraining.training.max_attempts}
+                        passmark={currentTraining.training.pass_mark}
+                        onQuizComplete={() => {
+                          setShowQuiz(false);
+                          queryClient.invalidateQueries({ queryKey: ['training-assignments'] });
+                        }}
+                      />
+                    </div>
                   )}
                 </div>
               </CardContent>
