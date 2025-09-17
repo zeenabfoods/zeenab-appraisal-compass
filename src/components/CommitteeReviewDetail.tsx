@@ -547,7 +547,20 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
                           throw new Error('No HR users found');
                         }
 
-                        // Create notifications for all HR users
+                        // 1) Create a training request record (so HR can see it in Training Center)
+                        const userId = (await supabase.auth.getUser()).data.user?.id;
+                        const { error: requestError } = await supabase
+                          .from('training_requests' as any)
+                          .insert({
+                            employee_id: appraisalData?.employee_id,
+                            requested_by: userId,
+                            recommended_training_type: recommendedTrainingType,
+                            justification: trainingJustification,
+                            status: 'pending'
+                          });
+                        if (requestError) throw requestError;
+
+                        // 2) Create notifications for all HR users
                         const notifications = hrUsers.map(hrUser => ({
                           user_id: hrUser.id,
                           type: 'training_recommendation',
@@ -564,8 +577,8 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
                         if (error) throw error;
 
                         toast({
-                          title: "Training Recommendation Sent",
-                          description: "HR has been notified about your training recommendation.",
+                          title: "Training Request Sent",
+                          description: "Training request created and HR notified successfully.",
                         });
 
                         // Clear the form
