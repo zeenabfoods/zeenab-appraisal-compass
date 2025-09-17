@@ -230,13 +230,25 @@ export function CommitteeAnalytics({
           </CardContent>
         </Card>
 
-        {/* Performance Gap Line Chart */}
+        {/* Performance vs Target Analysis */}
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <TrendingDown className="h-5 w-5 text-red-600" />
-              Performance Gap Analysis
+              {weaknessData.some(d => d.score > d.target) ? (
+                <TrendingUp className="h-5 w-5 text-green-600" />
+              ) : (
+                <TrendingDown className="h-5 w-5 text-red-600" />
+              )}
+              {weaknessData.some(d => d.score > d.target) 
+                ? "Performance Excellence Analysis" 
+                : "Performance Gap Analysis"
+              }
             </CardTitle>
+            {weaknessData.some(d => d.score > d.target) && (
+              <p className="text-sm text-green-600 mt-1">
+                🎉 Exceeding performance targets - Great work!
+              </p>
+            )}
           </CardHeader>
           <CardContent>
             <ChartContainer
