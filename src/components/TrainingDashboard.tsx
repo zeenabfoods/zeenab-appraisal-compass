@@ -184,26 +184,48 @@ export function TrainingDashboard() {
     }
   };
 
-  // Helper function to convert YouTube URLs to embed format
-  const convertYouTubeUrl = (url: string) => {
-    if (!url) return null;
-    
-    // Extract video ID from various YouTube URL formats
-    const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
-    const match = url.match(regExp);
-    
-    if (match && match[7].length === 11) {
-      const videoId = match[7];
-      return {
-        embedUrl: `https://www.youtube.com/embed/${videoId}?enablejsapi=1&controls=1`,
-        isYouTube: true
-      };
+  // Helper function to convert YouTube URLs to embed format (robust)
+  const convertYouTubeUrl = (rawUrl: string) => {
+    if (!rawUrl) return { embedUrl: rawUrl, isYouTube: false };
+    const urlStr = rawUrl.trim();
+
+    try {
+      const u = new URL(urlStr);
+      const host = u.hostname.replace('www.', '');
+
+      let videoId: string | null = null;
+
+      if (host === 'youtu.be') {
+        // Short link: youtu.be/<id>
+        videoId = u.pathname.replace('/', '').split('?')[0] || null;
+      } else if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'youtube-nocookie.com') {
+        // Standard watch URL
+        videoId = u.searchParams.get('v');
+        // Or already an embed URL: /embed/<id>
+        if (!videoId && u.pathname.startsWith('/embed/')) {
+          videoId = u.pathname.split('/embed/')[1]?.split('/')[0] || null;
+        }
+      }
+
+      if (videoId && videoId.length >= 10) {
+        return {
+          embedUrl: `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&controls=1`,
+          isYouTube: true,
+        };
+      }
+    } catch (e) {
+      // not a valid URL, fall back to regex
+      const regExp = /^.*(?:youtu.be\/|v\/|\/u\/\w\/|embed\/|watch\?v=)([^#&?]*).*/;
+      const match = urlStr.match(regExp);
+      if (match && match[1]) {
+        return {
+          embedUrl: `https://www.youtube.com/embed/${match[1]}?rel=0&modestbranding=1&controls=1`,
+          isYouTube: true,
+        };
+      }
     }
-    
-    return {
-      embedUrl: url,
-      isYouTube: false
-    };
+
+    return { embedUrl: urlStr, isYouTube: urlStr.includes('youtu') };
   };
 
   const getStatusBadge = (assignment: TrainingAssignment) => {
