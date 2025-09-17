@@ -222,27 +222,101 @@ export function AppraisalQuestionRenderer({
         </div>
       ) : (
         /* Active Form View */
-        <div className={compact ? "grid grid-cols-2 gap-3" : "space-y-4"}>
-          <div className="space-y-1">
-            <Label className="text-sm font-medium">Your Rating</Label>
-            {renderRatingInput()}
-          </div>
-          
-          <div className="space-y-1">
-            <Label className="text-sm font-medium">Your Comment</Label>
-            {disabled ? (
-              <div className="p-2 bg-gray-100 rounded border min-h-[60px]">
-                {value?.emp_comment || 'No comment provided'}
+        <div className={compact ? "space-y-3" : "space-y-4"}>
+          {mode === 'manager' ? (
+            /* Manager View: Side-by-side employee (read-only) and manager (editable) */
+            <div className="grid grid-cols-2 gap-6">
+              {/* Employee Response (Read-only) */}
+              <div className="bg-blue-50 p-4 rounded-lg border">
+                <h4 className="font-semibold text-blue-900 mb-3 text-sm">Employee Response</h4>
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs font-medium text-blue-800">Employee Rating:</Label>
+                    <div className="mt-1">
+                      {value?.emp_rating ? (
+                        <div className="flex items-center space-x-2">
+                          <Badge variant="outline" className="bg-blue-100 border-blue-200 text-blue-800">
+                            {value.emp_rating}/5
+                          </Badge>
+                          <span className="text-sm text-blue-700">
+                            {getRatingLabel(value.emp_rating)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-400">Not rated</span>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-medium text-blue-800">Employee Comment:</Label>
+                    <div className="mt-1 p-2 bg-white rounded border text-sm text-gray-700 min-h-[60px]">
+                      {value?.emp_comment || 'No comment provided'}
+                    </div>
+                  </div>
+                </div>
               </div>
-            ) : (
-              <Textarea
-                placeholder="Enter your comment"
-                value={value?.emp_comment || ''}
-                onChange={(e) => handleCommentChange(e.target.value)}
-                className={compact ? "min-h-[60px] text-sm" : "min-h-[80px]"}
-              />
-            )}
-          </div>
+
+              {/* Manager Response (Editable) */}
+              <div className="bg-green-50 p-4 rounded-lg border">
+                <h4 className="font-semibold text-green-900 mb-3 text-sm">Your Rating</h4>
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs font-medium text-green-800">Your Rating:</Label>
+                    <div className="mt-1">
+                      <Select
+                        value={value?.mgr_rating ? String(value.mgr_rating) : ''}
+                        onValueChange={handleRatingChange}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select your rating" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">1 - Poor</SelectItem>
+                          <SelectItem value="2">2 - Fair</SelectItem>
+                          <SelectItem value="3">3 - Good</SelectItem>
+                          <SelectItem value="4">4 - Very Good</SelectItem>
+                          <SelectItem value="5">5 - Excellent</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-medium text-green-800">Your Comment:</Label>
+                    <Textarea
+                      placeholder="Enter your manager comment"
+                      value={value?.mgr_comment || ''}
+                      onChange={(e) => handleCommentChange(e.target.value)}
+                      className="min-h-[60px] text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Employee View: Single column layout */
+            <div className={compact ? "grid grid-cols-2 gap-3" : "space-y-4"}>
+              <div className="space-y-1">
+                <Label className="text-sm font-medium">Your Rating</Label>
+                {renderRatingInput()}
+              </div>
+              
+              <div className="space-y-1">
+                <Label className="text-sm font-medium">Your Comment</Label>
+                {disabled ? (
+                  <div className="p-2 bg-gray-100 rounded border min-h-[60px]">
+                    {value?.emp_comment || 'No comment provided'}
+                  </div>
+                ) : (
+                  <Textarea
+                    placeholder="Enter your comment"
+                    value={value?.emp_comment || ''}
+                    onChange={(e) => handleCommentChange(e.target.value)}
+                    className={compact ? "min-h-[60px] text-sm" : "min-h-[80px]"}
+                  />
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
