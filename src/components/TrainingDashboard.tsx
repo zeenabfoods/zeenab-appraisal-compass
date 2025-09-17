@@ -184,6 +184,28 @@ export function TrainingDashboard() {
     }
   };
 
+  // Helper function to convert YouTube URLs to embed format
+  const convertYouTubeUrl = (url: string) => {
+    if (!url) return null;
+    
+    // Extract video ID from various YouTube URL formats
+    const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+    const match = url.match(regExp);
+    
+    if (match && match[7].length === 11) {
+      const videoId = match[7];
+      return {
+        embedUrl: `https://www.youtube.com/embed/${videoId}?enablejsapi=1&controls=1`,
+        isYouTube: true
+      };
+    }
+    
+    return {
+      embedUrl: url,
+      isYouTube: false
+    };
+  };
+
   const getStatusBadge = (assignment: TrainingAssignment) => {
     const progress = assignment.progress?.progress_percentage || 0;
     const hasAttempts = assignment.quiz_attempts && assignment.quiz_attempts.length > 0;
@@ -464,52 +486,81 @@ export function TrainingDashboard() {
               <CardContent>
                 {currentTraining.training.content_type === 'video' && (
                   <div className="space-y-4">
-                    <div className="relative">
-                      <video
-                        ref={videoRef}
-                        src={currentTraining.training.content_url}
-                        className="w-full rounded-lg"
-                        onTimeUpdate={handleVideoTimeUpdate}
-                        onEnded={handleVideoEnd}
-                        onLoadedMetadata={() => {
-                          console.log('Video metadata loaded');
-                          console.log('Video duration:', videoRef.current?.duration);
-                        }}
-                        onError={(e) => {
-                          console.error('Video error:', e);
-                          console.error('Video URL:', currentTraining.training.content_url);
-                        }}
-                        onCanPlay={() => console.log('Video can play')}
-                        onContextMenu={(e) => e.preventDefault()} // Disable right-click
-                        controlsList="nodownload nofullscreen noremoteplayback"
-                        disablePictureInPicture
-                        controls // Add native controls for debugging
-                      />
-                      <div className="absolute bottom-4 left-4 right-4 bg-black/50 text-white p-2 rounded">
-                        <div className="flex items-center justify-between">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              console.log('Play/Pause button clicked');
-                              console.log('Current isPlaying state:', isPlaying);
-                              console.log('Video element:', videoRef.current);
-                              if (videoRef.current) {
-                                console.log('Video readyState:', videoRef.current.readyState);
-                                console.log('Video paused:', videoRef.current.paused);
-                              }
-                              togglePlayPause();
-                            }}
-                            className="text-white hover:bg-white/20"
-                          >
-                            {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                          </Button>
-                          <div className="text-sm">
-                            {Math.floor(currentTime / 60)}:{Math.floor(currentTime % 60).toString().padStart(2, '0')} / {Math.floor(duration / 60)}:{Math.floor(duration % 60).toString().padStart(2, '0')}
+                    {(() => {
+                      const urlInfo = convertYouTubeUrl(currentTraining.training.content_url);
+                      
+                      if (urlInfo?.isYouTube) {
+                        // YouTube video - use iframe
+                        return (
+                          <div className="space-y-4">
+                            <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                              <iframe
+                                src={urlInfo.embedUrl}
+                                className="absolute top-0 left-0 w-full h-full rounded-lg"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                                title={currentTraining.training.title}
+                              />
+                            </div>
+                            <div className="text-sm text-blue-600">
+                              🎥 YouTube Video - Use video controls to play/pause
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    </div>
+                        );
+                      } else {
+                        // Direct video file - use video element
+                        return (
+                          <div className="space-y-4">
+                            <div className="relative">
+                              <video
+                                ref={videoRef}
+                                src={currentTraining.training.content_url}
+                                className="w-full rounded-lg"
+                                onTimeUpdate={handleVideoTimeUpdate}
+                                onEnded={handleVideoEnd}
+                                onLoadedMetadata={() => {
+                                  console.log('Video metadata loaded');
+                                  console.log('Video duration:', videoRef.current?.duration);
+                                }}
+                                onError={(e) => {
+                                  console.error('Video error:', e);
+                                  console.error('Video URL:', currentTraining.training.content_url);
+                                }}
+                                onCanPlay={() => console.log('Video can play')}
+                                onContextMenu={(e) => e.preventDefault()}
+                                controlsList="nodownload nofullscreen noremoteplayback"
+                                disablePictureInPicture
+                                controls
+                              />
+                              <div className="absolute bottom-4 left-4 right-4 bg-black/50 text-white p-2 rounded">
+                                <div className="flex items-center justify-between">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      console.log('Play/Pause button clicked');
+                                      console.log('Current isPlaying state:', isPlaying);
+                                      console.log('Video element:', videoRef.current);
+                                      if (videoRef.current) {
+                                        console.log('Video readyState:', videoRef.current.readyState);
+                                        console.log('Video paused:', videoRef.current.paused);
+                                      }
+                                      togglePlayPause();
+                                    }}
+                                    className="text-white hover:bg-white/20"
+                                  >
+                                    {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                                  </Button>
+                                  <div className="text-sm">
+                                    {Math.floor(currentTime / 60)}:{Math.floor(currentTime % 60).toString().padStart(2, '0')} / {Math.floor(duration / 60)}:{Math.floor(duration % 60).toString().padStart(2, '0')}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+                    })()}
                     
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
