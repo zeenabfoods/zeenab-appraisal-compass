@@ -63,6 +63,16 @@ export function TrainingDashboard() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
+  // Debug effect to track currentTraining changes
+  useEffect(() => {
+    console.log('currentTraining changed:', currentTraining);
+  }, [currentTraining]);
+
+  // Debug effect to track isPlaying changes
+  useEffect(() => {
+    console.log('isPlaying changed:', isPlaying);
+  }, [isPlaying]);
+
   const { data: assignments, isLoading } = useQuery({
     queryKey: ['training-assignments', user?.id],
     queryFn: async () => {
@@ -142,13 +152,26 @@ export function TrainingDashboard() {
   };
 
   const togglePlayPause = () => {
+    console.log('togglePlayPause called');
     if (videoRef.current) {
+      console.log('Video element found:', videoRef.current);
+      console.log('Video paused state:', videoRef.current.paused);
+      console.log('Video readyState:', videoRef.current.readyState);
+      
       if (isPlaying) {
+        console.log('Pausing video...');
         videoRef.current.pause();
       } else {
-        videoRef.current.play();
+        console.log('Playing video...');
+        videoRef.current.play().then(() => {
+          console.log('Video play successful');
+        }).catch((error) => {
+          console.error('Video play failed:', error);
+        });
       }
       setIsPlaying(!isPlaying);
+    } else {
+      console.error('No video element found');
     }
   };
 
@@ -433,6 +456,10 @@ export function TrainingDashboard() {
               <CardHeader>
                 <CardTitle>{currentTraining.training.title}</CardTitle>
                 <p className="text-gray-600">{currentTraining.training.description}</p>
+                <div className="text-sm text-gray-500">
+                  <p>Content Type: {currentTraining.training.content_type}</p>
+                  <p>Content URL: {currentTraining.training.content_url}</p>
+                </div>
               </CardHeader>
               <CardContent>
                 {currentTraining.training.content_type === 'video' && (
@@ -444,16 +471,35 @@ export function TrainingDashboard() {
                         className="w-full rounded-lg"
                         onTimeUpdate={handleVideoTimeUpdate}
                         onEnded={handleVideoEnd}
+                        onLoadedMetadata={() => {
+                          console.log('Video metadata loaded');
+                          console.log('Video duration:', videoRef.current?.duration);
+                        }}
+                        onError={(e) => {
+                          console.error('Video error:', e);
+                          console.error('Video URL:', currentTraining.training.content_url);
+                        }}
+                        onCanPlay={() => console.log('Video can play')}
                         onContextMenu={(e) => e.preventDefault()} // Disable right-click
                         controlsList="nodownload nofullscreen noremoteplayback"
                         disablePictureInPicture
+                        controls // Add native controls for debugging
                       />
                       <div className="absolute bottom-4 left-4 right-4 bg-black/50 text-white p-2 rounded">
                         <div className="flex items-center justify-between">
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={togglePlayPause}
+                            onClick={() => {
+                              console.log('Play/Pause button clicked');
+                              console.log('Current isPlaying state:', isPlaying);
+                              console.log('Video element:', videoRef.current);
+                              if (videoRef.current) {
+                                console.log('Video readyState:', videoRef.current.readyState);
+                                console.log('Video paused:', videoRef.current.paused);
+                              }
+                              togglePlayPause();
+                            }}
                             className="text-white hover:bg-white/20"
                           >
                             {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
