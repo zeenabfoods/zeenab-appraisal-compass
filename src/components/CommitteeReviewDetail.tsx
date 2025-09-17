@@ -534,23 +534,32 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
                     // Send training recommendation notification to HR
                     const sendTrainingRecommendation = async () => {
                       try {
+                        // Get all HR users
+                        const { data: hrUsers, error: hrError } = await supabase
+                          .from('profiles')
+                          .select('id')
+                          .eq('role', 'hr')
+                          .eq('is_active', true);
+
+                        if (hrError) throw hrError;
+
+                        if (!hrUsers || hrUsers.length === 0) {
+                          throw new Error('No HR users found');
+                        }
+
+                        // Create notifications for all HR users
+                        const notifications = hrUsers.map(hrUser => ({
+                          user_id: hrUser.id,
+                          type: 'training_recommendation',
+                          title: 'New Training Recommendation',
+                          message: `Training recommendation for ${employee?.first_name} ${employee?.last_name}: ${recommendedTrainingType.replace('_', ' ')} - ${trainingJustification}`,
+                          related_appraisal_id: appraisalId,
+                          related_employee_id: appraisalData?.employee_id
+                        }));
+
                         const { error } = await supabase
                           .from('notifications')
-                          .insert({
-                            recipient_id: null, // HR will see this
-                            sender_id: appraisalData?.employee_id || null,
-                            type: 'training_recommendation',
-                            title: 'New Training Recommendation',
-                            message: `Training recommendation for ${employee?.first_name} ${employee?.last_name}: ${recommendedTrainingType.replace('_', ' ')} - ${trainingJustification}`,
-                            related_id: appraisalId,
-                            data: {
-                              employee_id: appraisalData?.employee_id,
-                              employee_name: `${employee?.first_name} ${employee?.last_name}`,
-                              training_type: recommendedTrainingType,
-                              justification: trainingJustification,
-                              appraisal_id: appraisalId
-                            }
-                          });
+                          .insert(notifications);
 
                         if (error) throw error;
 
