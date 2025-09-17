@@ -275,6 +275,7 @@ useEffect(() => {
 
   const isEmployee = appraisalData?.employee_id === profile?.id;
   const isManagerReviewer = profile?.id && appraisalData?.employee?.line_manager_id === profile?.id && ['submitted','manager_review'].includes(appraisalData?.status || '');
+  const isManagerReadOnly = ['committee_review', 'completed'].includes(appraisalData?.status || '');
   const isReadOnly = isEmployee ? (appraisalData?.status !== 'draft') : !isManagerReviewer;
 
   const updateResponseMutation = useMutation({
@@ -634,16 +635,17 @@ useEffect(() => {
       </Card>
 
       {/* Show read-only message if applicable */}
-      {isReadOnly && (
+      {(isReadOnly || (isManagerReviewer && isManagerReadOnly)) && (
         <Card className="border-orange-200 bg-orange-50">
           <CardContent className="p-4">
             <div className="text-orange-800">
               <p className="font-medium">Read-Only Mode</p>
               <p className="text-sm">
-                This appraisal is in read-only mode. 
-                {appraisalData?.status !== 'draft' 
-                  ? ' It has been submitted and cannot be edited.' 
-                  : ' You can only view the details.'}
+                {isManagerReadOnly && isManagerReviewer
+                  ? 'This appraisal has been submitted to committee and is now read-only for transparency.'
+                  : appraisalData?.status !== 'draft' 
+                    ? 'This appraisal has been submitted and cannot be edited.' 
+                    : 'You can only view the details.'}
               </p>
             </div>
           </CardContent>
@@ -655,7 +657,7 @@ useEffect(() => {
           questions={getQuestionsFromResponses()}
           values={getQuestionValues()}
           onChange={handleQuestionChange}
-          disabled={isReadOnly}
+          disabled={isReadOnly || (isManagerReviewer && isManagerReadOnly)}
           employeeName={`${appraisalData?.employee?.first_name} ${appraisalData?.employee?.last_name}`}
           hideRatingsForTextSections={false}
           mode={isManagerReviewer ? 'manager' : 'employee'}
@@ -733,7 +735,7 @@ useEffect(() => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="manager-comments">Manager Comments</Label>
-              {isManagerReviewer ? (
+              {(isManagerReviewer && !isManagerReadOnly) ? (
                 <Textarea
                   id="manager-comments"
                   placeholder="Enter your manager comments"
@@ -751,7 +753,7 @@ useEffect(() => {
       </Card>
 
       {/* Action Buttons - only show if not read-only */}
-      {!isReadOnly && (
+      {!isReadOnly && !(isManagerReviewer && isManagerReadOnly) && (
         <div className="flex justify-between">
           <Button variant="outline" onClick={() => navigate('/my-appraisals')}>
             Cancel
