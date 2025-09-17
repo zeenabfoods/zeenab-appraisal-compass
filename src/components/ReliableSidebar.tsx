@@ -13,6 +13,7 @@ import {
   Settings2,
   ChevronLeft,
   ChevronRight,
+  BookOpen,
 } from "lucide-react"
 
 import { useAuthContext } from "@/components/AuthProvider"
@@ -43,6 +44,11 @@ export function ReliableSidebar({ isOpen, onToggle }: ReliableSidebarProps) {
         url: "/my-appraisals",
         icon: ClipboardList,
       },
+      {
+        title: "Training Center",
+        url: "/training",
+        icon: BookOpen,
+      },
     ]
 
     const managerItems = [
@@ -53,7 +59,7 @@ export function ReliableSidebar({ isOpen, onToggle }: ReliableSidebarProps) {
       },
     ]
 
-    const hrAdminItems = [
+  const hrAdminItems = [
       {
         title: "Employee Management",
         url: "/employee-management",
@@ -73,6 +79,11 @@ export function ReliableSidebar({ isOpen, onToggle }: ReliableSidebarProps) {
         title: "Employee Questions",
         url: "/employee-questions",
         icon: Settings2,
+      },
+      {
+        title: "Training Management",
+        url: "/training-management",
+        icon: BookOpen,
       },
       {
         title: "Appraisal Cycles",

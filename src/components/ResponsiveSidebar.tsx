@@ -13,6 +13,7 @@ import {
   Settings2,
   Menu,
   X,
+  BookOpen,
 } from "lucide-react"
 
 import { useAuthContext } from "@/components/AuthProvider"
@@ -53,6 +54,11 @@ export function ResponsiveSidebar() {
         url: "/my-appraisals",
         icon: ClipboardList,
       },
+      {
+        title: "Training Center",
+        url: "/training",
+        icon: BookOpen,
+      },
     ]
 
     const managerItems = [
@@ -83,6 +89,11 @@ export function ResponsiveSidebar() {
         title: "Employee Questions",
         url: "/employee-questions",
         icon: Settings2,
+      },
+      {
+        title: "Training Management",
+        url: "/training-management",
+        icon: BookOpen,
       },
       {
         title: "Appraisal Cycles",
