@@ -541,13 +541,68 @@ useEffect(() => {
       // Ensure responses are saved before submission
       await saveResponses();
 
-      const { error: submitError } = await supabase
-        .from('appraisals')
-        .update({
+      // Determine the submission type based on user role and current status
+      const isManagerSubmission = isManagerReviewer && appraisalData?.status === 'submitted';
+      
+      let updateData: any;
+      let successMessage: string;
+      let navigationPath: string;
+
+      if (isManagerSubmission) {
+        // Manager submitting review to committee
+        updateData = {
+          status: 'committee_review' as any,
+          manager_reviewed_at: new Date().toISOString(),
+          manager_reviewed_by: profile?.id,
+          goals: goals,
+          training_needs: trainingNeeds,
+          noteworthy: noteworthy,
+          emp_comments: empComments,
+          mgr_comments: mgrComments,
+        };
+        successMessage = "Manager review submitted to committee successfully.";
+        navigationPath = '/manager-appraisals';
+
+        // Notify HR about manager review completion
+        try {
+          await supabase.rpc('notify_hr_manager_review', {
+            appraisal_id_param: appraisalId,
+            manager_id_param: profile?.id
+          });
+        } catch (notificationError) {
+          console.warn('Failed to send HR notification:', notificationError);
+          // Don't fail the submission if notification fails
+        }
+      } else {
+        // Employee submitting their appraisal
+        updateData = {
           status: 'submitted' as any,
           employee_submitted_at: new Date().toISOString(),
-          submitted_at: new Date().toISOString()
-        })
+          submitted_at: new Date().toISOString(),
+          goals: goals,
+          training_needs: trainingNeeds,
+          noteworthy: noteworthy,
+          emp_comments: empComments,
+          mgr_comments: mgrComments,
+        };
+        successMessage = "Appraisal submitted successfully.";
+        navigationPath = '/my-appraisals';
+
+        // Notify line manager about employee submission
+        try {
+          await supabase.rpc('notify_line_manager_submission', {
+            appraisal_id_param: appraisalId,
+            employee_id_param: appraisalData?.employee_id
+          });
+        } catch (notificationError) {
+          console.warn('Failed to send manager notification:', notificationError);
+          // Don't fail the submission if notification fails
+        }
+      }
+
+      const { error: submitError } = await supabase
+        .from('appraisals')
+        .update(updateData)
         .eq('id', appraisalId);
 
       if (submitError) {
@@ -555,11 +610,16 @@ useEffect(() => {
         throw submitError;
       }
 
+      // Invalidate queries to refresh the data
+      queryClient.invalidateQueries({ queryKey: ['appraisal', appraisalId] });
+      queryClient.invalidateQueries({ queryKey: ['appraisal-responses', appraisalId] });
+      queryClient.invalidateQueries({ queryKey: ['manager-team-appraisals'] });
+
       toast({
         title: "Success",
-        description: "Appraisal submitted successfully."
+        description: successMessage
       });
-      navigate('/my-appraisals');
+      navigate(navigationPath);
     } catch (error) {
       console.error("Error submitting appraisal:", error);
       toast({
@@ -763,7 +823,7 @@ useEffect(() => {
               Save Changes
             </Button>
             <Button onClick={handleConfirmSubmit} disabled={isSubmitting}>
-              Submit Appraisal
+              {isManagerReviewer ? 'Submit to Committee' : 'Submit Appraisal'}
             </Button>
           </div>
         </div>
@@ -773,16 +833,20 @@ useEffect(() => {
       <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure you want to submit?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {isManagerReviewer ? 'Submit to Committee?' : 'Are you sure you want to submit?'}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. Please ensure all information is correct
-              before submitting.
+              {isManagerReviewer 
+                ? 'This will submit your manager review to the committee. After submission, your responses will become read-only. Please ensure all information is correct.'
+                : 'This action cannot be undone. Please ensure all information is correct before submitting.'
+              }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleCancelSubmit}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleSubmit} disabled={isSubmitting}>
-              Submit
+              {isManagerReviewer ? 'Submit to Committee' : 'Submit'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
