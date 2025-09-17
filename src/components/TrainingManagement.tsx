@@ -23,10 +23,12 @@ import {
   Settings,
   Edit,
   Trash2,
-  MoreHorizontal
+  MoreHorizontal,
+  HelpCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface TrainingRequest {
   id: string;
@@ -60,6 +62,18 @@ interface Training {
   created_at: string;
 }
 
+interface QuizQuestion {
+  id: string;
+  training_id: string;
+  question_text: string;
+  question_type: string;
+  options: string[];
+  correct_answer: string;
+  points: number;
+  sort_order: number;
+  is_active: boolean;
+}
+
 export function TrainingManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -67,6 +81,17 @@ export function TrainingManagement() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingTraining, setEditingTraining] = useState<Training | null>(null);
+  const [isQuizDialogOpen, setIsQuizDialogOpen] = useState(false);
+  const [selectedTrainingForQuiz, setSelectedTrainingForQuiz] = useState<string>('');
+  const [isQuestionDialogOpen, setIsQuestionDialogOpen] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<QuizQuestion | null>(null);
+  const [newQuestion, setNewQuestion] = useState({
+    question_text: '',
+    question_type: 'multiple_choice',
+    options: ['', '', '', ''],
+    correct_answer: '',
+    points: 1
+  });
   const [newTraining, setNewTraining] = useState({
     title: '',
     description: '',
@@ -127,6 +152,23 @@ export function TrainingManagement() {
       if (error) throw error;
       return data as Training[];
     }
+  });
+
+  const { data: quizQuestions } = useQuery({
+    queryKey: ['quiz-questions', selectedTrainingForQuiz],
+    queryFn: async () => {
+      if (!selectedTrainingForQuiz) return [];
+      
+      const { data, error } = await supabase
+        .from('training_quiz_questions')
+        .select('*')
+        .eq('training_id', selectedTrainingForQuiz)
+        .order('sort_order', { ascending: true });
+
+      if (error) throw error;
+      return data as QuizQuestion[];
+    },
+    enabled: !!selectedTrainingForQuiz
   });
 
   const createTrainingMutation = useMutation({
@@ -238,6 +280,116 @@ export function TrainingManagement() {
 
   const handleDeleteTraining = (trainingId: string) => {
     deleteTrainingMutation.mutate(trainingId);
+  };
+
+  const createQuestionMutation = useMutation({
+    mutationFn: async (questionData: typeof newQuestion) => {
+      const { error } = await supabase
+        .from('training_quiz_questions')
+        .insert({
+          training_id: selectedTrainingForQuiz,
+          question_text: questionData.question_text,
+          question_type: questionData.question_type,
+          options: questionData.options.filter(opt => opt.trim() !== ''),
+          correct_answer: questionData.correct_answer,
+          points: questionData.points,
+          sort_order: (quizQuestions?.length || 0) + 1
+        });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Question Created",
+        description: "Quiz question has been created successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['quiz-questions', selectedTrainingForQuiz] });
+      setIsQuestionDialogOpen(false);
+      setNewQuestion({
+        question_text: '',
+        question_type: 'multiple_choice',
+        options: ['', '', '', ''],
+        correct_answer: '',
+        points: 1
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to create question. Please try again.",
+        variant: "destructive",
+      });
+      console.error('Create question error:', error);
+    }
+  });
+
+  const updateQuestionMutation = useMutation({
+    mutationFn: async (questionData: QuizQuestion) => {
+      const { error } = await supabase
+        .from('training_quiz_questions')
+        .update({
+          question_text: questionData.question_text,
+          question_type: questionData.question_type,
+          options: questionData.options,
+          correct_answer: questionData.correct_answer,
+          points: questionData.points
+        })
+        .eq('id', questionData.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Question Updated",
+        description: "Quiz question has been updated successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['quiz-questions', selectedTrainingForQuiz] });
+      setIsQuestionDialogOpen(false);
+      setEditingQuestion(null);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to update question. Please try again.",
+        variant: "destructive",
+      });
+      console.error('Update question error:', error);
+    }
+  });
+
+  const deleteQuestionMutation = useMutation({
+    mutationFn: async (questionId: string) => {
+      const { error } = await supabase
+        .from('training_quiz_questions')
+        .update({ is_active: false })
+        .eq('id', questionId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Question Deleted",
+        description: "Quiz question has been deactivated successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['quiz-questions', selectedTrainingForQuiz] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to delete question. Please try again.",
+        variant: "destructive",
+      });
+      console.error('Delete question error:', error);
+    }
+  });
+
+  const handleEditQuestion = (question: QuizQuestion) => {
+    setEditingQuestion(question);
+    setIsQuestionDialogOpen(true);
+  };
+
+  const handleDeleteQuestion = (questionId: string) => {
+    deleteQuestionMutation.mutate(questionId);
   };
 
   const processRequestMutation = useMutation({
@@ -536,6 +688,7 @@ export function TrainingManagement() {
         <TabsList>
           <TabsTrigger value="requests">Training Requests ({pendingRequests.length})</TabsTrigger>
           <TabsTrigger value="trainings">All Trainings</TabsTrigger>
+          <TabsTrigger value="quiz">Quiz Management</TabsTrigger>
           <TabsTrigger value="history">Request History</TabsTrigger>
         </TabsList>
 
@@ -708,6 +861,256 @@ export function TrainingManagement() {
             ))}
           </div>
         </TabsContent>
+
+        <TabsContent value="quiz" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <HelpCircle className="h-5 w-5" />
+                <span>Quiz Management</span>
+              </CardTitle>
+              <p className="text-sm text-gray-600">
+                Create and manage quiz questions for training programs
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-4">
+                  <Label htmlFor="training-select" className="whitespace-nowrap">Select Training:</Label>
+                  <Select value={selectedTrainingForQuiz} onValueChange={setSelectedTrainingForQuiz}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Choose a training to manage quiz..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {trainings?.filter(t => t.is_active).map(training => (
+                        <SelectItem key={training.id} value={training.id}>
+                          {training.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {selectedTrainingForQuiz && (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-lg font-semibold">
+                        Quiz Questions ({quizQuestions?.filter(q => q.is_active).length || 0})
+                      </h3>
+                      <Button onClick={() => setIsQuestionDialogOpen(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Question
+                      </Button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {quizQuestions?.filter(q => q.is_active).map((question, index) => (
+                        <Card key={question.id} className="border-l-4 border-l-blue-500">
+                          <CardContent className="pt-4">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-2 mb-2">
+                                  <Badge variant="secondary">Q{index + 1}</Badge>
+                                  <Badge variant="outline">{question.points} pt{question.points !== 1 ? 's' : ''}</Badge>
+                                </div>
+                                <p className="font-medium mb-2">{question.question_text}</p>
+                                <div className="text-sm text-gray-600 space-y-1">
+                                  {question.options.map((option, optIndex) => (
+                                    <div key={optIndex} className={`flex items-center space-x-2 ${
+                                      option === question.correct_answer ? 'text-green-600 font-medium' : ''
+                                    }`}>
+                                      <span className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs">
+                                        {String.fromCharCode(65 + optIndex)}
+                                      </span>
+                                      <span>{option}</span>
+                                      {option === question.correct_answer && (
+                                        <CheckCircle className="h-4 w-4 text-green-600" />
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent>
+                                  <DropdownMenuItem onClick={() => handleEditQuestion(question)}>
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Delete
+                                      </DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          This will deactivate the quiz question. This action cannot be undone.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => handleDeleteQuestion(question.id)}
+                                          className="bg-red-600 hover:bg-red-700"
+                                        >
+                                          Delete
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+
+                      {(!quizQuestions || quizQuestions.filter(q => q.is_active).length === 0) && (
+                        <Card>
+                          <CardContent className="flex flex-col items-center justify-center py-8">
+                            <HelpCircle className="h-12 w-12 text-gray-400 mb-4" />
+                            <p className="text-gray-600">No quiz questions created yet</p>
+                            <p className="text-sm text-gray-500">Add questions to enable quiz functionality</p>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Quiz Question Dialog */}
+        <Dialog open={isQuestionDialogOpen} onOpenChange={setIsQuestionDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>{editingQuestion ? 'Edit' : 'Create'} Quiz Question</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="question-text">Question Text</Label>
+                <Textarea
+                  id="question-text"
+                  value={editingQuestion ? editingQuestion.question_text : newQuestion.question_text}
+                  onChange={(e) => {
+                    if (editingQuestion) {
+                      setEditingQuestion(prev => prev ? { ...prev, question_text: e.target.value } : null);
+                    } else {
+                      setNewQuestion(prev => ({ ...prev, question_text: e.target.value }));
+                    }
+                  }}
+                  placeholder="Enter the quiz question"
+                  rows={3}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="question-type">Question Type</Label>
+                  <select
+                    id="question-type"
+                    value={editingQuestion ? editingQuestion.question_type : newQuestion.question_type}
+                    onChange={(e) => {
+                      if (editingQuestion) {
+                        setEditingQuestion(prev => prev ? { ...prev, question_type: e.target.value } : null);
+                      } else {
+                        setNewQuestion(prev => ({ ...prev, question_type: e.target.value }));
+                      }
+                    }}
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  >
+                    <option value="multiple_choice">Multiple Choice</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="points">Points</Label>
+                  <Input
+                    id="points"
+                    type="number"
+                    min="1"
+                    value={editingQuestion ? editingQuestion.points : newQuestion.points}
+                    onChange={(e) => {
+                      const points = parseInt(e.target.value);
+                      if (editingQuestion) {
+                        setEditingQuestion(prev => prev ? { ...prev, points } : null);
+                      } else {
+                        setNewQuestion(prev => ({ ...prev, points }));
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <Label>Answer Options</Label>
+                {(editingQuestion ? editingQuestion.options : newQuestion.options).map((option, index) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    <span className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm font-medium">
+                      {String.fromCharCode(65 + index)}
+                    </span>
+                    <Input
+                      value={option}
+                      onChange={(e) => {
+                        const newOptions = [...(editingQuestion ? editingQuestion.options : newQuestion.options)];
+                        newOptions[index] = e.target.value;
+                        if (editingQuestion) {
+                          setEditingQuestion(prev => prev ? { ...prev, options: newOptions } : null);
+                        } else {
+                          setNewQuestion(prev => ({ ...prev, options: newOptions }));
+                        }
+                      }}
+                      placeholder={`Option ${String.fromCharCode(65 + index)}`}
+                      className="flex-1"
+                    />
+                    <input
+                      type="radio"
+                      name="correct-answer"
+                      checked={(editingQuestion ? editingQuestion.correct_answer : newQuestion.correct_answer) === option}
+                      onChange={() => {
+                        if (editingQuestion) {
+                          setEditingQuestion(prev => prev ? { ...prev, correct_answer: option } : null);
+                        } else {
+                          setNewQuestion(prev => ({ ...prev, correct_answer: option }));
+                        }
+                      }}
+                      className="w-4 h-4"
+                    />
+                    <Label className="text-sm text-gray-600">Correct</Label>
+                  </div>
+                ))}
+              </div>
+
+              <Button 
+                onClick={() => {
+                  if (editingQuestion) {
+                    updateQuestionMutation.mutate(editingQuestion);
+                  } else {
+                    createQuestionMutation.mutate(newQuestion);
+                  }
+                }}
+                disabled={
+                  !(editingQuestion ? editingQuestion.question_text : newQuestion.question_text) || 
+                  !(editingQuestion ? editingQuestion.correct_answer : newQuestion.correct_answer) ||
+                  (editingQuestion ? editingQuestion.options : newQuestion.options).filter(opt => opt.trim()).length < 2
+                }
+                className="w-full"
+              >
+                {editingQuestion ? 'Update' : 'Create'} Question
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <TabsContent value="history" className="space-y-4">
           <div className="grid gap-4">
