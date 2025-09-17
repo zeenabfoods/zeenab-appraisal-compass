@@ -98,15 +98,15 @@ export function PerformanceScoreCalculator({
       const { data: cycles, error: cycleError } = await supabase
         .from('appraisal_cycles')
         .select('id, name')
-        .eq('status', 'active')
+        .in('status', ['active', 'completed'])
         .order('created_at', { ascending: false });
 
       if (cycleError) throw cycleError;
       
       if (!cycles || cycles.length === 0) {
         toast({
-          title: "No Active Cycles",
-          description: "No active appraisal cycles found for calculation",
+          title: "No Cycles Available",
+          description: "No appraisal cycles found for calculation",
           variant: "destructive"
         });
         return;

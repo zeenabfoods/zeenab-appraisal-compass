@@ -181,7 +181,7 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
           committee_reviewed_by: (await supabase.auth.getUser()).data.user?.id,
           overall_score: finalScore,
           performance_band: performanceBand,
-          status: 'hr_review'
+          status: 'completed'
         })
         .eq('id', appraisalId);
 
@@ -193,7 +193,7 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
     onSuccess: () => {
       toast({
         title: "Committee Review Completed",
-        description: "The appraisal has been reviewed and forwarded to HR for final processing.",
+        description: "The appraisal has been completed successfully. Performance scores have been finalized.",
       });
       queryClient.invalidateQueries({ queryKey: ['committee-appraisals'] });
     },
