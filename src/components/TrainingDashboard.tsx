@@ -241,6 +241,10 @@ export function TrainingDashboard() {
     return timeInfo.isOverdue && !a.quiz_attempts?.some(attempt => attempt.passed);
   });
 
+  console.log('TrainingDashboard: assignments data:', assignments);
+  console.log('TrainingDashboard: activeAssignments:', activeAssignments);
+  console.log('TrainingDashboard: currentTraining:', currentTraining);
+
   return (
     <div className="space-y-6">
       {/* Training Overview */}
@@ -292,7 +296,14 @@ export function TrainingDashboard() {
         <TabsList>
           <TabsTrigger value="active">Active Trainings</TabsTrigger>
           <TabsTrigger value="completed">Completed</TabsTrigger>
-          {currentTraining && <TabsTrigger value="viewer">Training Viewer</TabsTrigger>}
+          {currentTraining && (
+            <TabsTrigger 
+              value="viewer"
+              onClick={() => console.log('Training Viewer tab clicked')}
+            >
+              Training Viewer
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="active" className="space-y-4">
@@ -348,7 +359,12 @@ export function TrainingDashboard() {
                           </div>
                           
                           <Button 
-                            onClick={() => setCurrentTraining(assignment)}
+                            onClick={() => {
+                              console.log('Start Training clicked for:', assignment);
+                              console.log('Current training before set:', currentTraining);
+                              setCurrentTraining(assignment);
+                              console.log('Current training after set:', assignment);
+                            }}
                             size="sm"
                           >
                             {progress > 0 ? 'Continue' : 'Start Training'}
