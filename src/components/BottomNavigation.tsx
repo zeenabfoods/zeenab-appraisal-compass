@@ -1,5 +1,5 @@
 
-import { Home, ClipboardList, Bell, User, LogOut } from 'lucide-react';
+import { Home, ClipboardList, Bell, User, LogOut, BookOpen } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/components/AuthProvider';
 import { useNotificationSystem } from '@/hooks/useNotificationSystem';
@@ -30,6 +30,12 @@ export function BottomNavigation() {
       label: 'Appraisals',
       path: '/my-appraisals',
       active: isActive('/my-appraisals')
+    },
+    {
+      icon: BookOpen,
+      label: 'Training',
+      path: '/training',
+      active: isActive('/training')
     },
     {
       icon: Bell,
