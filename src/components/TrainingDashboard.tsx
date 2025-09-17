@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthContext } from '@/components/AuthProvider';
+import { TrainingQuiz } from '@/components/TrainingQuiz';
 
 interface TrainingAssignment {
   id: string;
@@ -62,6 +63,7 @@ export function TrainingDashboard() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [showQuiz, setShowQuiz] = useState(false);
 
   // Debug effect to track currentTraining changes
   useEffect(() => {
@@ -111,7 +113,19 @@ export function TrainingDashboard() {
 
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      // Keep UI responsive by updating local state immediately
+      if (variables?.assignmentId && currentTraining?.id === variables.assignmentId) {
+        setCurrentTraining(prev => prev ? {
+          ...prev,
+          progress: {
+            progress_percentage: variables.progress,
+            time_spent_minutes: Math.floor(currentTime / 60),
+            completed_at: variables.progress === 100 ? new Date().toISOString() : (prev.progress?.completed_at || null),
+            last_position: variables.position || prev.progress?.last_position || null,
+          }
+        } : prev);
+      }
       queryClient.invalidateQueries({ queryKey: ['training-assignments'] });
     }
   });
@@ -591,6 +605,20 @@ export function TrainingDashboard() {
                       </div>
                       <Progress value={Math.round((currentTime / duration) * 100) || 0} className="h-2" />
                     </div>
+
+                    <Button
+                      onClick={() => {
+                        updateProgressMutation.mutate({
+                          assignmentId: currentTraining.id,
+                          progress: 100,
+                          position: 'manual-complete'
+                        });
+                      }}
+                      className="w-full"
+                      variant="outline"
+                    >
+                      Mark as Completed
+                    </Button>
                   </div>
                 )}
 
@@ -614,6 +642,28 @@ export function TrainingDashboard() {
                     </Button>
                   </div>
                 )}
+
+                {/* Quiz CTA / Renderer */}
+                <div className="space-y-4 mt-4">
+                  {!showQuiz && (currentTraining.progress?.progress_percentage ?? 0) >= 100 && !(currentTraining.quiz_attempts?.some(a => a.passed)) && (
+                    <Button className="w-full" onClick={() => setShowQuiz(true)}>
+                      Take Quiz
+                    </Button>
+                  )}
+
+                  {showQuiz && (
+                    <TrainingQuiz
+                      assignmentId={currentTraining.id}
+                      trainingId={currentTraining.training_id}
+                      maxAttempts={currentTraining.training.max_attempts}
+                      passmark={currentTraining.training.pass_mark}
+                      onQuizComplete={() => {
+                        setShowQuiz(false);
+                        queryClient.invalidateQueries({ queryKey: ['training-assignments'] });
+                      }}
+                    />
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
