@@ -518,6 +518,69 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
                   </div>
                 </div>
               )}
+
+              <div className="flex justify-end pt-4 border-t">
+                <Button 
+                  onClick={() => {
+                    if (!recommendedTrainingType || !trainingJustification.trim()) {
+                      toast({
+                        title: "Missing Information",
+                        description: "Please select a training type and provide justification.",
+                        variant: "destructive"
+                      });
+                      return;
+                    }
+
+                    // Send training recommendation notification to HR
+                    const sendTrainingRecommendation = async () => {
+                      try {
+                        const { error } = await supabase
+                          .from('notifications')
+                          .insert({
+                            recipient_id: null, // HR will see this
+                            sender_id: appraisalData?.employee_id || null,
+                            type: 'training_recommendation',
+                            title: 'New Training Recommendation',
+                            message: `Training recommendation for ${employee?.first_name} ${employee?.last_name}: ${recommendedTrainingType.replace('_', ' ')} - ${trainingJustification}`,
+                            related_id: appraisalId,
+                            data: {
+                              employee_id: appraisalData?.employee_id,
+                              employee_name: `${employee?.first_name} ${employee?.last_name}`,
+                              training_type: recommendedTrainingType,
+                              justification: trainingJustification,
+                              appraisal_id: appraisalId
+                            }
+                          });
+
+                        if (error) throw error;
+
+                        toast({
+                          title: "Training Recommendation Sent",
+                          description: "HR has been notified about your training recommendation.",
+                        });
+
+                        // Clear the form
+                        setRecommendedTrainingType('');
+                        setTrainingJustification('');
+                      } catch (error) {
+                        console.error('Error sending training recommendation:', error);
+                        toast({
+                          title: "Error",
+                          description: "Failed to send training recommendation. Please try again.",
+                          variant: "destructive"
+                        });
+                      }
+                    };
+
+                    sendTrainingRecommendation();
+                  }}
+                  disabled={!recommendedTrainingType || !trainingJustification.trim()}
+                  className="flex items-center space-x-2"
+                >
+                  <Send className="h-4 w-4" />
+                  <span>Send to HR</span>
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
