@@ -274,6 +274,37 @@ export function useAuth() {
     }
   };
 
+  const resetPassword = async (newPassword: string) => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) {
+        toast({
+          title: "Password Reset Error",
+          description: error.message,
+          variant: "destructive"
+        });
+        return { error };
+      }
+
+      toast({
+        title: "Success",
+        description: "Your password has been reset successfully."
+      });
+
+      return { error: null };
+    } catch (error: any) {
+      toast({
+        title: "Password Reset Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      return { error };
+    }
+  };
+
   console.log('Auth state:', { 
     user: !!user, 
     profile: !!profile, 
@@ -289,6 +320,7 @@ export function useAuth() {
     authReady,
     signUp,
     signIn,
-    signOut
+    signOut,
+    resetPassword
   };
 }

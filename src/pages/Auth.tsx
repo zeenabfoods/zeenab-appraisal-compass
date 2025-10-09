@@ -7,12 +7,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AuthBackground } from '@/components/auth/AuthBackground';
 import { SignInForm } from '@/components/auth/SignInForm';
 import { SignUpForm } from '@/components/auth/SignUpForm';
+import { PasswordResetForm } from '@/components/auth/PasswordResetForm';
 
 export default function Auth() {
-  const { signIn, signUp, user } = useAuthContext();
+  const { signIn, signUp, user, resetPassword } = useAuthContext();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string>('staff');
+  const [isPasswordReset, setIsPasswordReset] = useState(false);
+
+  // Check for password reset token in URL
+  useEffect(() => {
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const type = hashParams.get('type');
+    if (type === 'recovery') {
+      setIsPasswordReset(true);
+    }
+  }, []);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -65,6 +76,19 @@ export default function Auth() {
     setLoading(false);
   };
 
+  const handlePasswordReset = async (password: string) => {
+    setLoading(true);
+    const { error } = await resetPassword(password);
+    setLoading(false);
+    
+    if (!error) {
+      // Clear the hash from URL
+      window.location.hash = '';
+      setIsPasswordReset(false);
+      navigate('/');
+    }
+  };
+
   if (user) {
     return null;
   }
@@ -108,25 +132,35 @@ export default function Auth() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-white/60">
-              <TabsTrigger value="signin" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white">Sign In</TabsTrigger>
-              <TabsTrigger value="signup" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white">Sign Up</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="signin">
-              <SignInForm onSubmit={handleSignIn} loading={loading} />
-            </TabsContent>
-            
-            <TabsContent value="signup">
-              <SignUpForm
-                onSubmit={handleSignUp}
-                loading={loading}
-                selectedRole={selectedRole}
-                onRoleChange={setSelectedRole}
-              />
-            </TabsContent>
-          </Tabs>
+          {isPasswordReset ? (
+            <div className="space-y-4">
+              <div className="text-center mb-4">
+                <h3 className="text-lg font-semibold">Reset Your Password</h3>
+                <p className="text-sm text-muted-foreground">Enter your new password below</p>
+              </div>
+              <PasswordResetForm onSubmit={handlePasswordReset} loading={loading} />
+            </div>
+          ) : (
+            <Tabs defaultValue="signin" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 bg-white/60">
+                <TabsTrigger value="signin" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white">Sign In</TabsTrigger>
+                <TabsTrigger value="signup" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white">Sign Up</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="signin">
+                <SignInForm onSubmit={handleSignIn} loading={loading} />
+              </TabsContent>
+              
+              <TabsContent value="signup">
+                <SignUpForm
+                  onSubmit={handleSignUp}
+                  loading={loading}
+                  selectedRole={selectedRole}
+                  onRoleChange={setSelectedRole}
+                />
+              </TabsContent>
+            </Tabs>
+          )}
         </CardContent>
       </Card>
     </div>
