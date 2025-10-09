@@ -134,15 +134,13 @@ export function FixedBulkQuestionAssignment({
     setIsAssigning(true);
     
     try {
-      // Step 1: Check for existing assignments to avoid duplicates
-      console.log('Checking for existing assignments...');
-      const { data: existingAssignments, error: checkError } = await supabase
+      // Step 1: Check for existing assignments (active and soft-deleted) to avoid duplicates and allow reactivation
+      console.log('Checking for existing assignments (including soft-deleted)...');
+      const { data: existingAny, error: checkError } = await supabase
         .from('employee_appraisal_questions')
-        .select('question_id')
+        .select('question_id, is_active, deleted_at')
         .eq('employee_id', employeeId)
         .eq('cycle_id', activeCycle.id)
-        .eq('is_active', true)
-        .is('deleted_at', null)
         .in('question_id', selectedQuestions);
 
       if (checkError) {
@@ -150,10 +148,14 @@ export function FixedBulkQuestionAssignment({
         throw checkError;
       }
 
-      const existingQuestionIds = existingAssignments?.map(a => a.question_id) || [];
-      const newQuestionIds = selectedQuestions.filter(id => !existingQuestionIds.includes(id));
+      const existingAllIds = existingAny?.map(a => a.question_id) || [];
+      const existingActiveIds = (existingAny || []).filter(a => a.deleted_at === null && a.is_active === true).map(a => a.question_id);
+      const toReactivateIds = (existingAny || []).filter(a => a.deleted_at !== null || a.is_active === false).map(a => a.question_id);
+      const existingQuestionIds = existingActiveIds;
+      const newQuestionIds = selectedQuestions.filter(id => !existingAllIds.includes(id));
 
-      console.log('Existing assignments:', existingQuestionIds);
+      console.log('Existing (any status):', existingAllIds);
+      console.log('To reactivate:', toReactivateIds);
       console.log('New questions to assign:', newQuestionIds);
 
       // Validation commented out to allow re-assignment after deletion
@@ -208,23 +210,47 @@ export function FixedBulkQuestionAssignment({
         console.log('Created new appraisal:', appraisalId);
       }
 
-      // Step 3: Assign only new questions to employee
-      const assignments = newQuestionIds.map(questionId => ({
-        employee_id: employeeId,
-        question_id: questionId,
-        cycle_id: activeCycle.id,
-        assigned_by: profile?.id
-      }));
+      // Step 3: Reactivate soft-deleted/inactive and assign only brand-new questions
+      if (toReactivateIds.length > 0) {
+        console.log('Reactivating assignments:', toReactivateIds);
+        const { error: reactivateError } = await supabase
+          .from('employee_appraisal_questions')
+          .update({
+            deleted_at: null,
+            is_active: true,
+            assigned_by: profile?.id,
+            assigned_at: new Date().toISOString()
+          })
+          .eq('employee_id', employeeId)
+          .eq('cycle_id', activeCycle.id)
+          .in('question_id', toReactivateIds);
 
-      console.log('Inserting assignments:', assignments);
+        if (reactivateError) {
+          console.error('Error reactivating assignments:', reactivateError);
+          throw reactivateError;
+        }
+      }
 
-      const { error: assignError } = await supabase
-        .from('employee_appraisal_questions')
-        .insert(assignments);
+      if (newQuestionIds.length > 0) {
+        const assignments = newQuestionIds.map(questionId => ({
+          employee_id: employeeId,
+          question_id: questionId,
+          cycle_id: activeCycle.id,
+          assigned_by: profile?.id
+        }));
 
-      if (assignError) {
-        console.error('Error inserting assignments:', assignError);
-        throw assignError;
+        console.log('Inserting new assignments:', assignments);
+
+        const { error: assignError } = await supabase
+          .from('employee_appraisal_questions')
+          .insert(assignments);
+
+        if (assignError) {
+          console.error('Error inserting assignments:', assignError);
+          throw assignError;
+        }
+      } else {
+        console.log('No brand-new assignments to insert.');
       }
 
       // Step 4: Send notification to line manager
@@ -268,9 +294,15 @@ export function FixedBulkQuestionAssignment({
         console.error('Error creating employee notification:', empNotifError);
       }
 
-      const message = existingQuestionIds.length > 0 
-        ? `${newQuestionIds.length} new questions assigned successfully. ${existingQuestionIds.length} questions were already assigned.`
-        : `${newQuestionIds.length} questions have been assigned to ${employeeName}. Questions remain available in the question bank for future use.`;
+      const reactivatedCount = toReactivateIds.length;
+      const alreadyActiveCount = existingQuestionIds.length;
+      const parts: string[] = [];
+      if (newQuestionIds.length > 0) parts.push(`${newQuestionIds.length} new questions assigned`);
+      if (reactivatedCount > 0) parts.push(`${reactivatedCount} previously removed reactivated`);
+      if (alreadyActiveCount > 0) parts.push(`${alreadyActiveCount} already active and skipped`);
+      const message = parts.length > 0 
+        ? `${parts.join('. ')}.`
+        : `No changes were needed.`;
 
       toast({
         title: "Questions Assigned Successfully",
