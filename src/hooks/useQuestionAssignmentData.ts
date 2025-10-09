@@ -286,6 +286,14 @@ export function useQuestionAssignmentData() {
     fetchAssignmentData();
   }, []);
 
+  // Listen for global assignment updates to refresh tracker immediately
+  useEffect(() => {
+    const handler = () => fetchAssignmentData();
+    // Dispatch from anywhere: window.dispatchEvent(new CustomEvent('assignment-updated'))
+    window.addEventListener('assignment-updated', handler as any);
+    return () => window.removeEventListener('assignment-updated', handler as any);
+  }, []);
+
   return {
     stats,
     assignments,

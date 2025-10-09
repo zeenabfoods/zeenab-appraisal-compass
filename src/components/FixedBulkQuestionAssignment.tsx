@@ -336,6 +336,9 @@ export function FixedBulkQuestionAssignment({
         description: message
       });
 
+      // Trigger global refresh for assignment trackers
+      window.dispatchEvent(new CustomEvent('assignment-updated'));
+
       setSelectedQuestions([]);
       onAssignmentComplete();
     } catch (error: any) {
