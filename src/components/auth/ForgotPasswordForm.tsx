@@ -6,7 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CheckCircle2 } from 'lucide-react';
 
 interface ForgotPasswordFormProps {
-  onSubmit: (email: string) => Promise<void>;
+  onSubmit: (email: string) => Promise<{ error: any }>;
   onBack: () => void;
   loading: boolean;
 }
@@ -17,8 +17,10 @@ export function ForgotPasswordForm({ onSubmit, onBack, loading }: ForgotPassword
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await onSubmit(email);
-    setSubmitted(true);
+    const result = await onSubmit(email);
+    if (!result.error) {
+      setSubmitted(true);
+    }
   };
 
   if (submitted) {

@@ -93,8 +93,9 @@ export default function Auth() {
 
   const handleForgotPassword = async (email: string) => {
     setLoading(true);
-    await requestPasswordReset(email);
+    const result = await requestPasswordReset(email);
     setLoading(false);
+    return result;
   };
 
   if (user) {
