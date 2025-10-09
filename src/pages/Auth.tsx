@@ -8,13 +8,15 @@ import { AuthBackground } from '@/components/auth/AuthBackground';
 import { SignInForm } from '@/components/auth/SignInForm';
 import { SignUpForm } from '@/components/auth/SignUpForm';
 import { PasswordResetForm } from '@/components/auth/PasswordResetForm';
+import { ForgotPasswordForm } from '@/components/auth/ForgotPasswordForm';
 
 export default function Auth() {
-  const { signIn, signUp, user, resetPassword } = useAuthContext();
+  const { signIn, signUp, user, resetPassword, requestPasswordReset } = useAuthContext();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string>('staff');
   const [isPasswordReset, setIsPasswordReset] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
 
   // Check for password reset token in URL
   useEffect(() => {
@@ -89,6 +91,12 @@ export default function Auth() {
     }
   };
 
+  const handleForgotPassword = async (email: string) => {
+    setLoading(true);
+    await requestPasswordReset(email);
+    setLoading(false);
+  };
+
   if (user) {
     return null;
   }
@@ -140,6 +148,18 @@ export default function Auth() {
               </div>
               <PasswordResetForm onSubmit={handlePasswordReset} loading={loading} />
             </div>
+          ) : isForgotPassword ? (
+            <div className="space-y-4">
+              <div className="text-center mb-4">
+                <h3 className="text-lg font-semibold">Forgot Password</h3>
+                <p className="text-sm text-muted-foreground">We'll send you a reset link</p>
+              </div>
+              <ForgotPasswordForm 
+                onSubmit={handleForgotPassword} 
+                onBack={() => setIsForgotPassword(false)}
+                loading={loading} 
+              />
+            </div>
           ) : (
             <Tabs defaultValue="signin" className="w-full">
               <TabsList className="grid w-full grid-cols-2 bg-white/60">
@@ -148,7 +168,11 @@ export default function Auth() {
               </TabsList>
               
               <TabsContent value="signin">
-                <SignInForm onSubmit={handleSignIn} loading={loading} />
+                <SignInForm 
+                  onSubmit={handleSignIn} 
+                  loading={loading}
+                  onForgotPassword={() => setIsForgotPassword(true)}
+                />
               </TabsContent>
               
               <TabsContent value="signup">

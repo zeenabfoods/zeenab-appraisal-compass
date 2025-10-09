@@ -305,6 +305,31 @@ export function useAuth() {
     }
   };
 
+  const requestPasswordReset = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth`
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Password Reset Email Sent",
+        description: "Check your inbox for the reset link"
+      });
+
+      return { error: null };
+    } catch (error: any) {
+      console.error('❌ Password reset request error:', error);
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      return { error };
+    }
+  };
+
   console.log('Auth state:', { 
     user: !!user, 
     profile: !!profile, 
@@ -321,6 +346,7 @@ export function useAuth() {
     signUp,
     signIn,
     signOut,
-    resetPassword
+    resetPassword,
+    requestPasswordReset
   };
 }
