@@ -84,17 +84,46 @@ export function useQuestionAssignmentData() {
         }
       }
 
-      // Get question assignments (excluding deleted ones)
-      const { data: allAssignments, error: assignmentsError } = await supabase
+      // Get the active cycle first
+      const { data: activeCycle, error: cycleError } = await supabase
+        .from('appraisal_cycles')
+        .select('id, name, status')
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (cycleError) {
+        console.error('❌ Error fetching active cycle:', cycleError);
+      } else if (!activeCycle) {
+        console.warn('⚠️ No active cycle found');
+      } else {
+        console.log('🔄 Active cycle:', activeCycle.name);
+      }
+
+      // Get question assignments (excluding deleted ones) - filter by active cycle if available
+      let assignmentsQuery = supabase
         .from('employee_appraisal_questions')
-        .select('employee_id, question_id, assigned_at, is_active')
+        .select('employee_id, question_id, assigned_at, is_active, cycle_id')
         .eq('is_active', true)
         .is('deleted_at', null);
+
+      // Filter by active cycle if one exists
+      if (activeCycle) {
+        assignmentsQuery = assignmentsQuery.eq('cycle_id', activeCycle.id);
+      }
+
+      const { data: allAssignments, error: assignmentsError } = await assignmentsQuery;
 
       if (assignmentsError) {
         console.error('❌ Error fetching assignments:', assignmentsError);
       } else {
-        console.log(`📝 Found ${allAssignments?.length || 0} active question assignments`);
+        console.log(`📝 Found ${allAssignments?.length || 0} active question assignments for active cycle`);
+        
+        // Debug: Check for Gideon Luka specifically
+        const gideonAssignments = allAssignments?.filter(a => {
+          const emp = allEmployees?.find(e => e.id === a.employee_id);
+          return emp?.email === 'gluka@zeenabgroup.com';
+        });
+        console.log(`🔍 Gideon Luka assignments found:`, gideonAssignments?.length || 0);
       }
 
       // Get appraisals for status tracking
