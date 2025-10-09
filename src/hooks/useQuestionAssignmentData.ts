@@ -84,61 +84,17 @@ export function useQuestionAssignmentData() {
         }
       }
 
-      // Get the active cycle first
-      const { data: activeCycle, error: cycleError } = await supabase
-        .from('appraisal_cycles')
-        .select('id, name, status')
-        .eq('status', 'active')
-        .maybeSingle();
-
-      if (cycleError) {
-        console.error('❌ Error fetching active cycle:', cycleError);
-      } else if (!activeCycle) {
-        console.warn('⚠️ No active cycle found');
-      } else {
-        console.log('🔄 Active cycle:', activeCycle.name);
-      }
-
       // Get question assignments (excluding deleted ones)
-      // 1) Active cycle only (if exists)
-      let assignmentsQuery = supabase
+      const { data: allAssignments, error: assignmentsError } = await supabase
         .from('employee_appraisal_questions')
-        .select('employee_id, question_id, assigned_at, is_active, cycle_id')
-        .eq('is_active', true)
-        .is('deleted_at', null);
-
-      if (activeCycle) {
-        assignmentsQuery = assignmentsQuery.eq('cycle_id', activeCycle.id);
-      }
-
-      const { data: assignmentsActiveCycle, error: assignmentsError } = await assignmentsQuery;
-
-      // 2) Fallback across ALL cycles (active + not deleted)
-      const { data: assignmentsAllCycles, error: assignmentsAnyError } = await supabase
-        .from('employee_appraisal_questions')
-        .select('employee_id, question_id, assigned_at, is_active, cycle_id')
+        .select('employee_id, question_id, assigned_at, is_active')
         .eq('is_active', true)
         .is('deleted_at', null);
 
       if (assignmentsError) {
-        console.error('❌ Error fetching assignments (active cycle):', assignmentsError);
+        console.error('❌ Error fetching assignments:', assignmentsError);
       } else {
-        console.log(`📝 Found ${assignmentsActiveCycle?.length || 0} active question assignments for active cycle`);
-      }
-
-      if (assignmentsAnyError) {
-        console.error('❌ Error fetching assignments (all cycles):', assignmentsAnyError);
-      } else {
-        console.log(`📝 Found ${assignmentsAllCycles?.length || 0} active question assignments across ALL cycles`);
-      }
-
-      // Debug: Check for Gideon Luka specifically in both
-      const gideonId = allEmployees?.find(e => e.email === 'gluka@zeenabgroup.com')?.id;
-      if (gideonId) {
-        console.log('🔍 Gideon ID:', gideonId);
-        const gideonActive = assignmentsActiveCycle?.filter(a => a.employee_id === gideonId) || [];
-        const gideonAny = assignmentsAllCycles?.filter(a => a.employee_id === gideonId) || [];
-        console.log(`🔎 Gideon (active cycle): ${gideonActive.length}, (any cycle): ${gideonAny.length}`);
+        console.log(`📝 Found ${allAssignments?.length || 0} active question assignments`);
       }
 
       // Get appraisals for status tracking
@@ -152,35 +108,20 @@ export function useQuestionAssignmentData() {
         console.log(`📋 Found ${appraisals?.length || 0} appraisals`);
       }
 
-      // Count assignments per employee (prefer active cycle; fallback to any cycle)
-      const assignmentCountsActive = new Map<string, number>();
-      assignmentsActiveCycle?.forEach(assignment => {
-        const count = assignmentCountsActive.get(assignment.employee_id) || 0;
-        assignmentCountsActive.set(assignment.employee_id, count + 1);
-      });
-
-      const assignmentCountsAny = new Map<string, number>();
-      assignmentsAllCycles?.forEach(assignment => {
-        const count = assignmentCountsAny.get(assignment.employee_id) || 0;
-        assignmentCountsAny.set(assignment.employee_id, count + 1);
+      // Count assignments per employee
+      const assignmentCounts = new Map<string, number>();
+      allAssignments?.forEach(assignment => {
+        const count = assignmentCounts.get(assignment.employee_id) || 0;
+        assignmentCounts.set(assignment.employee_id, count + 1);
       });
 
       // Get the earliest assignment date per employee
-      const assignmentDatesActive = new Map<string, string>();
-      assignmentsActiveCycle?.forEach(assignment => {
+      const assignmentDates = new Map<string, string>();
+      allAssignments?.forEach(assignment => {
         const employeeId = assignment.employee_id;
-        const currentDate = assignmentDatesActive.get(employeeId);
+        const currentDate = assignmentDates.get(employeeId);
         if (!currentDate || assignment.assigned_at < currentDate) {
-          assignmentDatesActive.set(employeeId, assignment.assigned_at);
-        }
-      });
-
-      const assignmentDatesAny = new Map<string, string>();
-      assignmentsAllCycles?.forEach(assignment => {
-        const employeeId = assignment.employee_id;
-        const currentDate = assignmentDatesAny.get(employeeId);
-        if (!currentDate || assignment.assigned_at < currentDate) {
-          assignmentDatesAny.set(employeeId, assignment.assigned_at);
+          assignmentDates.set(employeeId, assignment.assigned_at);
         }
       });
 
@@ -192,7 +133,7 @@ export function useQuestionAssignmentData() {
 
       // Create assignment records for employees with either questions OR appraisals
       const employeeAssignments = allEmployees
-        ?.filter(emp => assignmentCountsActive.has(emp.id) || assignmentCountsAny.has(emp.id) || employeeAppraisalMap.has(emp.id))
+        ?.filter(emp => assignmentCounts.has(emp.id) || employeeAppraisalMap.has(emp.id))
         .map(emp => {
           // Get department name from lookup map
           const departmentName = emp.department_id ? departmentMap.get(emp.department_id) || 'Unknown Department' : 'No Department';
@@ -204,8 +145,8 @@ export function useQuestionAssignmentData() {
           const employeeAppraisal = employeeAppraisalMap.get(emp.id);
           const appraisalStatus = employeeAppraisal?.status || 'not_started';
           
-          // Get assignment date - prefer active cycle date, fallback to any cycle, then appraisal created date
-          let assignedDate = assignmentDatesActive.get(emp.id) || assignmentDatesAny.get(emp.id);
+          // Get assignment date - use appraisal created date if no assignment date
+          let assignedDate = assignmentDates.get(emp.id);
           if (!assignedDate && employeeAppraisal) {
             assignedDate = employeeAppraisal.created_at;
           }
@@ -213,7 +154,7 @@ export function useQuestionAssignmentData() {
             assignedDate = new Date().toISOString();
           }
           
-          const questionsCount = assignmentCountsActive.get(emp.id) ?? assignmentCountsAny.get(emp.id) ?? 0;
+          const questionsCount = assignmentCounts.get(emp.id) || 0;
           
           console.log(`📋 Processing employee ${emp.first_name} ${emp.last_name}:`, {
             department: departmentName,
@@ -240,24 +181,21 @@ export function useQuestionAssignmentData() {
 
       // Update stats - count employees with either questions or appraisals
       const employeesWithActivity = new Set([
-        ...Array.from(assignmentCountsActive.keys()),
-        ...Array.from(assignmentCountsAny.keys()),
+        ...Array.from(assignmentCounts.keys()),
         ...Array.from(employeeAppraisalMap.keys())
       ]).size;
-
-      const totalAssigned = (assignmentsActiveCycle?.length ?? 0) || (assignmentsAllCycles?.length ?? 0) || 0;
 
       setStats({
         totalEmployees: allEmployees?.length || 0,
         employeesWithQuestions: employeesWithActivity,
-        totalQuestionsAssigned: totalAssigned,
+        totalQuestionsAssigned: allAssignments?.length || 0,
         completedAppraisals: appraisals?.filter(a => a.status === 'completed').length || 0
       });
 
       console.log('📊 Updated stats:', {
         totalEmployees: allEmployees?.length || 0,
         employeesWithQuestions: employeesWithActivity,
-        totalQuestionsAssigned: totalAssigned,
+        totalQuestionsAssigned: allAssignments?.length || 0,
         completedAppraisals: appraisals?.filter(a => a.status === 'completed').length || 0
       });
 
@@ -284,14 +222,6 @@ export function useQuestionAssignmentData() {
 
   useEffect(() => {
     fetchAssignmentData();
-  }, []);
-
-  // Listen for global assignment updates to refresh tracker immediately
-  useEffect(() => {
-    const handler = () => fetchAssignmentData();
-    // Dispatch from anywhere: window.dispatchEvent(new CustomEvent('assignment-updated'))
-    window.addEventListener('assignment-updated', handler as any);
-    return () => window.removeEventListener('assignment-updated', handler as any);
   }, []);
 
   return {

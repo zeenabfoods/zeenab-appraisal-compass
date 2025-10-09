@@ -7,10 +7,9 @@ import { Label } from '@/components/ui/label';
 interface SignInFormProps {
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => Promise<void>;
   loading: boolean;
-  onForgotPassword: () => void;
 }
 
-export function SignInForm({ onSubmit, loading, onForgotPassword }: SignInFormProps) {
+export function SignInForm({ onSubmit, loading }: SignInFormProps) {
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="space-y-2">
@@ -38,15 +37,6 @@ export function SignInForm({ onSubmit, loading, onForgotPassword }: SignInFormPr
       <Button type="submit" className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 shadow-lg" disabled={loading}>
         {loading ? 'Signing in...' : 'Sign In'}
       </Button>
-      <div className="text-center">
-        <button
-          type="button"
-          onClick={onForgotPassword}
-          className="text-sm text-muted-foreground hover:text-orange-600 underline transition-colors"
-        >
-          Forgot your password?
-        </button>
-      </div>
     </form>
   );
 }
