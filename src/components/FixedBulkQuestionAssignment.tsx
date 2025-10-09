@@ -141,6 +141,8 @@ export function FixedBulkQuestionAssignment({
         .select('question_id')
         .eq('employee_id', employeeId)
         .eq('cycle_id', activeCycle.id)
+        .eq('is_active', true)
+        .is('deleted_at', null)
         .in('question_id', selectedQuestions);
 
       if (checkError) {
