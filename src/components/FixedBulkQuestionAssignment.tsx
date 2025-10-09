@@ -135,12 +135,12 @@ export function FixedBulkQuestionAssignment({
     
     try {
       // Step 1: Check for existing assignments (active and soft-deleted) to avoid duplicates and allow reactivation
+      // DON'T filter by cycle_id here - we need to find ALL existing assignments regardless of cycle
       console.log('Checking for existing assignments (including soft-deleted)...');
       const { data: existingAny, error: checkError } = await supabase
         .from('employee_appraisal_questions')
-        .select('question_id, is_active, deleted_at')
+        .select('question_id, is_active, deleted_at, cycle_id')
         .eq('employee_id', employeeId)
-        .eq('cycle_id', activeCycle.id)
         .in('question_id', selectedQuestions);
 
       if (checkError) {
@@ -219,10 +219,10 @@ export function FixedBulkQuestionAssignment({
             deleted_at: null,
             is_active: true,
             assigned_by: profile?.id,
-            assigned_at: new Date().toISOString()
+            assigned_at: new Date().toISOString(),
+            cycle_id: activeCycle.id // Update to current cycle
           })
           .eq('employee_id', employeeId)
-          .eq('cycle_id', activeCycle.id)
           .in('question_id', toReactivateIds);
 
         if (reactivateError) {
