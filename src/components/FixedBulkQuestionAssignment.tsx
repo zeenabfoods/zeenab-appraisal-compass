@@ -156,15 +156,16 @@ export function FixedBulkQuestionAssignment({
       console.log('Existing assignments:', existingQuestionIds);
       console.log('New questions to assign:', newQuestionIds);
 
-      if (newQuestionIds.length === 0) {
-        toast({
-          title: "No New Questions to Assign",
-          description: "All selected questions are already assigned to this employee for the current cycle.",
-          variant: "destructive"
-        });
-        setIsAssigning(false);
-        return;
-      }
+      // Validation commented out to allow re-assignment after deletion
+      // if (newQuestionIds.length === 0) {
+      //   toast({
+      //     title: "No New Questions to Assign",
+      //     description: "All selected questions are already assigned to this employee for the current cycle.",
+      //     variant: "destructive"
+      //   });
+      //   setIsAssigning(false);
+      //   return;
+      // }
 
       // Step 2: Create or get existing appraisal for this employee and cycle
       let appraisalId;
