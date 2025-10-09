@@ -231,6 +231,29 @@ export function FixedBulkQuestionAssignment({
         }
       }
 
+      // Step 3b: Move existing active assignments from previous cycles to the current cycle
+      const toMoveCycleIds = (existingAny || [])
+        .filter(a => a.deleted_at === null && a.is_active === true && a.cycle_id !== activeCycle.id)
+        .map(a => a.question_id);
+
+      if (toMoveCycleIds.length > 0) {
+        console.log('Updating assignments to current cycle:', toMoveCycleIds);
+        const { error: moveCycleError } = await supabase
+          .from('employee_appraisal_questions')
+          .update({
+            cycle_id: activeCycle.id,
+            assigned_by: profile?.id,
+            assigned_at: new Date().toISOString()
+          })
+          .eq('employee_id', employeeId)
+          .in('question_id', toMoveCycleIds);
+
+        if (moveCycleError) {
+          console.error('Error moving assignments to current cycle:', moveCycleError);
+          throw moveCycleError;
+        }
+      }
+
       if (newQuestionIds.length > 0) {
         const assignments = newQuestionIds.map(questionId => ({
           employee_id: employeeId,
@@ -295,11 +318,15 @@ export function FixedBulkQuestionAssignment({
       }
 
       const reactivatedCount = toReactivateIds.length;
-      const alreadyActiveCount = existingQuestionIds.length;
+      const movedCount = toMoveCycleIds.length;
+      const alreadyActiveCurrentCycleCount = (existingAny || []).filter(
+        (a) => a.deleted_at === null && a.is_active === true && a.cycle_id === activeCycle.id
+      ).length;
       const parts: string[] = [];
       if (newQuestionIds.length > 0) parts.push(`${newQuestionIds.length} new questions assigned`);
       if (reactivatedCount > 0) parts.push(`${reactivatedCount} previously removed reactivated`);
-      if (alreadyActiveCount > 0) parts.push(`${alreadyActiveCount} already active and skipped`);
+      if (movedCount > 0) parts.push(`${movedCount} moved to current cycle`);
+      if (alreadyActiveCurrentCycleCount > 0) parts.push(`${alreadyActiveCurrentCycleCount} already in current cycle and skipped`);
       const message = parts.length > 0 
         ? `${parts.join('. ')}.`
         : `No changes were needed.`;
