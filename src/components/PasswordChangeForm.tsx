@@ -8,10 +8,8 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 export function PasswordChangeForm() {
-  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -42,7 +40,7 @@ export function PasswordChangeForm() {
 
     try {
       // Validate inputs
-      if (!currentPassword || !newPassword || !confirmPassword) {
+      if (!newPassword || !confirmPassword) {
         toast({
           title: "Validation Error",
           description: "All fields are required",
@@ -73,41 +71,6 @@ export function PasswordChangeForm() {
         return;
       }
 
-      if (currentPassword === newPassword) {
-        toast({
-          title: "Validation Error",
-          description: "New password must be different from current password",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // First, verify current password by trying to sign in with it
-      const { data: currentUser } = await supabase.auth.getUser();
-      if (!currentUser.user?.email) {
-        toast({
-          title: "Authentication Error",
-          description: "Unable to verify current user",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Verify current password
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: currentUser.user.email,
-        password: currentPassword
-      });
-
-      if (signInError) {
-        toast({
-          title: "Authentication Error",
-          description: "Current password is incorrect",
-          variant: "destructive"
-        });
-        return;
-      }
-
       // Update password
       const { error: updateError } = await supabase.auth.updateUser({
         password: newPassword
@@ -130,7 +93,6 @@ export function PasswordChangeForm() {
       });
 
       // Clear form
-      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
 
@@ -156,39 +118,11 @@ export function PasswordChangeForm() {
           Change Password
         </CardTitle>
         <CardDescription>
-          Update your account password. Your new password must meet security requirements.
+          Set a new password for your account. Your password must meet security requirements.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Current Password */}
-          <div className="space-y-2">
-            <Label htmlFor="currentPassword">Current Password</Label>
-            <div className="relative">
-              <Input
-                id="currentPassword"
-                type={showCurrentPassword ? "text" : "password"}
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="Enter your current password"
-                disabled={loading}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-              >
-                {showCurrentPassword ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          </div>
-
           {/* New Password */}
           <div className="space-y-2">
             <Label htmlFor="newPassword">New Password</Label>
