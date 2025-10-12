@@ -32,6 +32,7 @@ export function PerformanceScoreCalculator({
   const [scores, setScores] = useState<PerformanceScore[]>([]);
   const [loading, setLoading] = useState(false);
   const [calculating, setCalculating] = useState(false);
+  const [recalculating, setRecalculating] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -170,6 +171,36 @@ export function PerformanceScoreCalculator({
     }
   };
 
+  const recalculateAllScores = async () => {
+    setRecalculating(true);
+    try {
+      const result = await PerformanceCalculationService.recalculateAllScores();
+      
+      if (result.success > 0) {
+        toast({
+          title: "Recalculation Complete",
+          description: `Successfully recalculated ${result.success} scores. ${result.failed > 0 ? `Failed: ${result.failed}` : ''}`,
+        });
+        await loadPerformanceScores();
+      } else {
+        toast({
+          title: "No Scores Recalculated",
+          description: "No appraisals found to recalculate",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error recalculating scores:', error);
+      toast({
+        title: "Error",
+        description: "Failed to recalculate scores",
+        variant: "destructive"
+      });
+    } finally {
+      setRecalculating(false);
+    }
+  };
+
   const getBandColor = (band: string) => {
     switch (band) {
       case 'Exceptional': return 'bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border-purple-300';
@@ -206,23 +237,43 @@ export function PerformanceScoreCalculator({
             </CardTitle>
           </div>
           {showAllEmployees && (
-            <Button
-              onClick={calculatePerformanceScores}
-              disabled={calculating}
-              className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
-            >
-              {calculating ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Calculating...
-                </>
-              ) : (
-                <>
-                  <TrendingUp className="h-4 w-4 mr-2" />
-                  Calculate Scores
-                </>
-              )}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={recalculateAllScores}
+                disabled={recalculating}
+                variant="outline"
+                className="border-orange-500 text-orange-600 hover:bg-orange-50"
+              >
+                {recalculating ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-600 mr-2"></div>
+                    Recalculating...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Recalculate All Scores
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={calculatePerformanceScores}
+                disabled={calculating}
+                className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+              >
+                {calculating ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Calculating...
+                  </>
+                ) : (
+                  <>
+                    <TrendingUp className="h-4 w-4 mr-2" />
+                    Calculate Scores
+                  </>
+                )}
+              </Button>
+            </div>
           )}
         </div>
       </CardHeader>

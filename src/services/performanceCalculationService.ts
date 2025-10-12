@@ -72,8 +72,8 @@ export class PerformanceCalculationService {
       // Calculate section scores
       const sectionScores = this.calculateSectionScores(sectionGroups);
       
-      // Calculate base score using weighted average
-      const baseScore = this.calculateWeightedAverage(sectionScores);
+      // Calculate base score by summing section contributions
+      const baseScore = this.calculateBaseScore(sectionScores);
       
       // Calculate noteworthy bonus
       const noteworthyBonus = this.calculateNoteworthyBonus(sectionScores, appraisal.noteworthy);
@@ -134,22 +134,22 @@ export class PerformanceCalculationService {
         maxPossibleScore += (5 * questionWeight); // Assuming 5-point scale
       });
       
-      // Calculate section score as percentage
-      let sectionScore = maxPossibleScore > 0 ? (totalScore / maxPossibleScore) * 100 : 0;
+      // Calculate raw percentage (0-1)
+      const rawPercentage = maxPossibleScore > 0 ? (totalScore / maxPossibleScore) : 0;
       
-      // Apply section-specific caps
+      // Apply section-specific cap to get actual contribution
+      // e.g., if Financial scores 80% (0.8), contribution = 0.8 * 50 = 40 points
       const cap = this.getSectionCap(section.name);
-      if (cap) {
-        sectionScore = Math.min(sectionScore, cap);
-      }
+      const sectionScore = cap ? (rawPercentage * cap) : (rawPercentage * 100);
       
       return {
         sectionId: section.id,
         sectionName: section.name,
-        score: sectionScore,
+        score: sectionScore, // Actual points contributed (0-50 for Financial, 0-35 for Operational, 0-15 for Behavioral)
         weight: section.weight,
         isNoteworthy: false, // Will be determined later
-        maxScore: maxPossibleScore
+        maxScore: maxPossibleScore,
+        rawPercentage: rawPercentage * 100 // Store for display (0-100%)
       };
     });
   }
@@ -163,16 +163,10 @@ export class PerformanceCalculationService {
     return null;
   }
 
-  private static calculateWeightedAverage(sectionScores: SectionScore[]): number {
-    let weightedSum = 0;
-    let totalWeight = 0;
-    
-    sectionScores.forEach(section => {
-      weightedSum += (section.score * section.weight);
-      totalWeight += section.weight;
-    });
-    
-    return totalWeight > 0 ? weightedSum / totalWeight : 0;
+  private static calculateBaseScore(sectionScores: SectionScore[]): number {
+    // Simply sum all section scores since they're already properly scaled
+    // (each section score is already the contribution to the final 100-point scale)
+    return sectionScores.reduce((sum, section) => sum + section.score, 0);
   }
 
   private static calculateNoteworthyBonus(sectionScores: SectionScore[], noteworthy: string | null): number {
@@ -240,6 +234,56 @@ export class PerformanceCalculationService {
       if (error) throw error;
     } catch (error) {
       console.error('Error saving performance analytics:', error);
+      throw error;
+    }
+  }
+
+  // Recalculate all existing performance analytics with the corrected formula
+  static async recalculateAllScores(): Promise<{ success: number; failed: number; errors: string[] }> {
+    try {
+      // Get all appraisals that have manager reviews (submitted or beyond)
+      const { data: appraisals, error: appraisalsError } = await supabase
+        .from('appraisals')
+        .select('id, employee_id, cycle_id')
+        .in('status', ['submitted', 'manager_review', 'committee_review', 'completed']);
+
+      if (appraisalsError) throw appraisalsError;
+      if (!appraisals || appraisals.length === 0) {
+        return { success: 0, failed: 0, errors: [] };
+      }
+
+      let successCount = 0;
+      let failedCount = 0;
+      const errors: string[] = [];
+
+      // Recalculate each appraisal
+      for (const appraisal of appraisals) {
+        try {
+          const calculation = await this.calculatePerformanceScore(
+            appraisal.employee_id,
+            appraisal.cycle_id
+          );
+
+          if (calculation) {
+            await this.savePerformanceAnalytics(
+              appraisal.employee_id,
+              appraisal.cycle_id,
+              calculation
+            );
+            successCount++;
+          } else {
+            failedCount++;
+            errors.push(`No calculation result for appraisal ${appraisal.id}`);
+          }
+        } catch (error) {
+          failedCount++;
+          errors.push(`Failed for appraisal ${appraisal.id}: ${error}`);
+        }
+      }
+
+      return { success: successCount, failed: failedCount, errors };
+    } catch (error) {
+      console.error('Error recalculating all scores:', error);
       throw error;
     }
   }
