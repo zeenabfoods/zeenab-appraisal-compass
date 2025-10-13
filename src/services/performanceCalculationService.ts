@@ -265,11 +265,24 @@ export class PerformanceCalculationService {
           );
 
           if (calculation) {
+            // Save to performance_analytics table
             await this.savePerformanceAnalytics(
               appraisal.employee_id,
               appraisal.cycle_id,
               calculation
             );
+            
+            // Update the appraisals table with correct overall_score and performance_band
+            const { error: updateError } = await supabase
+              .from('appraisals')
+              .update({
+                overall_score: calculation.overallScore,
+                performance_band: calculation.performanceBand
+              })
+              .eq('id', appraisal.id);
+            
+            if (updateError) throw updateError;
+            
             successCount++;
           } else {
             failedCount++;
