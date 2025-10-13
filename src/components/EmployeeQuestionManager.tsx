@@ -17,6 +17,9 @@ import { QuickEmployeeAssignmentFixer } from './QuickEmployeeAssignmentFixer';
 import { useEmployeeQuestions } from '@/hooks/useEmployeeQuestions';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
+import { PerformanceCalculationService } from '@/services/performanceCalculationService';
 
 interface Section {
   id: string;
@@ -51,6 +54,7 @@ export function EmployeeQuestionManager() {
   const [showBulkAssignment, setShowBulkAssignment] = useState(false);
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
   const [showScoreCalculator, setShowScoreCalculator] = useState(false);
+  const [recalculating, setRecalculating] = useState(false);
 
   const {
     sections,
@@ -154,6 +158,37 @@ export function EmployeeQuestionManager() {
   };
 
   const selectedEmployee = staff.find(s => s.id === selectedStaff);
+
+  const handleRecalculateScores = async () => {
+    try {
+      setRecalculating(true);
+      toast({
+        title: "Recalculating Scores",
+        description: "Updating all performance scores with the correct formula...",
+      });
+
+      const result = await PerformanceCalculationService.recalculateAllScores();
+
+      toast({
+        title: "Recalculation Complete",
+        description: `Successfully updated ${result.success} scores. ${result.failed > 0 ? `Failed: ${result.failed}` : ''}`,
+      });
+
+      // Refresh the current view if an employee is selected
+      if (selectedStaff) {
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Error recalculating scores:', error);
+      toast({
+        title: "Error",
+        description: "Failed to recalculate scores. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setRecalculating(false);
+    }
+  };
 
   // Mock score data - in real implementation, this would come from appraisal responses
   const mockScoreData = sections.map(section => ({
@@ -271,11 +306,24 @@ export function EmployeeQuestionManager() {
         </TabsContent>
         
         <TabsContent value="scores" className="space-y-6">
-          <StaffSelectorWithManager
-            staff={staff}
-            selectedStaff={selectedStaff}
-            onStaffChange={setSelectedStaff}
-          />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex-1">
+              <StaffSelectorWithManager
+                staff={staff}
+                selectedStaff={selectedStaff}
+                onStaffChange={setSelectedStaff}
+              />
+            </div>
+            <Button
+              onClick={handleRecalculateScores}
+              disabled={recalculating}
+              variant="outline"
+              className="ml-4"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${recalculating ? 'animate-spin' : ''}`} />
+              {recalculating ? 'Recalculating...' : 'Recalculate All Scores'}
+            </Button>
+          </div>
           
           {selectedStaff && selectedEmployee && (
             <PerformanceScoreCalculator
