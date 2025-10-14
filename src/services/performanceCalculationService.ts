@@ -26,6 +26,7 @@ export class PerformanceCalculationService {
     'Operational': 35,
     'Efficiency': 35,
     'Behavioral': 15,
+    'Behavioural': 15, // British spelling
     'Soft Skills': 15,
   };
 
