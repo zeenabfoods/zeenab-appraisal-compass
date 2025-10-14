@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { CommitteeReviewDetail } from '@/components/CommitteeReviewDetail';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { PerformanceCalculationService } from '@/services/performanceCalculationService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -13,8 +14,37 @@ import { useToast } from '@/hooks/use-toast';
 
 export default function Committee() {
   const [selectedAppraisalId, setSelectedAppraisalId] = useState<string>('');
+  const [recalculating, setRecalculating] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setRecalculating(true);
+        toast({ title: 'Refreshing scores', description: 'Recalculating performance scores...' });
+        const result = await PerformanceCalculationService.recalculateAllScores();
+        if (!cancelled) {
+          toast({
+            title: 'Scores updated',
+            description: `Updated ${result.success} appraisal(s). ${result.failed ? result.failed + ' failed' : 'All successful'}.`,
+            variant: result.failed ? 'destructive' : 'default'
+          });
+          // Refetch lists to reflect updated overall_score
+          queryClient.invalidateQueries({ queryKey: ['committee-appraisals'] });
+          queryClient.invalidateQueries({ queryKey: ['committee-stats'] });
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          toast({ title: 'Recalculation failed', description: err?.message || 'Please try again.', variant: 'destructive' });
+        }
+      } finally {
+        if (!cancelled) setRecalculating(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   console.log('🏛️ Committee page: Rendering with SINGLE header only via DashboardLayout');
 
@@ -241,6 +271,25 @@ export default function Committee() {
     setSelectedAppraisalId(appraisalId);
   };
 
+  const handleRecalculateScores = async () => {
+    try {
+      setRecalculating(true);
+      toast({ title: 'Refreshing scores', description: 'Recalculating performance scores...' });
+      const result = await PerformanceCalculationService.recalculateAllScores();
+      toast({
+        title: 'Scores updated',
+        description: `Updated ${result.success} appraisal(s). ${result.failed ? result.failed + ' failed' : 'All successful'}.`,
+        variant: result.failed ? 'destructive' : 'default'
+      });
+      queryClient.invalidateQueries({ queryKey: ['committee-appraisals'] });
+      queryClient.invalidateQueries({ queryKey: ['committee-stats'] });
+    } catch (err: any) {
+      toast({ title: 'Recalculation failed', description: err?.message || 'Please try again.', variant: 'destructive' });
+    } finally {
+      setRecalculating(false);
+    }
+  };
+
   const formatCycleName = (cycle: any) => {
     if (!cycle) return 'Unknown Cycle';
     return `${cycle.name} (Q${cycle.quarter} ${cycle.year})`;
@@ -299,32 +348,35 @@ export default function Committee() {
   return (
     <DashboardLayout pageTitle="Committee Review" showSearch={false}>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <p className="text-gray-600">Review appraisals that require committee attention</p>
-          </div>
-          
-          <div className="flex gap-4">
-            <div className="bg-orange-50 p-3 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <Clock className="h-5 w-5 text-orange-600" />
-                <div>
-                  <p className="text-sm text-orange-600">Pending Review</p>
-                  <p className="text-xl font-bold text-orange-800">{committeeStats?.pending || 0}</p>
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="text-gray-600">Review appraisals that require committee attention</p>
+            </div>
+            
+            <div className="flex gap-4 items-center">
+              <div className="bg-orange-50 p-3 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <Clock className="h-5 w-5 text-orange-600" />
+                  <div>
+                    <p className="text-sm text-orange-600">Pending Review</p>
+                    <p className="text-xl font-bold text-orange-800">{committeeStats?.pending || 0}</p>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="bg-green-50 p-3 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-                <div>
-                  <p className="text-sm text-green-600">Completed</p>
-                  <p className="text-xl font-bold text-green-800">{committeeStats?.completed || 0}</p>
+              <div className="bg-green-50 p-3 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <div>
+                    <p className="text-sm text-green-600">Completed</p>
+                    <p className="text-xl font-bold text-green-800">{committeeStats?.completed || 0}</p>
+                  </div>
                 </div>
               </div>
+              <Button onClick={handleRecalculateScores} disabled={recalculating} variant="default">
+                {recalculating ? 'Updating scores...' : 'Refresh scores'}
+              </Button>
             </div>
           </div>
-        </div>
 
         {selectedAppraisalId ? (
           <div className="space-y-4">

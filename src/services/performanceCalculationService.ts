@@ -56,6 +56,7 @@ export class PerformanceCalculationService {
             weight,
             section_id,
             appraisal_question_sections!inner (
+              id,
               name,
               weight
             )
