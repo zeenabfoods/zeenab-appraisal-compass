@@ -164,9 +164,16 @@ export class PerformanceCalculationService {
   }
 
   private static calculateBaseScore(sectionScores: SectionScore[]): number {
-    // Simply sum all section scores since they're already properly scaled
-    // (each section score is already the contribution to the final 100-point scale)
-    return sectionScores.reduce((sum, section) => sum + section.score, 0);
+    // Normalize: (Σ(raw% × cap)) / (Σ caps for present sections) × 100
+    // This ensures consistent scoring regardless of which sections are present
+    const totalWeightedScore = sectionScores.reduce((sum, section) => sum + section.score, 0);
+    const totalCaps = sectionScores.reduce((sum, section) => {
+      const cap = this.getSectionCap(section.sectionName);
+      return sum + (cap || 100);
+    }, 0);
+    
+    // Normalize to 100-point scale
+    return totalCaps > 0 ? (totalWeightedScore / totalCaps) * 100 : 0;
   }
 
   private static calculateNoteworthyBonus(sectionScores: SectionScore[], noteworthy: string | null): number {
@@ -175,6 +182,12 @@ export class PerformanceCalculationService {
     let totalBonus = 0;
     const noteworthySections = noteworthy.split(',').map(s => s.trim().toLowerCase());
     
+    // Calculate total caps for normalization
+    const totalCaps = sectionScores.reduce((sum, section) => {
+      const cap = this.getSectionCap(section.sectionName);
+      return sum + (cap || 100);
+    }, 0);
+    
     sectionScores.forEach(section => {
       const isNoteworthy = noteworthySections.some(nw => 
         section.sectionName.toLowerCase().includes(nw)
@@ -182,7 +195,10 @@ export class PerformanceCalculationService {
       
       if (isNoteworthy) {
         section.isNoteworthy = true;
-        const bonus = Math.min(section.score * 0.1, 10);
+        // Calculate bonus as percentage of normalized contribution
+        // Normalize the section score to 100-point scale, then take 10% of that
+        const normalizedContribution = totalCaps > 0 ? (section.score / totalCaps) * 100 : 0;
+        const bonus = normalizedContribution * 0.1;
         totalBonus += bonus;
       }
     });
