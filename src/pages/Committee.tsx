@@ -90,27 +90,8 @@ export default function Committee() {
         
         console.log('✅ Committee appraisals fetched:', data?.length || 0);
         
-        const enrichedData = data?.map(appraisal => {
-          const responses = appraisal.responses || [];
-          let totalScore = 0;
-          let totalWeight = 0;
-          
-          responses.forEach(response => {
-            const score = response.mgr_rating || response.emp_rating || 0;
-            const weight = response.question?.weight || 1;
-            totalScore += score * weight;
-            totalWeight += weight;
-          });
-          
-          const calculatedScore = totalWeight > 0 ? Math.round((totalScore / totalWeight) * 20) : null;
-          
-          return {
-            ...appraisal,
-            calculated_score: calculatedScore
-          };
-        }) || [];
-        
-        return enrichedData;
+        // Return data as-is - overall_score is calculated by PerformanceCalculationService
+        return data || [];
       } catch (err: any) {
         console.error('❌ Committee appraisals query failed:', err);
         throw err;
@@ -475,11 +456,11 @@ export default function Committee() {
                             )}
                           </TableCell>
                           <TableCell>
-                            {appraisal.overall_score || appraisal.calculated_score ? (
+                            {appraisal.overall_score ? (
                               <div className="flex items-center space-x-1">
                                 <TrendingUp className="h-4 w-4 text-blue-500" />
                                 <Badge variant="default" className="bg-blue-100 text-blue-800">
-                                  {appraisal.overall_score || appraisal.calculated_score}/100
+                                  {appraisal.overall_score}/100
                                 </Badge>
                               </div>
                             ) : (
