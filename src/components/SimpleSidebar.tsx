@@ -13,6 +13,7 @@ import {
   Settings2,
   User,
   BookOpen,
+  CheckSquare,
 } from "lucide-react"
 
 import { useAuthContext } from "@/components/AuthProvider"
@@ -95,6 +96,11 @@ export function SimpleSidebar() {
         title: "Committee",
         url: "/committee",
         icon: Scale,
+      },
+      {
+        title: "HR Appraisals",
+        url: "/hr-appraisals",
+        icon: CheckSquare,
       },
       {
         title: "Company Reports",
