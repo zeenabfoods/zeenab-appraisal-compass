@@ -70,12 +70,13 @@ export function PendingAppraisalsTable() {
     }
   });
 
-  // Group pending manager reviews by manager
+  // Group pending manager reviews by manager (including those without assigned managers)
   const managerGroups = pendingManagers?.reduce((acc, appraisal: any) => {
-    const managerId = appraisal.employee?.line_manager_id;
-    if (!managerId) return acc;
+    const managerId = appraisal.employee?.line_manager_id || 'unassigned';
     
-    const managerName = `${appraisal.manager?.first_name || ''} ${appraisal.manager?.last_name || ''}`.trim() || 'Unknown Manager';
+    const managerName = managerId === 'unassigned' 
+      ? 'No Manager Assigned' 
+      : `${appraisal.manager?.first_name || ''} ${appraisal.manager?.last_name || ''}`.trim() || 'Unknown Manager';
     
     if (!acc[managerId]) {
       acc[managerId] = {
