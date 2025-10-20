@@ -13,6 +13,7 @@ import { Users, CheckCircle, Clock, TrendingUp, Eye, AlertTriangle, Lock, Unlock
 import { useToast } from '@/hooks/use-toast';
 import { CommitteeReviewDetail } from '@/components/CommitteeReviewDetail';
 import { useAuthContext } from '@/components/AuthProvider';
+import { PendingAppraisalsTable } from '@/components/PendingAppraisalsTable';
 
 export default function HRAppraisals() {
   const [selectedAppraisalId, setSelectedAppraisalId] = useState<string>('');
@@ -309,6 +310,9 @@ export default function HRAppraisals() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Pending Appraisals Summary Table */}
+        <PendingAppraisalsTable />
 
         <div className="flex justify-between items-center">
           <div>
