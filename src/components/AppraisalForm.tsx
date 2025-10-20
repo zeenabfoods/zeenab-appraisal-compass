@@ -102,6 +102,25 @@ export function AppraisalForm({ appraisalId: propsAppraisalId }: AppraisalFormPr
 
   console.log('🔍 AppraisalForm: Rendered with appraisalId:', appraisalId);
 
+  // Fetch global submission lock status
+  const { data: submissionSettings } = useQuery({
+    queryKey: ['appraisal-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('appraisal_settings')
+        .select('submission_locked')
+        .limit(1)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching submission settings:', error);
+        return { submission_locked: false }; // Default to unlocked on error
+      }
+      
+      return data;
+    }
+  });
+
   // Fetch appraisal data
   const { data: appraisalQuery, isLoading } = useQuery({
     queryKey: ['appraisal', appraisalId],
@@ -533,6 +552,16 @@ useEffect(() => {
 
   const handleSubmit = async () => {
     if (isReadOnly) return;
+    
+    // Check if submissions are locked globally
+    if (submissionSettings?.submission_locked) {
+      toast({
+        title: "Submission Not Allowed",
+        description: "Appraisal submission is not allowed. Deadline has been met, please contact HR.",
+        variant: "destructive"
+      });
+      return; // Exit early without submitting
+    }
     
     setIsSubmitting(true);
     try {

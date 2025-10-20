@@ -7,16 +7,71 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Users, CheckCircle, Clock, TrendingUp, Eye, AlertTriangle } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Users, CheckCircle, Clock, TrendingUp, Eye, AlertTriangle, Lock, Unlock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { CommitteeReviewDetail } from '@/components/CommitteeReviewDetail';
+import { useAuthContext } from '@/components/AuthProvider';
 
 export default function HRAppraisals() {
   const [selectedAppraisalId, setSelectedAppraisalId] = useState<string>('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { profile } = useAuthContext();
 
   console.log('🏛️ HR Appraisals page: Rendering');
+
+  // Fetch global submission lock settings
+  const { data: settings, isLoading: settingsLoading } = useQuery({
+    queryKey: ['appraisal-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('appraisal_settings')
+        .select('*')
+        .limit(1)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching appraisal settings:', error);
+        throw error;
+      }
+      
+      return data;
+    }
+  });
+
+  // Toggle submission lock mutation
+  const toggleSubmissionLockMutation = useMutation({
+    mutationFn: async (locked: boolean) => {
+      const { error } = await supabase
+        .from('appraisal_settings')
+        .update({
+          submission_locked: locked,
+          locked_by: locked ? profile?.id : null,
+          locked_at: locked ? new Date().toISOString() : null
+        })
+        .eq('id', settings?.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appraisal-settings'] });
+      toast({
+        title: "Success",
+        description: settings?.submission_locked 
+          ? "Appraisal submissions have been unlocked" 
+          : "Appraisal submissions have been locked"
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update submission lock",
+        variant: "destructive"
+      });
+    }
+  });
 
   // Fetch appraisals awaiting HR final approval
   const { data: hrAppraisals, isLoading, error } = useQuery({
@@ -208,6 +263,53 @@ export default function HRAppraisals() {
   return (
     <DashboardLayout pageTitle="HR Appraisals" showSearch={false}>
       <div className="space-y-6">
+        {/* Global Submission Lock Control */}
+        <Card className="border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                {settings?.submission_locked ? (
+                  <Lock className="h-8 w-8 text-red-600" />
+                ) : (
+                  <Unlock className="h-8 w-8 text-green-600" />
+                )}
+                <div>
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    Appraisal Submission Control
+                    {settings?.submission_locked && (
+                      <Badge variant="destructive" className="ml-2">LOCKED</Badge>
+                    )}
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {settings?.submission_locked 
+                      ? "All appraisal submissions are currently blocked. Staff and managers cannot submit appraisals."
+                      : "Appraisal submissions are currently allowed for all staff and managers."
+                    }
+                  </p>
+                  {settings?.submission_locked && settings?.locked_at && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Locked on {new Date(settings.locked_at).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-3">
+                <Label htmlFor="submission-lock" className="text-sm font-medium">
+                  {settings?.submission_locked ? 'Unlock Submissions' : 'Lock Submissions'}
+                </Label>
+                <Switch
+                  id="submission-lock"
+                  checked={settings?.submission_locked || false}
+                  onCheckedChange={(checked) => toggleSubmissionLockMutation.mutate(checked)}
+                  disabled={settingsLoading || toggleSubmissionLockMutation.isPending}
+                  className="data-[state=checked]:bg-red-600"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="flex justify-between items-center">
           <div>
             <p className="text-gray-600">Review and finalize appraisals that have completed committee review</p>
