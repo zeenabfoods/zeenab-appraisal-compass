@@ -35,38 +35,60 @@ export function PendingAppraisalsTable() {
   const { data: pendingManagers, isLoading: loadingManagers } = useQuery({
     queryKey: ['pending-manager-reviews'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // First, get all submitted appraisals (employee submitted, awaiting manager review)
+      const { data: appraisals, error: appraisalError } = await supabase
         .from('appraisals')
-        .select(`
-          id,
-          status,
-          employee:profiles!appraisals_employee_id_fkey(
-            id,
-            first_name,
-            last_name,
-            line_manager_id,
-            department:departments(name)
-          ),
-          cycle:appraisal_cycles(name, year, quarter)
-        `)
+        .select('id, status, employee_id, cycle_id')
         .eq('status', 'submitted')
         .order('employee_submitted_at', { ascending: true });
 
-      if (error) throw error;
-      
-      // Now fetch manager details for each unique line_manager_id
-      const managerIds = [...new Set(data?.map(a => a.employee?.line_manager_id).filter(Boolean))] as string[];
+      if (appraisalError) throw appraisalError;
+      if (!appraisals || appraisals.length === 0) return [];
+
+      // Get employee details for these appraisals
+      const employeeIds = appraisals.map(a => a.employee_id);
+      const { data: employees } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, line_manager_id, department_id')
+        .in('id', employeeIds);
+
+      // Get unique manager IDs
+      const managerIds = [...new Set(employees?.map(e => e.line_manager_id).filter(Boolean))] as string[];
       const { data: managers } = await supabase
         .from('profiles')
         .select('id, first_name, last_name')
         .in('id', managerIds);
-      
+
+      // Get department details
+      const departmentIds = [...new Set(employees?.map(e => e.department_id).filter(Boolean))] as string[];
+      const { data: departments } = await supabase
+        .from('departments')
+        .select('id, name')
+        .in('id', departmentIds);
+
+      // Create maps for easy lookup
+      const employeeMap = new Map(employees?.map(e => [e.id, e]));
       const managerMap = new Map(managers?.map(m => [m.id, m]));
-      
-      return data?.map(appraisal => ({
-        ...appraisal,
-        manager: appraisal.employee?.line_manager_id ? managerMap.get(appraisal.employee.line_manager_id) : null
-      })) || [];
+      const departmentMap = new Map(departments?.map(d => [d.id, d]));
+
+      // Combine all the data
+      return appraisals.map(appraisal => {
+        const employee = employeeMap.get(appraisal.employee_id);
+        const manager = employee?.line_manager_id ? managerMap.get(employee.line_manager_id) : null;
+        const department = employee?.department_id ? departmentMap.get(employee.department_id) : null;
+
+        return {
+          ...appraisal,
+          employee: {
+            id: employee?.id,
+            first_name: employee?.first_name,
+            last_name: employee?.last_name,
+            line_manager_id: employee?.line_manager_id,
+            department: { name: department?.name || 'Not assigned' }
+          },
+          manager
+        };
+      });
     }
   });
 
