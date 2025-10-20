@@ -14,6 +14,7 @@ import {
   Menu,
   X,
   BookOpen,
+  CheckSquare,
 } from "lucide-react"
 
 import { useAuthContext } from "@/components/AuthProvider"
@@ -104,6 +105,11 @@ export function ResponsiveSidebar() {
         title: "Committee",
         url: "/committee",
         icon: Scale,
+      },
+      {
+        title: "HR Appraisals",
+        url: "/hr-appraisals",
+        icon: CheckSquare,
       },
       {
         title: "Company Reports",
