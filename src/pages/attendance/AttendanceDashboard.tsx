@@ -16,7 +16,8 @@ import { HRSecurityDashboard } from '@/components/attendance/HRSecurityDashboard
 import { SecurityMonitor } from '@/components/attendance/SecurityMonitor';
 import { AttendanceRulesConfig } from '@/components/attendance/AttendanceRulesConfig';
 import { ChargesManagement } from '@/components/attendance/ChargesManagement';
-import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign } from 'lucide-react';
+import { ManualOverrides } from '@/components/attendance/ManualOverrides';
+import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import {
   Sidebar,
@@ -47,6 +48,7 @@ export default function AttendanceDashboard() {
     { id: 'branches', label: 'Branches', icon: Building2 },
     { id: 'rules', label: 'Rules & Policies', icon: Settings },
     { id: 'charges', label: 'Charges', icon: DollarSign },
+    { id: 'overrides', label: 'Manual Overrides', icon: Edit3 },
     { id: 'break-config', label: 'Break Config', icon: Settings },
     { id: 'break-compliance', label: 'Compliance', icon: AlertCircle },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
@@ -188,6 +190,8 @@ export default function AttendanceDashboard() {
         return <AttendanceRulesConfig />;
       case 'charges':
         return <ChargesManagement />;
+      case 'overrides':
+        return <ManualOverrides />;
       default:
         return renderOverviewContent();
     }
