@@ -4,7 +4,8 @@ import { RecentActivity } from '@/components/attendance/RecentActivity';
 import { BranchManagement } from '@/components/attendance/BranchManagement';
 import { AttendanceHistory } from '@/components/attendance/AttendanceHistory';
 import { HRAttendanceView } from '@/components/attendance/HRAttendanceView';
-import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users } from 'lucide-react';
+import { BreakManagement } from '@/components/attendance/BreakManagement';
+import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuthContext } from '@/components/AuthProvider';
@@ -39,10 +40,14 @@ export default function AttendanceDashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {isHRorAdmin ? (
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full max-w-3xl grid-cols-5">
+            <TabsList className="grid w-full max-w-4xl grid-cols-6">
               <TabsTrigger value="overview">
                 <Clock className="w-4 h-4 mr-2" />
                 Overview
+              </TabsTrigger>
+              <TabsTrigger value="breaks">
+                <Coffee className="w-4 h-4 mr-2" />
+                Breaks
               </TabsTrigger>
               <TabsTrigger value="hr-admin">
                 <Users className="w-4 h-4 mr-2" />
@@ -149,6 +154,10 @@ export default function AttendanceDashboard() {
               </div>
             </TabsContent>
 
+            <TabsContent value="breaks">
+              <BreakManagement />
+            </TabsContent>
+
             <TabsContent value="hr-admin">
               <HRAttendanceView />
             </TabsContent>
@@ -167,10 +176,14 @@ export default function AttendanceDashboard() {
           </Tabs>
         ) : (
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full max-w-lg grid-cols-3">
+            <TabsList className="grid w-full max-w-2xl grid-cols-4">
               <TabsTrigger value="overview">
                 <Clock className="w-4 h-4 mr-2" />
                 Overview
+              </TabsTrigger>
+              <TabsTrigger value="breaks">
+                <Coffee className="w-4 h-4 mr-2" />
+                Breaks
               </TabsTrigger>
               <TabsTrigger value="history">
                 <Clock className="w-4 h-4 mr-2" />
@@ -267,6 +280,10 @@ export default function AttendanceDashboard() {
               </Card>
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="breaks">
+          <BreakManagement />
         </TabsContent>
 
         <TabsContent value="history">
