@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { ClockInOutCard } from '@/components/attendance/ClockInOutCard';
 import { AttendanceStats } from '@/components/attendance/AttendanceStats';
 import { RecentActivity } from '@/components/attendance/RecentActivity';
@@ -21,6 +21,7 @@ import { EscalationRulesConfig } from '@/components/attendance/EscalationRulesCo
 import { AutomaticChargeCalculation } from '@/components/attendance/AutomaticChargeCalculation';
 import { OvertimePayrollReport } from '@/components/attendance/OvertimePayrollReport';
 import { AttendanceBottomNav } from '@/components/attendance/AttendanceBottomNav';
+import { PullToRefreshIndicator } from '@/components/attendance/PullToRefreshIndicator';
 import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import {
@@ -37,11 +38,29 @@ import {
 } from '@/components/ui/sidebar';
 import { useAuthContext } from '@/components/AuthProvider';
 import { cn } from '@/lib/utils';
+import { usePullToRefresh } from '@/hooks/attendance/usePullToRefresh';
+import { toast } from 'sonner';
 
 export default function AttendanceDashboard() {
   const { profile } = useAuthContext();
   const isHRorAdmin = profile?.role === 'hr' || profile?.role === 'admin';
   const [activeView, setActiveView] = useState('overview');
+
+  const handleRefresh = useCallback(async () => {
+    toast.success('Refreshing attendance data...');
+    
+    // Dispatch a custom event that child components can listen to
+    window.dispatchEvent(new CustomEvent('attendance-refresh'));
+    
+    // Wait a bit to simulate refresh
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    toast.success('Attendance data refreshed!');
+  }, []);
+
+  const { isPulling, pullDistance, isRefreshing, threshold } = usePullToRefresh({
+    onRefresh: handleRefresh,
+  });
 
   const hrMenuItems = [
     { id: 'overview', label: 'Overview', icon: Clock },
@@ -214,6 +233,14 @@ export default function AttendanceDashboard() {
   return (
     <SidebarProvider>
       <div className="min-h-screen w-full flex bg-gradient-to-br from-orange-50/30 via-white to-amber-50/30 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
+        {/* Pull to refresh indicator */}
+        <PullToRefreshIndicator
+          isPulling={isPulling}
+          pullDistance={pullDistance}
+          isRefreshing={isRefreshing}
+          threshold={threshold}
+        />
+        
         {/* Background geofence monitoring */}
         <GeofenceMonitor />
         
@@ -272,7 +299,7 @@ export default function AttendanceDashboard() {
             </div>
           </header>
 
-          <main className="flex-1 overflow-auto p-6">
+          <main className="flex-1 overflow-auto p-6" data-pull-to-refresh>
             {renderContent()}
           </main>
 
