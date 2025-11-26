@@ -9,6 +9,27 @@
   :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
+    
+    /* Attendance Module - Orange Theme */
+    --attendance-primary: 16 100% 60%; /* Orange #FF6B35 */
+    --attendance-primary-hover: 16 100% 55%;
+    --attendance-success: 142 76% 36%; /* Green for clock-in */
+    --attendance-warning: 38 92% 50%; /* Amber for breaks */
+    --attendance-danger: 0 84% 60%; /* Red for clock-out */
+    --attendance-info: 217 91% 60%; /* Blue for field work */
+    --attendance-neutral: 240 5% 96%; /* Light gray */
+    --attendance-card-bg: 0 0% 100%;
+    --attendance-card-border: 240 5.9% 90%;
+    
+    /* Gradients */
+    --attendance-gradient-warm: linear-gradient(135deg, hsl(16 100% 60%), hsl(25 100% 55%));
+    --attendance-gradient-cool: linear-gradient(135deg, hsl(217 91% 60%), hsl(200 100% 50%));
+    
+    /* Shadows */
+    --attendance-shadow-sm: 0 2px 8px hsla(16 100% 60% / 0.1);
+    --attendance-shadow-md: 0 4px 16px hsla(16 100% 60% / 0.15);
+    --attendance-shadow-lg: 0 8px 32px hsla(16 100% 60% / 0.2);
+    --attendance-glow: 0 0 24px hsla(16 100% 60% / 0.3);
 
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
@@ -50,6 +71,22 @@
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
+    
+    /* Attendance Module - Dark Mode with Orange Accent */
+    --attendance-primary: 16 100% 65%;
+    --attendance-primary-hover: 16 100% 70%;
+    --attendance-success: 142 76% 45%;
+    --attendance-warning: 38 92% 60%;
+    --attendance-danger: 0 84% 65%;
+    --attendance-info: 217 91% 65%;
+    --attendance-neutral: 240 5% 15%;
+    --attendance-card-bg: 240 10% 8%;
+    --attendance-card-border: 240 5% 20%;
+    
+    --attendance-shadow-sm: 0 2px 8px hsla(16 100% 40% / 0.2);
+    --attendance-shadow-md: 0 4px 16px hsla(16 100% 40% / 0.3);
+    --attendance-shadow-lg: 0 8px 32px hsla(16 100% 40% / 0.4);
+    --attendance-glow: 0 0 24px hsla(16 100% 50% / 0.5);
 
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;

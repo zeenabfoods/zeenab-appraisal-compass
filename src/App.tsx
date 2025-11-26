@@ -26,6 +26,7 @@ import AppraisalPage from "./pages/AppraisalPage";
 import NewAppraisalPage from "./pages/NewAppraisalPage";
 import NotFound from "./pages/NotFound";
 import HRAppraisals from "./pages/HRAppraisals";
+import AttendanceDashboard from "./pages/attendance/AttendanceDashboard";
 
 // Create QueryClient with proper configuration
 const queryClient = new QueryClient({
@@ -101,6 +102,7 @@ function App() {
                   <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                   <Route path="/training" element={<ProtectedRoute><Training /></ProtectedRoute>} />
                   <Route path="/training-management" element={<ProtectedRoute><Training /></ProtectedRoute>} />
+                  <Route path="/attendance" element={<ProtectedRoute><AttendanceDashboard /></ProtectedRoute>} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </div>

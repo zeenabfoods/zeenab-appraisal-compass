@@ -61,6 +61,18 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// Attendance Module Colors
+				attendance: {
+					primary: 'hsl(var(--attendance-primary))',
+					'primary-hover': 'hsl(var(--attendance-primary-hover))',
+					success: 'hsl(var(--attendance-success))',
+					warning: 'hsl(var(--attendance-warning))',
+					danger: 'hsl(var(--attendance-danger))',
+					info: 'hsl(var(--attendance-info))',
+					neutral: 'hsl(var(--attendance-neutral))',
+					'card-bg': 'hsl(var(--attendance-card-bg))',
+					'card-border': 'hsl(var(--attendance-card-border))'
 				}
 			},
 			borderRadius: {
