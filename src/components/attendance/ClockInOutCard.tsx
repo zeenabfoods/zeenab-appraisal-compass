@@ -28,7 +28,7 @@ export function ClockInOutCard() {
     isWithinGeofence, 
     loading: geoLoading, 
     error: geoError,
-    accuracy 
+    distanceFromOffice 
   } = useGeolocation(
     mode === 'office' && activeBranch ? {
       latitude: activeBranch.latitude,
@@ -73,7 +73,7 @@ export function ClockInOutCard() {
           longitude,
           branchId: activeBranch.id,
           withinGeofence: isWithinGeofence,
-          geofenceDistance: accuracy,
+          geofenceDistance: distanceFromOffice,
         });
       }
     }
@@ -200,9 +200,9 @@ export function ClockInOutCard() {
                   {geoError}
                 </p>
               )}
-              {!geoLoading && accuracy && (
+              {!geoLoading && distanceFromOffice !== null && (
                 <p className="text-xs text-muted-foreground mt-2">
-                  Distance: ~{Math.round(accuracy)}m from {activeBranch.name}
+                  Distance: ~{Math.round(distanceFromOffice)}m from {activeBranch.name}
                 </p>
               )}
             </div>
