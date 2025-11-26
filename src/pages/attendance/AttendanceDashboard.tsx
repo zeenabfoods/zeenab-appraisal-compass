@@ -22,6 +22,7 @@ import { AutomaticChargeCalculation } from '@/components/attendance/AutomaticCha
 import { OvertimePayrollReport } from '@/components/attendance/OvertimePayrollReport';
 import { AttendanceBottomNav } from '@/components/attendance/AttendanceBottomNav';
 import { PullToRefreshIndicator } from '@/components/attendance/PullToRefreshIndicator';
+import { OfflineQueueIndicator } from '@/components/attendance/OfflineQueueIndicator';
 import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import {
@@ -243,6 +244,9 @@ export default function AttendanceDashboard() {
         
         {/* Background geofence monitoring */}
         <GeofenceMonitor />
+        
+        {/* Offline queue indicator */}
+        <OfflineQueueIndicator />
         
         {/* Sidebar */}
         <Sidebar className="border-r border-orange-100 dark:border-gray-800">
