@@ -1,9 +1,7 @@
 import { Home, Clock, BarChart3, User, Fingerprint } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import { useAttendanceLogs } from '@/hooks/attendance/useAttendanceLogs';
-import { toast } from 'sonner';
 import { slideUpVariants } from '@/utils/animations';
 
 interface AttendanceBottomNavProps {
@@ -15,9 +13,13 @@ export function AttendanceBottomNav({ activeView, onViewChange }: AttendanceBott
   const { isClocked } = useAttendanceLogs();
 
   const handleClockToggle = () => {
-    // This will trigger the parent to show the main clock in/out view
+    // Ensure we are on the main overview card
     onViewChange('overview');
-    toast.info('Use the main card above to clock in/out');
+    window.dispatchEvent(
+      new CustomEvent('attendance-toggle-clock', {
+        detail: { source: 'bottom-nav' },
+      })
+    );
   };
 
   const navItems = [
@@ -98,8 +100,8 @@ export function AttendanceBottomNav({ activeView, onViewChange }: AttendanceBott
                 ? "bg-attendance-danger hover:bg-attendance-danger/90"
                 : "bg-attendance-primary hover:bg-attendance-primary-hover"
             )}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 1.2, rotate: [0, -5, 5, -5, 0] }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 1.1 }}
             animate={{
               boxShadow: [
                 "0 10px 30px -10px rgba(255, 107, 53, 0.3)",
@@ -112,9 +114,6 @@ export function AttendanceBottomNav({ activeView, onViewChange }: AttendanceBott
                 duration: 2,
                 repeat: Infinity,
                 ease: "easeInOut"
-              },
-              rotate: {
-                duration: 0.4
               }
             }}
           >

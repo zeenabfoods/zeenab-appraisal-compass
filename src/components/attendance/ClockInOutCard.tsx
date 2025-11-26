@@ -136,14 +136,18 @@ export function ClockInOutCard() {
 
   const handleClockToggle = async () => {
     if (isClocked && todayLog) {
-      await clockOut(latitude, longitude, mode === 'office' ? isWithinGeofence : undefined);
+      await clockOut(
+        latitude,
+        longitude,
+        mode === 'office' ? isWithinGeofence : undefined
+      );
     } else {
       const securityCheck = await performSecurityChecks();
       
       if (!securityCheck.passed) {
         return;
       }
-
+ 
       if (mode === 'field') {
         setShowFieldDialog(true);
       } else if (mode === 'office') {
@@ -162,6 +166,19 @@ export function ClockInOutCard() {
       }
     }
   };
+
+  // Allow external triggers (e.g., bottom nav fingerprint button) to toggle clock
+  useEffect(() => {
+    const handleExternalToggle = () => {
+      // Reuse the same clock in/out logic
+      void handleClockToggle();
+    };
+
+    window.addEventListener('attendance-toggle-clock', handleExternalToggle);
+    return () => {
+      window.removeEventListener('attendance-toggle-clock', handleExternalToggle);
+    };
+  }, [handleClockToggle]);
 
   const handleFieldClockIn = async () => {
     if (!fieldReason.trim() || !fieldLocation.trim()) {
