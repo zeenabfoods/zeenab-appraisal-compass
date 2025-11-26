@@ -1,1 +1,4 @@
 project_id = "vedgkzikqccykuozkmxl"
+
+[functions.calculate-daily-charges]
+verify_jwt = false
