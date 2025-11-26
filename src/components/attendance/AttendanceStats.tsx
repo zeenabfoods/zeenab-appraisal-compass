@@ -42,21 +42,21 @@ export function AttendanceStats() {
   ];
 
   return (
-    <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
       {stats.map((stat, index) => (
         <Card 
           key={index}
-          className={`p-6 ${stat.bgColor} ${stat.borderColor} transition-all duration-300 hover:scale-105 hover:shadow-lg`}
+          className={`p-7 ${stat.bgColor} ${stat.borderColor} transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl border-2`}
         >
-          <div className="flex items-start justify-between mb-3">
-            <div className={`p-2 ${stat.bgColor} rounded-lg border ${stat.borderColor}`}>
-              <stat.icon className={`w-5 h-5 ${stat.color}`} />
+          <div className="flex items-start justify-between mb-4">
+            <div className={`p-3 rounded-xl border-2 ${stat.borderColor} shadow-lg`}>
+              <stat.icon className={`w-6 h-6 ${stat.color}`} />
             </div>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground mb-1">{stat.label}</p>
-            <p className={`text-2xl font-bold ${stat.color} mb-1`}>{stat.value}</p>
-            <p className="text-xs text-muted-foreground">{stat.subtext}</p>
+            <p className="text-xs text-muted-foreground mb-2 font-semibold tracking-wide uppercase">{stat.label}</p>
+            <p className={`text-3xl font-bold ${stat.color} mb-2 tracking-tight`}>{stat.value}</p>
+            <p className="text-xs text-muted-foreground font-medium">{stat.subtext}</p>
           </div>
         </Card>
       ))}

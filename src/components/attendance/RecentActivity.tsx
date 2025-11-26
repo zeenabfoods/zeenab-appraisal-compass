@@ -47,10 +47,10 @@ export function RecentActivity() {
   ];
 
   return (
-    <Card className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold">Recent Activity</h3>
-        <button className="text-sm text-orange-600 hover:text-orange-700 font-medium transition-colors">
+    <Card className="p-8 shadow-lg">
+      <div className="flex items-center justify-between mb-8">
+        <h3 className="text-xl font-bold tracking-tight">Recent Activity</h3>
+        <button className="text-sm text-orange-600 hover:text-orange-700 font-semibold transition-colors hover:underline underline-offset-4">
           View All
         </button>
       </div>
@@ -59,20 +59,20 @@ export function RecentActivity() {
         {activities.map((activity, index) => (
           <div 
             key={index}
-            className="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 transition-all duration-300 hover:shadow-md hover:scale-[1.01]"
+            className="flex items-center gap-5 p-5 bg-gradient-to-r from-gray-50/50 to-white dark:from-gray-900 dark:to-gray-800 rounded-xl border-2 border-gray-100 dark:border-gray-700 transition-all duration-300 hover:shadow-lg hover:scale-[1.01] hover:border-gray-200"
           >
-            <div className={`p-2.5 ${activity.iconBg} rounded-lg shadow-lg`}>
-              <activity.icon className="w-5 h-5 text-white" />
+            <div className={`p-3 ${activity.iconBg} rounded-xl shadow-xl`}>
+              <activity.icon className="w-6 h-6 text-white" />
             </div>
             
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <p className="font-semibold text-sm truncate">{activity.location}</p>
-                <Badge variant="outline" className={`${activity.statusColor} text-xs px-2 py-0.5`}>
+              <div className="flex items-center gap-3 mb-2">
+                <p className="font-bold text-sm truncate">{activity.location}</p>
+                <Badge variant="outline" className={`${activity.statusColor} text-xs px-2.5 py-1 font-semibold`}>
                   {activity.status}
                 </Badge>
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground font-medium">
                 {activity.date} at {activity.time}
               </p>
             </div>

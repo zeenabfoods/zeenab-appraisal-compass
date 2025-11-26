@@ -28,10 +28,10 @@ export function ClockInOutCard({ isClocked, onToggle }: ClockInOutCardProps) {
 
   return (
     <Card className={cn(
-      "relative overflow-hidden transition-all duration-500",
+      "relative overflow-hidden transition-all duration-500 shadow-xl",
       isClocked 
-        ? "bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-green-200 dark:border-green-800" 
-        : "bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-950/30 dark:to-red-950/30 border-orange-200 dark:border-orange-800"
+        ? "bg-gradient-to-br from-green-50/80 to-emerald-50/80 dark:from-green-950/30 dark:to-emerald-950/30 border-green-200/60 dark:border-green-800/60 shadow-green-200/50" 
+        : "bg-gradient-to-br from-orange-50/80 to-amber-50/80 dark:from-orange-950/30 dark:to-amber-950/30 border-orange-200/60 dark:border-orange-800/60 shadow-orange-200/50"
     )}>
       {/* Decorative Background Pattern */}
       <div className="absolute inset-0 opacity-5">
@@ -39,19 +39,19 @@ export function ClockInOutCard({ isClocked, onToggle }: ClockInOutCardProps) {
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-orange-500 to-red-500 rounded-full blur-3xl" />
       </div>
 
-      <div className="relative p-8">
+      <div className="relative p-10">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between mb-10">
+          <div className="flex items-center gap-4">
             <div className={cn(
-              "p-3 rounded-xl transition-all duration-300",
-              isClocked ? "bg-green-500 shadow-lg shadow-green-500/50" : "bg-orange-500 shadow-lg shadow-orange-500/50"
+              "p-4 rounded-2xl transition-all duration-300",
+              isClocked ? "bg-gradient-to-br from-green-500 to-emerald-600 shadow-xl shadow-green-500/40" : "bg-gradient-to-br from-orange-500 to-orange-600 shadow-xl shadow-orange-500/40"
             )}>
-              <Clock className="w-6 h-6 text-white" />
+              <Clock className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-bold">{isClocked ? 'Clocked In' : 'Ready to Clock In'}</h2>
-              <p className="text-sm text-muted-foreground">Current time: {currentTime}</p>
+              <h2 className="text-2xl font-bold tracking-tight">{isClocked ? 'Clocked In' : 'Ready to Clock In'}</h2>
+              <p className="text-sm text-muted-foreground font-medium mt-1">Current time: {currentTime}</p>
             </div>
           </div>
           
@@ -69,45 +69,49 @@ export function ClockInOutCard({ isClocked, onToggle }: ClockInOutCardProps) {
         </div>
 
         {/* Mode Selector */}
-        <div className="flex gap-3 mb-6">
+        <div className="flex gap-4 mb-8">
           <Button
             variant={mode === 'office' ? 'default' : 'outline'}
+            size="lg"
             className={cn(
-              "flex-1 transition-all duration-300",
+              "flex-1 transition-all duration-300 h-14 text-base font-semibold",
               mode === 'office' 
-                ? "bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/30" 
-                : "border-orange-200 hover:border-orange-300"
+                ? "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-xl shadow-orange-500/40" 
+                : "border-2 border-orange-200 hover:border-orange-300 hover:bg-orange-50/50"
             )}
             onClick={() => setMode('office')}
           >
-            <MapPin className="w-4 h-4 mr-2" />
+            <MapPin className="w-5 h-5 mr-2" />
             In Office
           </Button>
           <Button
             variant={mode === 'field' ? 'default' : 'outline'}
+            size="lg"
             className={cn(
-              "flex-1 transition-all duration-300",
+              "flex-1 transition-all duration-300 h-14 text-base font-semibold",
               mode === 'field' 
-                ? "bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/30" 
-                : "border-blue-200 hover:border-blue-300"
+                ? "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-xl shadow-blue-500/40" 
+                : "border-2 border-blue-200 hover:border-blue-300 hover:bg-blue-50/50"
             )}
             onClick={() => setMode('field')}
           >
-            <MapPin className="w-4 h-4 mr-2" />
+            <MapPin className="w-5 h-5 mr-2" />
             On Field
           </Button>
         </div>
 
         {/* Location Status */}
         {mode === 'office' && (
-          <div className="mb-6 p-4 bg-white/50 dark:bg-gray-900/50 rounded-lg backdrop-blur-sm border border-orange-200 dark:border-orange-800">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
+          <div className="mb-8 p-6 bg-white/60 dark:bg-gray-900/60 rounded-xl backdrop-blur-sm border-2 border-orange-200 dark:border-orange-800 shadow-lg">
+            <div className="flex items-start gap-4">
+              <div className="p-2.5 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg">
+                <AlertCircle className="w-5 h-5 text-white flex-shrink-0" />
+              </div>
               <div className="flex-1">
-                <h4 className="text-sm font-semibold mb-1">Geofence Status</h4>
-                <p className="text-xs text-muted-foreground">
-                  You are <span className="font-semibold text-orange-600">2.3 km</span> from Head Office.
-                  Move within <span className="font-semibold">100m</span> to clock in.
+                <h4 className="text-sm font-bold mb-2">Geofence Status</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed font-medium">
+                  You are <span className="font-bold text-orange-600">2.3 km</span> from Head Office.
+                  Move within <span className="font-bold">100m</span> to clock in.
                 </p>
               </div>
             </div>
@@ -119,20 +123,20 @@ export function ClockInOutCard({ isClocked, onToggle }: ClockInOutCardProps) {
           size="lg"
           onClick={handleClockToggle}
           className={cn(
-            "w-full h-20 text-xl font-bold transition-all duration-500 transform hover:scale-[1.02] active:scale-[0.98]",
+            "w-full h-24 text-2xl font-bold transition-all duration-500 transform hover:scale-[1.02] active:scale-[0.98] shadow-2xl tracking-wide",
             isClocked
-              ? "bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 shadow-xl shadow-red-500/30"
-              : "bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 shadow-xl shadow-orange-500/30"
+              ? "bg-gradient-to-r from-red-500 via-red-600 to-rose-600 hover:from-red-600 hover:via-red-700 hover:to-rose-700 shadow-red-500/40"
+              : "bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:via-orange-700 hover:to-amber-700 shadow-orange-500/40"
           )}
         >
           {isClocked ? (
             <>
-              <Clock className="w-6 h-6 mr-3" />
+              <Clock className="w-7 h-7 mr-4" />
               Clock Out Now
             </>
           ) : (
             <>
-              <CheckCircle2 className="w-6 h-6 mr-3" />
+              <CheckCircle2 className="w-7 h-7 mr-4" />
               Clock In Now
             </>
           )}
@@ -140,14 +144,14 @@ export function ClockInOutCard({ isClocked, onToggle }: ClockInOutCardProps) {
 
         {/* Status Info */}
         {isClocked && (
-          <div className="mt-6 p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Clocked in at:</span>
-              <span className="font-semibold text-green-700 dark:text-green-400">08:45 AM</span>
+          <div className="mt-8 p-6 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-xl border-2 border-green-200 dark:border-green-800 shadow-lg">
+            <div className="flex items-center justify-between text-sm mb-3 pb-3 border-b border-green-200 dark:border-green-800">
+              <span className="text-muted-foreground font-semibold">Clocked in at</span>
+              <span className="font-bold text-green-700 dark:text-green-400 text-base">08:45 AM</span>
             </div>
-            <div className="flex items-center justify-between text-sm mt-2">
-              <span className="text-muted-foreground">Time elapsed:</span>
-              <span className="font-semibold text-green-700 dark:text-green-400">2h 15m</span>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground font-semibold">Time elapsed</span>
+              <span className="font-bold text-green-700 dark:text-green-400 text-base">2h 15m</span>
             </div>
           </div>
         )}
