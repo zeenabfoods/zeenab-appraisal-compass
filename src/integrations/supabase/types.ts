@@ -1235,10 +1235,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      calculate_performance_band: {
-        Args: { score: number }
-        Returns: string
-      }
+      calculate_performance_band: { Args: { score: number }; Returns: string }
       complete_appraisal_cycle: {
         Args: { cycle_id_param: string }
         Returns: undefined
