@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { Calendar, MapPin, Clock, Filter, User, Building, Download, Search } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +24,20 @@ export function HRAttendanceView() {
   const [geofenceFilter, setGeofenceFilter] = useState<string>('all');
   const [branchFilter, setBranchFilter] = useState<string>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
+  const [monthFilter, setMonthFilter] = useState<string>('all');
+
+  // Generate month options (current month + last 11 months)
+  const monthOptions = useMemo(() => {
+    const months = [];
+    for (let i = 0; i < 12; i++) {
+      const date = subMonths(new Date(), i);
+      months.push({
+        value: format(date, 'yyyy-MM'),
+        label: format(date, 'MMMM yyyy'),
+      });
+    }
+    return months;
+  }, []);
 
   // Extract unique values for filters
   const { uniqueBranches, uniqueDepartments } = useMemo(() => {
@@ -55,6 +69,18 @@ export function HRAttendanceView() {
         }
       }
 
+      // Month filter
+      if (monthFilter !== 'all') {
+        const logDate = new Date(log.clock_in_time);
+        const selectedMonth = new Date(monthFilter + '-01');
+        const monthStart = startOfMonth(selectedMonth);
+        const monthEnd = endOfMonth(selectedMonth);
+        
+        if (logDate < monthStart || logDate > monthEnd) {
+          return false;
+        }
+      }
+
       // Other filters
       if (locationFilter !== 'all' && log.location_type !== locationFilter) return false;
       if (geofenceFilter === 'inside' && !log.within_geofence_at_clock_in) return false;
@@ -64,7 +90,7 @@ export function HRAttendanceView() {
 
       return true;
     });
-  }, [allLogs, searchQuery, locationFilter, geofenceFilter, branchFilter, departmentFilter]);
+  }, [allLogs, searchQuery, locationFilter, geofenceFilter, branchFilter, departmentFilter, monthFilter]);
 
   // Calculate statistics
   const stats = useMemo(() => {
@@ -107,7 +133,10 @@ export function HRAttendanceView() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `attendance-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    const fileName = monthFilter !== 'all' 
+      ? `attendance-report-${monthFilter}.csv`
+      : `attendance-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.download = fileName;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -191,6 +220,20 @@ export function HRAttendanceView() {
             </div>
 
             <div className="flex flex-wrap gap-3">
+              <Select value={monthFilter} onValueChange={setMonthFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Month" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Months</SelectItem>
+                  {monthOptions.map((month) => (
+                    <SelectItem key={month.value} value={month.value}>
+                      {month.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
               <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Department" />
@@ -241,12 +284,13 @@ export function HRAttendanceView() {
                 </SelectContent>
               </Select>
 
-              {(searchQuery || locationFilter !== 'all' || geofenceFilter !== 'all' || branchFilter !== 'all' || departmentFilter !== 'all') && (
+              {(searchQuery || monthFilter !== 'all' || locationFilter !== 'all' || geofenceFilter !== 'all' || branchFilter !== 'all' || departmentFilter !== 'all') && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => {
                     setSearchQuery('');
+                    setMonthFilter('all');
                     setLocationFilter('all');
                     setGeofenceFilter('all');
                     setBranchFilter('all');
