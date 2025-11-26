@@ -85,7 +85,7 @@ export function useAttendanceLogs() {
         field_work_reason: params.fieldWorkReason,
         field_work_location: params.fieldWorkLocation,
         within_geofence_at_clock_in: params.withinGeofence,
-        geofence_distance_at_clock_in: params.geofenceDistance,
+        geofence_distance_at_clock_in: params.geofenceDistance ? Math.round(params.geofenceDistance) : null,
         device_timestamp: new Date().toISOString(),
       };
 
