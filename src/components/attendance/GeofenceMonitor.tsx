@@ -1,0 +1,282 @@
+import { useEffect, useState, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuthContext } from '@/components/AuthProvider';
+import { toast } from 'sonner';
+import { MapPin, AlertTriangle, CheckCircle } from 'lucide-react';
+
+interface Branch {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  geofence_radius: number;
+}
+
+interface GeofenceStatus {
+  branchId: string;
+  branchName: string;
+  isInside: boolean;
+  distance: number;
+}
+
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const R = 6371000; // Earth radius in meters
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return Math.round(R * c);
+};
+
+export function GeofenceMonitor() {
+  const { profile } = useAuthContext();
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [isMonitoring, setIsMonitoring] = useState(false);
+  const watchIdRef = useRef<number | null>(null);
+  const previousStatusRef = useRef<Map<string, boolean>>(new Map());
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // Fetch active branches
+  useEffect(() => {
+    fetchBranches();
+  }, []);
+
+  // Create audio elements
+  useEffect(() => {
+    // Create audio context for beep sounds
+    audioRef.current = new Audio();
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  const fetchBranches = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('attendance_branches')
+        .select('*')
+        .eq('is_active', true);
+
+      if (error) throw error;
+      setBranches(data || []);
+    } catch (error) {
+      console.error('Error fetching branches:', error);
+    }
+  };
+
+  const playBeep = (frequency: number, duration: number) => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.frequency.value = frequency;
+      oscillator.type = 'sine';
+
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + duration);
+    } catch (error) {
+      console.error('Error playing beep:', error);
+    }
+  };
+
+  const showNotification = (title: string, body: string, icon?: string) => {
+    // Browser notification
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const notification = new Notification(title, {
+        body,
+        icon: icon || '/favicon.ico',
+        badge: '/favicon.ico',
+        tag: 'geofence-alert'
+      });
+
+      // Vibrate device if supported
+      if ('vibrate' in navigator) {
+        navigator.vibrate([200, 100, 200]);
+      }
+
+      // Auto-close after 5 seconds
+      setTimeout(() => notification.close(), 5000);
+    }
+  };
+
+  const logGeofenceAlert = async (
+    branchId: string,
+    alertType: 'entering' | 'exiting',
+    latitude: number,
+    longitude: number,
+    distance: number
+  ) => {
+    try {
+      await supabase
+        .from('attendance_geofence_alerts')
+        .insert({
+          employee_id: profile?.id,
+          branch_id: branchId,
+          alert_type: alertType,
+          latitude,
+          longitude,
+          distance_from_branch: distance
+        });
+    } catch (error) {
+      console.error('Error logging geofence alert:', error);
+    }
+  };
+
+  const checkGeofence = (latitude: number, longitude: number) => {
+    branches.forEach((branch) => {
+      const distance = calculateDistance(latitude, longitude, branch.latitude, branch.longitude);
+      const isInside = distance <= branch.geofence_radius;
+      const wasInside = previousStatusRef.current.get(branch.id);
+
+      // Entering geofence
+      if (isInside && wasInside === false) {
+        // Double beep for entering
+        playBeep(800, 0.2);
+        setTimeout(() => playBeep(1000, 0.2), 250);
+
+        showNotification(
+          '📍 Entered Office Zone',
+          `You are now within ${branch.name} geofence (${distance}m from center)`
+        );
+
+        toast.success(
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-5 w-5 text-green-500" />
+            <div>
+              <div className="font-semibold">Entered Office Boundary</div>
+              <div className="text-sm">{branch.name} • {distance}m away</div>
+            </div>
+          </div>,
+          { duration: 5000 }
+        );
+
+        logGeofenceAlert(branch.id, 'entering', latitude, longitude, distance);
+      }
+
+      // Exiting geofence
+      if (!isInside && wasInside === true) {
+        // Single long beep for exiting
+        playBeep(600, 0.4);
+
+        showNotification(
+          '⚠️ Left Office Zone',
+          `You have left ${branch.name} geofence boundary (${distance}m from center)`
+        );
+
+        toast.warning(
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-orange-500" />
+            <div>
+              <div className="font-semibold">Left Office Boundary</div>
+              <div className="text-sm">{branch.name} • {distance}m away</div>
+            </div>
+          </div>,
+          { duration: 5000 }
+        );
+
+        logGeofenceAlert(branch.id, 'exiting', latitude, longitude, distance);
+      }
+
+      // Update previous status
+      previousStatusRef.current.set(branch.id, isInside);
+    });
+  };
+
+  const startMonitoring = () => {
+    if (!navigator.geolocation) {
+      toast.error('Geolocation is not supported by your browser');
+      return;
+    }
+
+    // Request notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    setIsMonitoring(true);
+
+    // Get initial position
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        checkGeofence(position.coords.latitude, position.coords.longitude);
+      },
+      (error) => {
+        console.error('Error getting location:', error);
+        toast.error('Could not access your location');
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 0
+      }
+    );
+
+    // Watch position continuously
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (position) => {
+        checkGeofence(position.coords.latitude, position.coords.longitude);
+      },
+      (error) => {
+        console.error('Error watching location:', error);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 5000, // Accept cached position up to 5 seconds old
+        timeout: 10000
+      }
+    );
+
+    toast.success(
+      <div className="flex items-center gap-2">
+        <MapPin className="h-5 w-5 text-blue-500" />
+        <div>
+          <div className="font-semibold">Geofence Monitoring Active</div>
+          <div className="text-sm">You'll be alerted when crossing office boundaries</div>
+        </div>
+      </div>
+    );
+  };
+
+  const stopMonitoring = () => {
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    setIsMonitoring(false);
+    previousStatusRef.current.clear();
+
+    toast.info('Geofence monitoring stopped');
+  };
+
+  useEffect(() => {
+    // Auto-start monitoring when component mounts
+    if (branches.length > 0) {
+      startMonitoring();
+    }
+
+    return () => {
+      stopMonitoring();
+    };
+  }, [branches]);
+
+  return null; // This is a background monitor with no UI
+}

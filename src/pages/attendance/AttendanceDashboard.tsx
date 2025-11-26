@@ -8,6 +8,8 @@ import { BreakManagement } from '@/components/attendance/BreakManagement';
 import { BreakScheduleConfig } from '@/components/attendance/BreakScheduleConfig';
 import { BreakComplianceReport } from '@/components/attendance/BreakComplianceReport';
 import { AttendanceAnalytics } from '@/components/attendance/AttendanceAnalytics';
+import { GeofenceMonitor } from '@/components/attendance/GeofenceMonitor';
+import { GeofenceAlertsList } from '@/components/attendance/GeofenceAlertsList';
 import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -19,6 +21,9 @@ export default function AttendanceDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50/30 via-white to-amber-50/30 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
+      {/* Background geofence monitoring */}
+      <GeofenceMonitor />
+      
       <header className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-b border-orange-100/50 dark:border-gray-800 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
@@ -43,7 +48,7 @@ export default function AttendanceDashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {isHRorAdmin ? (
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full max-w-5xl grid-cols-9">
+            <TabsList className="grid w-full max-w-5xl grid-cols-10">
               <TabsTrigger value="overview">
                 <Clock className="w-4 h-4 mr-2" />
                 Overview
@@ -79,6 +84,10 @@ export default function AttendanceDashboard() {
               <TabsTrigger value="analytics">
                 <BarChart3 className="w-4 h-4 mr-2" />
                 Analytics
+              </TabsTrigger>
+              <TabsTrigger value="geofence">
+                <MapPin className="w-4 h-4 mr-2" />
+                Geofence
               </TabsTrigger>
             </TabsList>
 
@@ -199,6 +208,10 @@ export default function AttendanceDashboard() {
 
             <TabsContent value="analytics">
               <AttendanceAnalytics />
+            </TabsContent>
+
+            <TabsContent value="geofence">
+              <GeofenceAlertsList />
             </TabsContent>
           </Tabs>
         ) : (
