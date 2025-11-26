@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { useBreaks } from '@/hooks/attendance/useBreaks';
 import { useAttendanceLogs } from '@/hooks/attendance/useAttendanceLogs';
 import { useBreakSchedules } from '@/hooks/attendance/useBreakSchedules';
+import { useAuthContext } from '@/components/AuthProvider';
 import { format } from 'date-fns';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -24,6 +25,8 @@ export function BreakManagement() {
   const { todayLog, isClocked } = useAttendanceLogs();
   const { activeBreak, todayBreaks, loading, startBreak, endBreak, refetch } = useBreaks(todayLog?.id || null);
   const { schedules } = useBreakSchedules();
+  const { profile } = useAuthContext();
+  const isHRorAdmin = profile?.role === 'hr' || profile?.role === 'admin';
   const [breakDuration, setBreakDuration] = useState<string>('0:00');
   const [nextBreak, setNextBreak] = useState<any>(null);
   const [deleteBreakId, setDeleteBreakId] = useState<string | null>(null);
@@ -356,14 +359,16 @@ export function BreakManagement() {
                         Active
                       </Badge>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => setDeleteBreakId(breakItem.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    {isHRorAdmin && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setDeleteBreakId(breakItem.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
