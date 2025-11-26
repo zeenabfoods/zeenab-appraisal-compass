@@ -11,6 +11,7 @@ import { AttendanceAnalytics } from '@/components/attendance/AttendanceAnalytics
 import { GeofenceMonitor } from '@/components/attendance/GeofenceMonitor';
 import { GeofenceAlertsList } from '@/components/attendance/GeofenceAlertsList';
 import { EyeServiceDashboard } from '@/components/attendance/EyeServiceDashboard';
+import { HRSecurityDashboard } from '@/components/attendance/HRSecurityDashboard';
 import { SecurityMonitor } from '@/components/attendance/SecurityMonitor';
 import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield } from 'lucide-react';
 import { Card } from '@/components/ui/card';
@@ -50,7 +51,7 @@ export default function AttendanceDashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {isHRorAdmin ? (
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full max-w-6xl grid-cols-12">
+            <TabsList className="grid w-full max-w-6xl grid-cols-13">
               <TabsTrigger value="overview">
                 <Clock className="w-4 h-4 mr-2" />
                 Overview
@@ -93,13 +94,19 @@ export default function AttendanceDashboard() {
               </TabsTrigger>
               <TabsTrigger value="security">
                 <Shield className="w-4 h-4 mr-2" />
-                Security
+                My Security
               </TabsTrigger>
               {(profile?.role === 'hr' || profile?.role === 'admin') && (
-                <TabsTrigger value="eye-service">
-                  <Eye className="w-4 h-4 mr-2" />
-                  Eye Service
-                </TabsTrigger>
+                <>
+                  <TabsTrigger value="hr-security">
+                    <Shield className="w-4 h-4 mr-2" />
+                    Security Dashboard
+                  </TabsTrigger>
+                  <TabsTrigger value="eye-service">
+                    <Eye className="w-4 h-4 mr-2" />
+                    Eye Service
+                  </TabsTrigger>
+                </>
               )}
             </TabsList>
 
@@ -228,10 +235,19 @@ export default function AttendanceDashboard() {
               <GeofenceAlertsList />
             </TabsContent>
 
+            <TabsContent value="security">
+              <SecurityMonitor />
+            </TabsContent>
+
             {(profile?.role === 'hr' || profile?.role === 'admin') && (
-              <TabsContent value="eye-service">
-                <EyeServiceDashboard />
-              </TabsContent>
+              <>
+                <TabsContent value="hr-security">
+                  <HRSecurityDashboard />
+                </TabsContent>
+                <TabsContent value="eye-service">
+                  <EyeServiceDashboard />
+                </TabsContent>
+              </>
             )}
           </Tabs>
         ) : (
