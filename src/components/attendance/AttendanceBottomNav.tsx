@@ -1,5 +1,6 @@
 import { Home, Clock, BarChart3, User, Fingerprint } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useAttendanceLogs } from '@/hooks/attendance/useAttendanceLogs';
 import { slideUpVariants } from '@/utils/animations';
@@ -11,8 +12,10 @@ interface AttendanceBottomNavProps {
 
 export function AttendanceBottomNav({ activeView, onViewChange }: AttendanceBottomNavProps) {
   const { isClocked } = useAttendanceLogs();
+  const [isPressing, setIsPressing] = useState(false);
+  const pressTimeoutRef = useRef<number | null>(null);
 
-  const handleClockToggle = () => {
+  const triggerClockToggle = () => {
     // Ensure we are on the main overview card
     onViewChange('overview');
     window.dispatchEvent(
@@ -21,6 +24,31 @@ export function AttendanceBottomNav({ activeView, onViewChange }: AttendanceBott
       })
     );
   };
+
+  const startLongPress = () => {
+    if (pressTimeoutRef.current) return;
+    setIsPressing(true);
+    pressTimeoutRef.current = window.setTimeout(() => {
+      triggerClockToggle();
+      pressTimeoutRef.current = null;
+    }, 3000);
+  };
+
+  const endLongPress = () => {
+    if (pressTimeoutRef.current) {
+      clearTimeout(pressTimeoutRef.current);
+      pressTimeoutRef.current = null;
+    }
+    setIsPressing(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (pressTimeoutRef.current) {
+        clearTimeout(pressTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const navItems = [
     {
@@ -90,7 +118,15 @@ export function AttendanceBottomNav({ activeView, onViewChange }: AttendanceBott
 
           {/* Floating Center Button */}
           <motion.button
-            onClick={handleClockToggle}
+            onMouseDown={startLongPress}
+            onMouseUp={endLongPress}
+            onMouseLeave={endLongPress}
+            onTouchStart={(e) => {
+              e.preventDefault();
+              startLongPress();
+            }}
+            onTouchEnd={endLongPress}
+            onTouchCancel={endLongPress}
             className={cn(
               "absolute left-1/2 -translate-x-1/2 -top-6",
               "h-16 w-16 rounded-full shadow-lg",
@@ -100,21 +136,16 @@ export function AttendanceBottomNav({ activeView, onViewChange }: AttendanceBott
                 ? "bg-attendance-danger hover:bg-attendance-danger/90"
                 : "bg-attendance-primary hover:bg-attendance-primary-hover"
             )}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 1.1 }}
             animate={{
-              boxShadow: [
-                "0 10px 30px -10px rgba(255, 107, 53, 0.3)",
-                "0 10px 40px -5px rgba(255, 107, 53, 0.5)",
-                "0 10px 30px -10px rgba(255, 107, 53, 0.3)"
-              ]
+              scale: isPressing ? 1.25 : 1,
+              boxShadow: isPressing
+                ? "0 0 35px rgba(255, 107, 53, 0.7)"
+                : "0 10px 25px -10px rgba(255, 107, 53, 0.4)",
             }}
             transition={{
-              boxShadow: {
-                duration: 2,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }
+              type: 'spring',
+              stiffness: 300,
+              damping: 20,
             }}
           >
             <Fingerprint className="h-8 w-8 text-white" />
