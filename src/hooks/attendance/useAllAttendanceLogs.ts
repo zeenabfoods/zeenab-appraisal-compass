@@ -43,9 +43,27 @@ export function useAllAttendanceLogs() {
     fetchAllLogs();
   }, [fetchAllLogs]);
 
+  const deleteLog = useCallback(async (logId: string) => {
+    try {
+      const { error } = await supabase
+        .from('attendance_logs')
+        .delete()
+        .eq('id', logId);
+
+      if (error) throw error;
+      
+      toast.success('Attendance record deleted');
+      await fetchAllLogs();
+    } catch (error) {
+      console.error('Error deleting attendance log:', error);
+      toast.error('Failed to delete record');
+    }
+  }, [fetchAllLogs]);
+
   return {
     allLogs,
     loading,
     refetch: fetchAllLogs,
+    deleteLog,
   };
 }

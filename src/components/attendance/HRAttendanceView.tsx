@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
-import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
-import { Calendar, MapPin, Clock, Filter, User, Building, Download, Search } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, subMonths, parseISO, startOfDay, endOfDay } from 'date-fns';
+import { Calendar, MapPin, Clock, Filter, User, Building, Download, Search, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,13 +18,16 @@ import { useAllAttendanceLogs } from '@/hooks/attendance/useAllAttendanceLogs';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export function HRAttendanceView() {
-  const { allLogs, loading } = useAllAttendanceLogs();
+  const { allLogs, loading, deleteLog } = useAllAttendanceLogs();
   const [searchQuery, setSearchQuery] = useState('');
   const [locationFilter, setLocationFilter] = useState<string>('all');
   const [geofenceFilter, setGeofenceFilter] = useState<string>('all');
   const [branchFilter, setBranchFilter] = useState<string>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [monthFilter, setMonthFilter] = useState<string>('all');
+  const [employeeFilter, setEmployeeFilter] = useState<string>('all');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
 
   // Generate month options (current month + last 11 months)
   const monthOptions = useMemo(() => {
@@ -40,18 +43,24 @@ export function HRAttendanceView() {
   }, []);
 
   // Extract unique values for filters
-  const { uniqueBranches, uniqueDepartments } = useMemo(() => {
+  const { uniqueBranches, uniqueDepartments, uniqueEmployees } = useMemo(() => {
     const branches = new Set<string>();
     const departments = new Set<string>();
+    const employees = new Map<string, { id: string; name: string }>();
 
     allLogs.forEach((log: any) => {
       if (log.branch?.name) branches.add(log.branch.name);
       if (log.employee?.department) departments.add(log.employee.department);
+      if (log.employee?.id) {
+        const name = `${log.employee.first_name} ${log.employee.last_name}`;
+        employees.set(log.employee.id, { id: log.employee.id, name });
+      }
     });
 
     return {
       uniqueBranches: Array.from(branches),
       uniqueDepartments: Array.from(departments),
+      uniqueEmployees: Array.from(employees.values()).sort((a, b) => a.name.localeCompare(b.name)),
     };
   }, [allLogs]);
 
@@ -67,6 +76,21 @@ export function HRAttendanceView() {
         if (!employeeName.includes(query) && !email.includes(query) && !department.includes(query)) {
           return false;
         }
+      }
+
+      // Employee filter
+      if (employeeFilter !== 'all' && log.employee?.id !== employeeFilter) return false;
+
+      // Date range filter
+      if (startDate) {
+        const logDate = startOfDay(new Date(log.clock_in_time));
+        const filterStartDate = startOfDay(parseISO(startDate));
+        if (logDate < filterStartDate) return false;
+      }
+      if (endDate) {
+        const logDate = endOfDay(new Date(log.clock_in_time));
+        const filterEndDate = endOfDay(parseISO(endDate));
+        if (logDate > filterEndDate) return false;
       }
 
       // Month filter
@@ -90,7 +114,7 @@ export function HRAttendanceView() {
 
       return true;
     });
-  }, [allLogs, searchQuery, locationFilter, geofenceFilter, branchFilter, departmentFilter, monthFilter]);
+  }, [allLogs, searchQuery, locationFilter, geofenceFilter, branchFilter, departmentFilter, monthFilter, employeeFilter, startDate, endDate]);
 
   // Calculate statistics
   const stats = useMemo(() => {
@@ -220,6 +244,38 @@ export function HRAttendanceView() {
             </div>
 
             <div className="flex flex-wrap gap-3">
+              <Select value={employeeFilter} onValueChange={setEmployeeFilter}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Employee" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Employees</SelectItem>
+                  {uniqueEmployees.map((emp) => (
+                    <SelectItem key={emp.id} value={emp.id}>
+                      {emp.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <div className="flex items-center gap-2">
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-[160px]"
+                  placeholder="Start date"
+                />
+                <span className="text-muted-foreground">to</span>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-[160px]"
+                  placeholder="End date"
+                />
+              </div>
+
               <Select value={monthFilter} onValueChange={setMonthFilter}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Month" />
@@ -284,7 +340,7 @@ export function HRAttendanceView() {
                 </SelectContent>
               </Select>
 
-              {(searchQuery || monthFilter !== 'all' || locationFilter !== 'all' || geofenceFilter !== 'all' || branchFilter !== 'all' || departmentFilter !== 'all') && (
+              {(searchQuery || monthFilter !== 'all' || locationFilter !== 'all' || geofenceFilter !== 'all' || branchFilter !== 'all' || departmentFilter !== 'all' || employeeFilter !== 'all' || startDate || endDate) && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -295,6 +351,9 @@ export function HRAttendanceView() {
                     setGeofenceFilter('all');
                     setBranchFilter('all');
                     setDepartmentFilter('all');
+                    setEmployeeFilter('all');
+                    setStartDate('');
+                    setEndDate('');
                   }}
                 >
                   Clear All
@@ -329,6 +388,7 @@ export function HRAttendanceView() {
                     <TableHead>Branch</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -424,6 +484,20 @@ export function HRAttendanceView() {
                             {log.geofence_distance_at_clock_in}m
                           </div>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            if (confirm('Are you sure you want to delete this attendance record?')) {
+                              deleteLog(log.id);
+                            }
+                          }}
+                          className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
