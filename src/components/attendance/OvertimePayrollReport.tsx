@@ -6,10 +6,15 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Download, Search, Clock, DollarSign, Calendar, TrendingUp } from 'lucide-react';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Download, Search, Clock, DollarSign, Calendar, TrendingUp, CalendarIcon } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from 'date-fns';
+import { cn } from '@/lib/utils';
+import type { DateRange } from 'react-day-picker';
 
 interface OvertimeReportData {
   employee_id: string;
@@ -25,20 +30,38 @@ interface OvertimeReportData {
   total_payment: number;
 }
 
+type FilterMode = 'quick' | 'date-range';
+
 export function OvertimePayrollReport() {
   const currentDate = new Date();
+  const [filterMode, setFilterMode] = useState<FilterMode>('quick');
   const [selectedMonth, setSelectedMonth] = useState((currentDate.getMonth() + 1).toString());
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear().toString());
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: startOfMonth(currentDate),
+    to: endOfMonth(currentDate),
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [baseHourlyRate] = useState(2000); // Base rate in Naira per hour
 
   const { data: overtimeData, isLoading, refetch } = useQuery({
-    queryKey: ['overtime-report', selectedMonth, selectedYear],
+    queryKey: ['overtime-report', filterMode, selectedMonth, selectedYear, dateRange],
     queryFn: async () => {
-      const startDate = `${selectedYear}-${selectedMonth.padStart(2, '0')}-01`;
-      const endDate = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0)
-        .toISOString()
-        .split('T')[0];
+      let startDate: string;
+      let endDate: string;
+
+      if (filterMode === 'date-range' && dateRange?.from) {
+        startDate = format(dateRange.from, 'yyyy-MM-dd');
+        endDate = dateRange.to 
+          ? format(dateRange.to, 'yyyy-MM-dd')
+          : format(dateRange.from, 'yyyy-MM-dd');
+      } else {
+        // Quick filter (month-based)
+        startDate = `${selectedYear}-${selectedMonth.padStart(2, '0')}-01`;
+        endDate = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0)
+          .toISOString()
+          .split('T')[0];
+      }
 
       // Fetch attendance rules for rates
       const { data: rules } = await supabase
@@ -133,10 +156,54 @@ export function OvertimePayrollReport() {
   const totalPayment = filteredData?.reduce((sum, item) => sum + item.total_payment, 0) || 0;
   const employeesWithOvertime = filteredData?.filter(item => item.total_overtime_hours > 0).length || 0;
 
+  const setQuickFilter = (preset: string) => {
+    const today = new Date();
+    let from: Date;
+    let to: Date = today;
+
+    switch (preset) {
+      case 'today':
+        from = today;
+        to = today;
+        break;
+      case 'yesterday':
+        from = subDays(today, 1);
+        to = subDays(today, 1);
+        break;
+      case 'this-week':
+        from = startOfWeek(today, { weekStartsOn: 1 }); // Monday
+        to = endOfWeek(today, { weekStartsOn: 1 });
+        break;
+      case 'last-week':
+        const lastWeek = subDays(today, 7);
+        from = startOfWeek(lastWeek, { weekStartsOn: 1 });
+        to = endOfWeek(lastWeek, { weekStartsOn: 1 });
+        break;
+      case 'this-month':
+        from = startOfMonth(today);
+        to = endOfMonth(today);
+        break;
+      default:
+        return;
+    }
+
+    setDateRange({ from, to });
+    setFilterMode('date-range');
+  };
+
   const exportToCSV = () => {
     if (!filteredData || filteredData.length === 0) {
       toast.error('No data to export');
       return;
+    }
+
+    let filename: string;
+    if (filterMode === 'date-range' && dateRange?.from) {
+      const fromStr = format(dateRange.from, 'yyyy-MM-dd');
+      const toStr = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : fromStr;
+      filename = `overtime-report-${fromStr}-to-${toStr}.csv`;
+    } else {
+      filename = `overtime-report-${selectedYear}-${selectedMonth}.csv`;
     }
 
     const headers = [
@@ -179,7 +246,7 @@ export function OvertimePayrollReport() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `overtime-report-${selectedYear}-${selectedMonth}.csv`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -221,58 +288,157 @@ export function OvertimePayrollReport() {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Filter Mode Toggle */}
+          <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
+            <Button
+              variant={filterMode === 'quick' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setFilterMode('quick')}
+            >
+              Monthly View
+            </Button>
+            <Button
+              variant={filterMode === 'date-range' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setFilterMode('date-range')}
+            >
+              Date Range
+            </Button>
+          </div>
+
           {/* Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <Label htmlFor="month">Month</Label>
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger id="month">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {months.map((month) => (
-                    <SelectItem key={month.value} value={month.value}>
-                      {month.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="year">Year</Label>
-              <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger id="year">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {years.map((year) => (
-                    <SelectItem key={year} value={year}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="search">Search</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="search"
-                  placeholder="Employee or department..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9"
-                />
+          {filterMode === 'quick' ? (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <Label htmlFor="month">Month</Label>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger id="month">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {months.map((month) => (
+                      <SelectItem key={month.value} value={month.value}>
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="year">Year</Label>
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <SelectTrigger id="year">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {years.map((year) => (
+                      <SelectItem key={year} value={year}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="search">Search</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="search"
+                    placeholder="Employee or department..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+              <div className="flex items-end">
+                <Button onClick={() => refetch()} variant="outline" className="w-full">
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Refresh
+                </Button>
               </div>
             </div>
-            <div className="flex items-end">
-              <Button onClick={() => refetch()} variant="outline" className="w-full">
-                <Calendar className="w-4 h-4 mr-2" />
-                Refresh
-              </Button>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+                <Button variant="outline" size="sm" onClick={() => setQuickFilter('today')}>
+                  Today
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setQuickFilter('yesterday')}>
+                  Yesterday
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setQuickFilter('this-week')}>
+                  This Week
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setQuickFilter('last-week')}>
+                  Last Week
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setQuickFilter('this-month')}>
+                  This Month
+                </Button>
+                <Button onClick={() => refetch()} variant="outline" size="sm">
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Refresh
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2">
+                  <Label>Date Range</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !dateRange && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateRange?.from ? (
+                          dateRange.to ? (
+                            <>
+                              {format(dateRange.from, "LLL dd, y")} -{" "}
+                              {format(dateRange.to, "LLL dd, y")}
+                            </>
+                          ) : (
+                            format(dateRange.from, "LLL dd, y")
+                          )
+                        ) : (
+                          <span>Pick a date range</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        initialFocus
+                        mode="range"
+                        defaultMonth={dateRange?.from}
+                        selected={dateRange}
+                        onSelect={setDateRange}
+                        numberOfMonths={2}
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div>
+                  <Label htmlFor="search-range">Search</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="search-range"
+                      placeholder="Employee or department..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
