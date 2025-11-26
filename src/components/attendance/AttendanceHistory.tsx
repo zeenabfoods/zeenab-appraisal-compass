@@ -132,6 +132,8 @@ export function AttendanceHistory() {
                   <TableHead>Clock In</TableHead>
                   <TableHead>Clock Out</TableHead>
                   <TableHead>Hours</TableHead>
+                  <TableHead>Overtime</TableHead>
+                  <TableHead>Night Shift</TableHead>
                   <TableHead>Branch</TableHead>
                   <TableHead>Location</TableHead>
                   <TableHead>Status</TableHead>
@@ -183,6 +185,31 @@ export function AttendanceHistory() {
                       {log.total_hours ? (
                         <div className="font-semibold text-sm">
                           {log.total_hours.toFixed(1)}h
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {log.overtime_hours && log.overtime_hours > 0 ? (
+                        <Badge variant="secondary" className="bg-orange-100 text-orange-700">
+                          +{log.overtime_hours.toFixed(1)}h
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {log.is_night_shift ? (
+                        <div className="flex flex-col gap-1">
+                          <Badge variant="default" className="bg-purple-600">
+                            Night Shift
+                          </Badge>
+                          {log.night_shift_hours && log.night_shift_hours > 0 && (
+                            <span className="text-xs text-muted-foreground">
+                              {log.night_shift_hours.toFixed(1)}h
+                            </span>
+                          )}
                         </div>
                       ) : (
                         <span className="text-muted-foreground text-sm">-</span>

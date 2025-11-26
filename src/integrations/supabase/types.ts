@@ -761,8 +761,11 @@ export type Database = {
           geofence_distance_at_clock_in: number | null
           id: string
           is_late: boolean | null
+          is_night_shift: boolean | null
           late_by_minutes: number | null
           location_type: string
+          night_shift_hours: number | null
+          overtime_hours: number | null
           sync_status: string | null
           total_hours: number | null
           updated_at: string | null
@@ -785,8 +788,11 @@ export type Database = {
           geofence_distance_at_clock_in?: number | null
           id?: string
           is_late?: boolean | null
+          is_night_shift?: boolean | null
           late_by_minutes?: number | null
           location_type: string
+          night_shift_hours?: number | null
+          overtime_hours?: number | null
           sync_status?: string | null
           total_hours?: number | null
           updated_at?: string | null
@@ -809,8 +815,11 @@ export type Database = {
           geofence_distance_at_clock_in?: number | null
           id?: string
           is_late?: boolean | null
+          is_night_shift?: boolean | null
           late_by_minutes?: number | null
           location_type?: string
+          night_shift_hours?: number | null
+          overtime_hours?: number | null
           sync_status?: string | null
           total_hours?: number | null
           updated_at?: string | null
@@ -846,6 +855,10 @@ export type Database = {
           late_threshold_minutes: number | null
           mandatory_break_duration_minutes: number | null
           max_break_duration_minutes: number | null
+          night_shift_end_time: string | null
+          night_shift_rate: number | null
+          night_shift_start_time: string | null
+          overtime_rate: number | null
           rule_name: string
           updated_at: string | null
           work_end_time: string | null
@@ -862,6 +875,10 @@ export type Database = {
           late_threshold_minutes?: number | null
           mandatory_break_duration_minutes?: number | null
           max_break_duration_minutes?: number | null
+          night_shift_end_time?: string | null
+          night_shift_rate?: number | null
+          night_shift_start_time?: string | null
+          overtime_rate?: number | null
           rule_name: string
           updated_at?: string | null
           work_end_time?: string | null
@@ -878,6 +895,10 @@ export type Database = {
           late_threshold_minutes?: number | null
           mandatory_break_duration_minutes?: number | null
           max_break_duration_minutes?: number | null
+          night_shift_end_time?: string | null
+          night_shift_rate?: number | null
+          night_shift_start_time?: string | null
+          overtime_rate?: number | null
           rule_name?: string
           updated_at?: string | null
           work_end_time?: string | null

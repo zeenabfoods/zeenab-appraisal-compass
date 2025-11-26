@@ -127,7 +127,7 @@ export function ClockInOutCard() {
 
   const handleClockToggle = async () => {
     if (isClocked && todayLog) {
-      // Clock out
+      // Clock out - calculate overtime and night shift on backend
       await clockOut(latitude, longitude, mode === 'office' ? isWithinGeofence : undefined);
     } else {
       // Clock in - perform security checks first
