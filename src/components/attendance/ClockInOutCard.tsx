@@ -25,7 +25,7 @@ export function ClockInOutCard() {
   const [currentTime, setCurrentTime] = useState(new Date());
   
   const { branches } = useBranches();
-  const { isClocked, todayLog, clockIn, clockOut, loading: logsLoading } = useAttendanceLogs();
+  const { isClocked, todayLog, clockIn, clockOut, loading: logsLoading, refetch: refetchLogs } = useAttendanceLogs();
   const activeBranch = branches.find(b => b.is_active);
 
   const { 
@@ -61,6 +61,15 @@ export function ClockInOutCard() {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  // Listen for pull-to-refresh events
+  useEffect(() => {
+    const handleRefresh = () => {
+      refetchLogs();
+    };
+    window.addEventListener('attendance-refresh', handleRefresh);
+    return () => window.removeEventListener('attendance-refresh', handleRefresh);
+  }, [refetchLogs]);
 
   const performSecurityChecks = async (): Promise<{ passed: boolean; warnings: string[] }> => {
     const warnings: string[] = [];
