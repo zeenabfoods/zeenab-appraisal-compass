@@ -228,27 +228,75 @@ export function BreakManagement() {
             </div>
           ) : (
             <div className="space-y-3">
-              <Button
-                onClick={() => startBreak('short_break')}
-                disabled={!isClocked || loading}
-                variant="outline"
-                className="w-full"
-                size="lg"
-              >
-                <Play className="h-5 w-5 mr-2" />
-                Start Short Break
-              </Button>
+              {schedules.filter(schedule => {
+                // Check if current time is within schedule
+                const now = new Date();
+                const currentHours = now.getHours();
+                const currentMinutes = now.getMinutes();
+                const currentTimeInMinutes = currentHours * 60 + currentMinutes;
+                
+                const [startHour, startMinute] = schedule.scheduled_start_time.split(':').map(Number);
+                const [endHour, endMinute] = schedule.scheduled_end_time.split(':').map(Number);
+                
+                const startTimeInMinutes = startHour * 60 + startMinute;
+                const endTimeInMinutes = endHour * 60 + endMinute;
+                
+                return currentTimeInMinutes >= startTimeInMinutes && currentTimeInMinutes <= endTimeInMinutes;
+              }).length > 0 ? (
+                schedules.filter(schedule => {
+                  const now = new Date();
+                  const currentHours = now.getHours();
+                  const currentMinutes = now.getMinutes();
+                  const currentTimeInMinutes = currentHours * 60 + currentMinutes;
+                  
+                  const [startHour, startMinute] = schedule.scheduled_start_time.split(':').map(Number);
+                  const [endHour, endMinute] = schedule.scheduled_end_time.split(':').map(Number);
+                  
+                  const startTimeInMinutes = startHour * 60 + startMinute;
+                  const endTimeInMinutes = endHour * 60 + endMinute;
+                  
+                  return currentTimeInMinutes >= startTimeInMinutes && currentTimeInMinutes <= endTimeInMinutes;
+                }).map(schedule => (
+                  <Button
+                    key={schedule.id}
+                    onClick={() => startBreak(schedule.break_type)}
+                    disabled={!isClocked || loading}
+                    variant="outline"
+                    className="w-full border-green-500 bg-green-50 hover:bg-green-100 dark:bg-green-950/20"
+                    size="lg"
+                  >
+                    {schedule.break_type === 'lunch' ? <Coffee className="h-5 w-5 mr-2" /> : <Play className="h-5 w-5 mr-2" />}
+                    {schedule.break_name}
+                    <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700">
+                      Available Now
+                    </Badge>
+                  </Button>
+                ))
+              ) : (
+                <>
+                  <Button
+                    onClick={() => startBreak('short_break')}
+                    disabled={!isClocked || loading}
+                    variant="outline"
+                    className="w-full opacity-50"
+                    size="lg"
+                  >
+                    <Play className="h-5 w-5 mr-2" />
+                    Short Break (Not Scheduled)
+                  </Button>
 
-              <Button
-                onClick={() => startBreak('lunch')}
-                disabled={!isClocked || loading}
-                variant="outline"
-                className="w-full"
-                size="lg"
-              >
-                <Coffee className="h-5 w-5 mr-2" />
-                Start Lunch Break
-              </Button>
+                  <Button
+                    onClick={() => startBreak('lunch')}
+                    disabled={!isClocked || loading}
+                    variant="outline"
+                    className="w-full opacity-50"
+                    size="lg"
+                  >
+                    <Coffee className="h-5 w-5 mr-2" />
+                    Lunch Break (Not Scheduled)
+                  </Button>
+                </>
+              )}
 
               {!isClocked && (
                 <p className="text-sm text-muted-foreground text-center">

@@ -76,6 +76,40 @@ export function useBreaks(attendanceLogId: string | null) {
     try {
       setLoading(true);
 
+      // Check if break is within scheduled time
+      const { data: schedules } = await supabase
+        .from('attendance_break_schedules')
+        .select('*')
+        .eq('is_active', true)
+        .eq('break_type', breakType);
+
+      if (schedules && schedules.length > 0) {
+        const now = new Date();
+        const currentHours = now.getHours();
+        const currentMinutes = now.getMinutes();
+        const currentTimeInMinutes = currentHours * 60 + currentMinutes;
+
+        // Check if current time is within ANY scheduled window for this break type
+        const isWithinSchedule = schedules.some(schedule => {
+          const [startHour, startMinute] = schedule.scheduled_start_time.split(':').map(Number);
+          const [endHour, endMinute] = schedule.scheduled_end_time.split(':').map(Number);
+          
+          const startTimeInMinutes = startHour * 60 + startMinute;
+          const endTimeInMinutes = endHour * 60 + endMinute;
+
+          return currentTimeInMinutes >= startTimeInMinutes && currentTimeInMinutes <= endTimeInMinutes;
+        });
+
+        if (!isWithinSchedule) {
+          const schedule = schedules[0]; // Get first schedule for error message
+          toast.error('Break Not Available', {
+            description: `${schedule.break_name} is only available between ${schedule.scheduled_start_time.slice(0, 5)} - ${schedule.scheduled_end_time.slice(0, 5)}`,
+          });
+          setLoading(false);
+          return;
+        }
+      }
+
       // Get current location
       let latitude: number | undefined;
       let longitude: number | undefined;
