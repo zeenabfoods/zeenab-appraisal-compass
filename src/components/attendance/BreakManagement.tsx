@@ -1,16 +1,77 @@
-import { Coffee, Clock, Play, Square } from 'lucide-react';
+import { Coffee, Clock, Play, Square, Bell } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useBreaks } from '@/hooks/attendance/useBreaks';
 import { useAttendanceLogs } from '@/hooks/attendance/useAttendanceLogs';
+import { useBreakSchedules } from '@/hooks/attendance/useBreakSchedules';
 import { format } from 'date-fns';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 export function BreakManagement() {
   const { todayLog, isClocked } = useAttendanceLogs();
   const { activeBreak, todayBreaks, loading, startBreak, endBreak } = useBreaks(todayLog?.id || null);
+  const { schedules } = useBreakSchedules();
   const [breakDuration, setBreakDuration] = useState<string>('0:00');
+  const [nextBreak, setNextBreak] = useState<any>(null);
+
+  // Request notification permission
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // Check for upcoming breaks and send notifications
+  useEffect(() => {
+    if (!isClocked || schedules.length === 0) return;
+
+    const checkBreakSchedules = () => {
+      const now = new Date();
+      const currentTime = now.getHours() * 60 + now.getMinutes(); // minutes since midnight
+
+      schedules.forEach((schedule) => {
+        const [startHour, startMinute] = schedule.scheduled_start_time.split(':').map(Number);
+        const scheduledTime = startHour * 60 + startMinute;
+        const notifyTime = scheduledTime - schedule.notification_minutes_before;
+
+        // Check if it's time to notify (within 1 minute window)
+        if (Math.abs(currentTime - notifyTime) <= 1) {
+          // Send notification
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('Break Time Reminder! ☕', {
+              body: `${schedule.break_name} starts in ${schedule.notification_minutes_before} minutes (${schedule.scheduled_start_time.slice(0, 5)})`,
+              icon: '/favicon.ico',
+              tag: `break-${schedule.id}`,
+            });
+          }
+          
+          // Show toast
+          toast.info(`${schedule.break_name} starts in ${schedule.notification_minutes_before} minutes!`, {
+            description: `Scheduled: ${schedule.scheduled_start_time.slice(0, 5)} - ${schedule.scheduled_end_time.slice(0, 5)}`,
+            duration: 10000,
+          });
+        }
+
+        // Find next upcoming break
+        if (currentTime < scheduledTime && (!nextBreak || scheduledTime < nextBreak.scheduledTime)) {
+          setNextBreak({
+            ...schedule,
+            scheduledTime,
+          });
+        }
+      });
+    };
+
+    // Check immediately
+    checkBreakSchedules();
+
+    // Check every minute
+    const interval = setInterval(checkBreakSchedules, 60000);
+
+    return () => clearInterval(interval);
+  }, [isClocked, schedules, nextBreak]);
 
   // Update break duration every second
   useEffect(() => {
@@ -63,6 +124,26 @@ export function BreakManagement() {
 
   return (
     <div className="space-y-6">
+      {/* Next Scheduled Break */}
+      {nextBreak && !activeBreak && (
+        <Card className="border-blue-500 bg-blue-50 dark:bg-blue-950/20">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <Bell className="h-5 w-5 text-blue-500" />
+              <div>
+                <div className="font-semibold text-blue-900 dark:text-blue-100">
+                  Next Break: {nextBreak.break_name}
+                </div>
+                <div className="text-sm text-blue-700 dark:text-blue-300">
+                  Scheduled at {nextBreak.scheduled_start_time.slice(0, 5)} • 
+                  You'll be notified {nextBreak.notification_minutes_before} min before
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Active Break Card */}
       <Card className={activeBreak ? 'border-orange-500 shadow-lg' : ''}>
         <CardHeader>

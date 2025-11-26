@@ -479,6 +479,62 @@ export type Database = {
         }
         Relationships: []
       }
+      attendance_break_schedules: {
+        Row: {
+          applies_to_departments: string[] | null
+          break_name: string
+          break_type: string
+          created_at: string
+          created_by: string | null
+          duration_minutes: number
+          id: string
+          is_active: boolean
+          is_mandatory: boolean
+          notification_minutes_before: number
+          scheduled_end_time: string
+          scheduled_start_time: string
+          updated_at: string
+        }
+        Insert: {
+          applies_to_departments?: string[] | null
+          break_name: string
+          break_type: string
+          created_at?: string
+          created_by?: string | null
+          duration_minutes: number
+          id?: string
+          is_active?: boolean
+          is_mandatory?: boolean
+          notification_minutes_before?: number
+          scheduled_end_time: string
+          scheduled_start_time: string
+          updated_at?: string
+        }
+        Update: {
+          applies_to_departments?: string[] | null
+          break_name?: string
+          break_type?: string
+          created_at?: string
+          created_by?: string | null
+          duration_minutes?: number
+          id?: string
+          is_active?: boolean
+          is_mandatory?: boolean
+          notification_minutes_before?: number
+          scheduled_end_time?: string
+          scheduled_start_time?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_break_schedules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_breaks: {
         Row: {
           attendance_log_id: string
@@ -491,7 +547,10 @@ export type Database = {
           created_at: string | null
           employee_id: string
           id: string
+          minutes_late: number | null
+          schedule_id: string | null
           updated_at: string | null
+          was_on_time: boolean | null
         }
         Insert: {
           attendance_log_id: string
@@ -504,7 +563,10 @@ export type Database = {
           created_at?: string | null
           employee_id: string
           id?: string
+          minutes_late?: number | null
+          schedule_id?: string | null
           updated_at?: string | null
+          was_on_time?: boolean | null
         }
         Update: {
           attendance_log_id?: string
@@ -517,7 +579,10 @@ export type Database = {
           created_at?: string | null
           employee_id?: string
           id?: string
+          minutes_late?: number | null
+          schedule_id?: string | null
           updated_at?: string | null
+          was_on_time?: boolean | null
         }
         Relationships: [
           {
@@ -532,6 +597,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_breaks_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_break_schedules"
             referencedColumns: ["id"]
           },
         ]
