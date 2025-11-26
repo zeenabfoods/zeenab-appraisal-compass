@@ -6,6 +6,7 @@ import { AttendanceHistory } from '@/components/attendance/AttendanceHistory';
 import { HRAttendanceView } from '@/components/attendance/HRAttendanceView';
 import { BreakManagement } from '@/components/attendance/BreakManagement';
 import { BreakScheduleConfig } from '@/components/attendance/BreakScheduleConfig';
+import { BreakComplianceReport } from '@/components/attendance/BreakComplianceReport';
 import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -41,7 +42,7 @@ export default function AttendanceDashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {isHRorAdmin ? (
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full max-w-5xl grid-cols-7">
+            <TabsList className="grid w-full max-w-5xl grid-cols-8">
               <TabsTrigger value="overview">
                 <Clock className="w-4 h-4 mr-2" />
                 Overview
@@ -69,6 +70,10 @@ export default function AttendanceDashboard() {
               <TabsTrigger value="break-config">
                 <Settings className="w-4 h-4 mr-2" />
                 Break Config
+              </TabsTrigger>
+              <TabsTrigger value="break-compliance">
+                <AlertCircle className="w-4 h-4 mr-2" />
+                Compliance
               </TabsTrigger>
             </TabsList>
 
@@ -181,6 +186,10 @@ export default function AttendanceDashboard() {
 
             <TabsContent value="break-config">
               <BreakScheduleConfig />
+            </TabsContent>
+
+            <TabsContent value="break-compliance">
+              <BreakComplianceReport />
             </TabsContent>
           </Tabs>
         ) : (

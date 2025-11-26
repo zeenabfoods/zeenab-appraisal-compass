@@ -1,4 +1,4 @@
-import { Coffee, Clock, Play, Square, Bell } from 'lucide-react';
+import { Coffee, Clock, Play, Square, Bell, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,13 +8,26 @@ import { useBreakSchedules } from '@/hooks/attendance/useBreakSchedules';
 import { format } from 'date-fns';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export function BreakManagement() {
   const { todayLog, isClocked } = useAttendanceLogs();
-  const { activeBreak, todayBreaks, loading, startBreak, endBreak } = useBreaks(todayLog?.id || null);
+  const { activeBreak, todayBreaks, loading, startBreak, endBreak, refetch } = useBreaks(todayLog?.id || null);
   const { schedules } = useBreakSchedules();
   const [breakDuration, setBreakDuration] = useState<string>('0:00');
   const [nextBreak, setNextBreak] = useState<any>(null);
+  const [deleteBreakId, setDeleteBreakId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Request notification permission
   useEffect(() => {
@@ -119,6 +132,29 @@ export function BreakManagement() {
         return 'bg-blue-500';
       default:
         return 'bg-gray-500';
+    }
+  };
+
+  const handleDeleteBreak = async () => {
+    if (!deleteBreakId) return;
+    
+    try {
+      setIsDeleting(true);
+      const { error } = await supabase
+        .from('attendance_breaks')
+        .delete()
+        .eq('id', deleteBreakId);
+
+      if (error) throw error;
+      
+      toast.success('Break record deleted');
+      refetch();
+      setDeleteBreakId(null);
+    } catch (error) {
+      console.error('Error deleting break:', error);
+      toast.error('Failed to delete break record');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -262,7 +298,7 @@ export function BreakManagement() {
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="flex items-center gap-2">
                     {breakItem.break_end ? (
                       <Badge variant="secondary">
                         {breakItem.break_duration_minutes} min
@@ -272,6 +308,14 @@ export function BreakManagement() {
                         Active
                       </Badge>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setDeleteBreakId(breakItem.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -279,6 +323,27 @@ export function BreakManagement() {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!deleteBreakId} onOpenChange={() => setDeleteBreakId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Break Record</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this break record? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteBreak}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
