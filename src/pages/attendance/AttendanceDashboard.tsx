@@ -20,6 +20,7 @@ import { ManualOverrides } from '@/components/attendance/ManualOverrides';
 import { EscalationRulesConfig } from '@/components/attendance/EscalationRulesConfig';
 import { AutomaticChargeCalculation } from '@/components/attendance/AutomaticChargeCalculation';
 import { OvertimePayrollReport } from '@/components/attendance/OvertimePayrollReport';
+import { AttendanceBottomNav } from '@/components/attendance/AttendanceBottomNav';
 import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import {
@@ -79,6 +80,7 @@ export default function AttendanceDashboard() {
     <div className="grid lg:grid-cols-3 gap-8">
       <div className="lg:col-span-2 space-y-8">
         <ClockInOutCard />
+        <AttendanceStats />
         <RecentActivity />
       </div>
 
@@ -273,6 +275,12 @@ export default function AttendanceDashboard() {
           <main className="flex-1 overflow-auto p-6">
             {renderContent()}
           </main>
+
+          {/* Mobile Bottom Navigation */}
+          <AttendanceBottomNav 
+            activeView={activeView}
+            onViewChange={setActiveView}
+          />
         </div>
       </div>
     </SidebarProvider>
