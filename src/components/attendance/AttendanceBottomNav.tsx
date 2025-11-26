@@ -90,19 +90,38 @@ export function AttendanceBottomNav({ activeView, onViewChange }: AttendanceBott
           <motion.div 
             className="absolute left-1/2 -translate-x-1/2 -top-6"
             whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
+            whileTap={{ scale: 1.2 }}
+            animate={{
+              boxShadow: [
+                "0 10px 30px -10px rgba(255, 107, 53, 0.3)",
+                "0 10px 40px -5px rgba(255, 107, 53, 0.5)",
+                "0 10px 30px -10px rgba(255, 107, 53, 0.3)"
+              ]
+            }}
+            transition={{
+              boxShadow: {
+                duration: 2,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }
+            }}
           >
-            <Button
-              onClick={handleClockToggle}
-              className={cn(
-                "h-14 w-14 rounded-full shadow-lg transition-all",
-                isClocked
-                  ? "bg-attendance-danger hover:bg-attendance-danger/90"
-                  : "bg-attendance-primary hover:bg-attendance-primary-hover"
-              )}
+            <motion.div
+              whileTap={{ rotate: [0, -5, 5, -5, 0] }}
+              transition={{ duration: 0.4 }}
             >
-              <Fingerprint className="h-7 w-7 text-white" />
-            </Button>
+              <Button
+                onClick={handleClockToggle}
+                className={cn(
+                  "h-16 w-16 rounded-full shadow-lg transition-all relative",
+                  isClocked
+                    ? "bg-attendance-danger hover:bg-attendance-danger/90"
+                    : "bg-attendance-primary hover:bg-attendance-primary-hover"
+                )}
+              >
+                <Fingerprint className="h-8 w-8 text-white" />
+              </Button>
+            </motion.div>
           </motion.div>
         </div>
       </div>
