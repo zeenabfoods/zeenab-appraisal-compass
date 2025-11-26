@@ -38,14 +38,22 @@ export default function AttendanceDashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {isHRorAdmin ? (
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsList className="grid w-full max-w-2xl grid-cols-4">
               <TabsTrigger value="overview">
                 <Clock className="w-4 h-4 mr-2" />
                 Overview
               </TabsTrigger>
+              <TabsTrigger value="history">
+                <Clock className="w-4 h-4 mr-2" />
+                History
+              </TabsTrigger>
+              <TabsTrigger value="stats">
+                <TrendingUp className="w-4 h-4 mr-2" />
+                Statistics
+              </TabsTrigger>
               <TabsTrigger value="branches">
                 <Building2 className="w-4 h-4 mr-2" />
-                Branch Management
+                Branches
               </TabsTrigger>
             </TabsList>
 
@@ -53,9 +61,7 @@ export default function AttendanceDashboard() {
               <div className="grid lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">
                   <ClockInOutCard />
-                  <AttendanceStats />
                   <RecentActivity />
-                  <AttendanceHistory />
                 </div>
 
                 <div className="space-y-6">
@@ -138,18 +144,41 @@ export default function AttendanceDashboard() {
               </div>
             </TabsContent>
 
+            <TabsContent value="history">
+              <AttendanceHistory />
+            </TabsContent>
+
+            <TabsContent value="stats">
+              <AttendanceStats />
+            </TabsContent>
+
             <TabsContent value="branches">
               <BranchManagement />
             </TabsContent>
           </Tabs>
         ) : (
-          <div className="grid lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-8">
-              <ClockInOutCard />
-              <AttendanceStats />
-              <RecentActivity />
-              <AttendanceHistory />
-            </div>
+          <Tabs defaultValue="overview" className="space-y-6">
+            <TabsList className="grid w-full max-w-lg grid-cols-3">
+              <TabsTrigger value="overview">
+                <Clock className="w-4 h-4 mr-2" />
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="history">
+                <Clock className="w-4 h-4 mr-2" />
+                History
+              </TabsTrigger>
+              <TabsTrigger value="stats">
+                <TrendingUp className="w-4 h-4 mr-2" />
+                Statistics
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="overview" className="space-y-6">
+              <div className="grid lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 space-y-8">
+                  <ClockInOutCard />
+                  <RecentActivity />
+                </div>
 
             <div className="space-y-6">
               <Card className="p-7 bg-gradient-to-br from-orange-50/80 to-amber-50/80 dark:from-orange-950/20 dark:to-amber-950/20 border-orange-200/60 dark:border-orange-800/60 shadow-lg shadow-orange-100/50 dark:shadow-none">
@@ -229,6 +258,16 @@ export default function AttendanceDashboard() {
               </Card>
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="history">
+          <AttendanceHistory />
+        </TabsContent>
+
+        <TabsContent value="stats">
+          <AttendanceStats />
+        </TabsContent>
+      </Tabs>
         )}
       </main>
     </div>
