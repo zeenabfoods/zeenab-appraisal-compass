@@ -29,6 +29,7 @@ export function AttendanceRulesConfig() {
     night_shift_end_time: '06:00',
     night_shift_rate: '1.2',
     is_active: true,
+    allow_multiple_sessions_per_day: true,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -50,6 +51,7 @@ export function AttendanceRulesConfig() {
         night_shift_end_time: formData.night_shift_end_time,
         night_shift_rate: parseFloat(formData.night_shift_rate),
         is_active: formData.is_active,
+        allow_multiple_sessions_per_day: formData.allow_multiple_sessions_per_day,
       };
 
       if (editingRule) {
@@ -81,6 +83,7 @@ export function AttendanceRulesConfig() {
       night_shift_end_time: '06:00',
       night_shift_rate: '1.2',
       is_active: true,
+      allow_multiple_sessions_per_day: true,
     });
     setEditingRule(null);
   };
@@ -101,6 +104,7 @@ export function AttendanceRulesConfig() {
       night_shift_end_time: rule.night_shift_end_time || '06:00',
       night_shift_rate: rule.night_shift_rate?.toString() || '1.2',
       is_active: rule.is_active ?? true,
+      allow_multiple_sessions_per_day: rule.allow_multiple_sessions_per_day ?? true,
     });
     setEditingRule(rule.id);
     setIsDialogOpen(true);
@@ -316,6 +320,26 @@ export function AttendanceRulesConfig() {
                       onChange={(e) => setFormData({ ...formData, night_shift_end_time: e.target.value })}
                     />
                   </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Settings className="w-4 h-4" />
+                  Session Policy
+                </h3>
+                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                  <div className="space-y-1">
+                    <Label htmlFor="allow_multiple_sessions">Allow Multiple Clock-Ins Per Day</Label>
+                    <p className="text-sm text-muted-foreground">
+                      When enabled, employees can clock in and out multiple times per day. When disabled, only one clock-in/out session is allowed.
+                    </p>
+                  </div>
+                  <Switch
+                    id="allow_multiple_sessions"
+                    checked={formData.allow_multiple_sessions_per_day}
+                    onCheckedChange={(checked) => setFormData({ ...formData, allow_multiple_sessions_per_day: checked })}
+                  />
                 </div>
               </div>
 

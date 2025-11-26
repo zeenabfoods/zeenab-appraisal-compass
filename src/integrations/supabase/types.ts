@@ -846,6 +846,7 @@ export type Database = {
       attendance_rules: {
         Row: {
           absence_charge_amount: number | null
+          allow_multiple_sessions_per_day: boolean
           created_at: string | null
           created_by: string | null
           grace_period_minutes: number | null
@@ -866,6 +867,7 @@ export type Database = {
         }
         Insert: {
           absence_charge_amount?: number | null
+          allow_multiple_sessions_per_day?: boolean
           created_at?: string | null
           created_by?: string | null
           grace_period_minutes?: number | null
@@ -886,6 +888,7 @@ export type Database = {
         }
         Update: {
           absence_charge_amount?: number | null
+          allow_multiple_sessions_per_day?: boolean
           created_at?: string | null
           created_by?: string | null
           grace_period_minutes?: number | null

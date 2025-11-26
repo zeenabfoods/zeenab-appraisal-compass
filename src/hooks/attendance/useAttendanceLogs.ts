@@ -88,6 +88,35 @@ export function useAttendanceLogs() {
     }
 
     try {
+      // Fetch active attendance rules to check multi-session policy
+      const { data: activeRules } = await supabase
+        .from('attendance_rules')
+        .select('allow_multiple_sessions_per_day')
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle();
+
+      // If multi-session is disabled, check if already clocked in today
+      if (activeRules && !activeRules.allow_multiple_sessions_per_day) {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+
+        const { data: existingLog } = await supabase
+          .from('attendance_logs')
+          .select('id')
+          .eq('employee_id', profile.id)
+          .gte('clock_in_time', todayStart.toISOString())
+          .limit(1)
+          .maybeSingle();
+
+        if (existingLog) {
+          toast.error('Already Clocked In Today', {
+            description: 'Multiple clock-ins per day are disabled by HR policy. Please contact HR if you need assistance.',
+          });
+          return;
+        }
+      }
+
       const logData: AttendanceLogInsert = {
         employee_id: profile.id,
         location_type: params.locationType,
