@@ -24,6 +24,10 @@ export function AttendanceRulesConfig() {
     absence_charge_amount: '1000',
     mandatory_break_duration_minutes: '30',
     max_break_duration_minutes: '60',
+    overtime_rate: '1.5',
+    night_shift_start_time: '22:00',
+    night_shift_end_time: '06:00',
+    night_shift_rate: '1.2',
     is_active: true,
   });
 
@@ -41,6 +45,10 @@ export function AttendanceRulesConfig() {
         absence_charge_amount: parseFloat(formData.absence_charge_amount),
         mandatory_break_duration_minutes: parseInt(formData.mandatory_break_duration_minutes),
         max_break_duration_minutes: parseInt(formData.max_break_duration_minutes),
+        overtime_rate: parseFloat(formData.overtime_rate),
+        night_shift_start_time: formData.night_shift_start_time,
+        night_shift_end_time: formData.night_shift_end_time,
+        night_shift_rate: parseFloat(formData.night_shift_rate),
         is_active: formData.is_active,
       };
 
@@ -68,6 +76,10 @@ export function AttendanceRulesConfig() {
       absence_charge_amount: '1000',
       mandatory_break_duration_minutes: '30',
       max_break_duration_minutes: '60',
+      overtime_rate: '1.5',
+      night_shift_start_time: '22:00',
+      night_shift_end_time: '06:00',
+      night_shift_rate: '1.2',
       is_active: true,
     });
     setEditingRule(null);
@@ -84,6 +96,10 @@ export function AttendanceRulesConfig() {
       absence_charge_amount: rule.absence_charge_amount?.toString() || '1000',
       mandatory_break_duration_minutes: rule.mandatory_break_duration_minutes?.toString() || '30',
       max_break_duration_minutes: rule.max_break_duration_minutes?.toString() || '60',
+      overtime_rate: rule.overtime_rate?.toString() || '1.5',
+      night_shift_start_time: rule.night_shift_start_time || '22:00',
+      night_shift_end_time: rule.night_shift_end_time || '06:00',
+      night_shift_rate: rule.night_shift_rate?.toString() || '1.2',
       is_active: rule.is_active ?? true,
     });
     setEditingRule(rule.id);
@@ -241,6 +257,63 @@ export function AttendanceRulesConfig() {
                       value={formData.max_break_duration_minutes}
                       onChange={(e) => setFormData({ ...formData, max_break_duration_minutes: e.target.value })}
                       min="0"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  Overtime & Night Shift
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="overtime_rate">Overtime Rate Multiplier</Label>
+                    <Input
+                      id="overtime_rate"
+                      type="number"
+                      value={formData.overtime_rate}
+                      onChange={(e) => setFormData({ ...formData, overtime_rate: e.target.value })}
+                      min="1"
+                      step="0.1"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      e.g., 1.5 = 150% pay rate
+                    </p>
+                  </div>
+                  <div>
+                    <Label htmlFor="night_shift_rate">Night Shift Rate Multiplier</Label>
+                    <Input
+                      id="night_shift_rate"
+                      type="number"
+                      value={formData.night_shift_rate}
+                      onChange={(e) => setFormData({ ...formData, night_shift_rate: e.target.value })}
+                      min="1"
+                      step="0.1"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      e.g., 1.2 = 120% pay rate
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="night_shift_start">Night Shift Start</Label>
+                    <Input
+                      id="night_shift_start"
+                      type="time"
+                      value={formData.night_shift_start_time}
+                      onChange={(e) => setFormData({ ...formData, night_shift_start_time: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="night_shift_end">Night Shift End</Label>
+                    <Input
+                      id="night_shift_end"
+                      type="time"
+                      value={formData.night_shift_end_time}
+                      onChange={(e) => setFormData({ ...formData, night_shift_end_time: e.target.value })}
                     />
                   </div>
                 </div>

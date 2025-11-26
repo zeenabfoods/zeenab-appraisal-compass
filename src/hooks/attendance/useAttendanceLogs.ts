@@ -138,6 +138,58 @@ export function useAttendanceLogs() {
       const diffMs = new Date(clockOutTime).getTime() - clockInTime.getTime();
       const totalHours = diffMs / (1000 * 60 * 60);
 
+      // Fetch attendance rules for overtime and night shift calculation
+      const { data: rules } = await supabase
+        .from('attendance_rules')
+        .select('*')
+        .eq('is_active', true)
+        .limit(1)
+        .single();
+
+      let overtimeHours = 0;
+      let isNightShift = false;
+      let nightShiftHours = 0;
+
+      if (rules) {
+        // Calculate standard work hours
+        const workStart = rules.work_start_time || '08:00';
+        const workEnd = rules.work_end_time || '17:00';
+        const [startH, startM] = workStart.split(':').map(Number);
+        const [endH, endM] = workEnd.split(':').map(Number);
+        const standardHours = (endH * 60 + endM - (startH * 60 + startM)) / 60;
+
+        // Calculate overtime (hours beyond standard hours)
+        if (totalHours > standardHours) {
+          overtimeHours = totalHours - standardHours;
+        }
+
+        // Detect night shift (check if clock-in is within night shift window)
+        const nightStart = rules.night_shift_start_time || '22:00';
+        const nightEnd = rules.night_shift_end_time || '06:00';
+        const [nightStartH, nightStartM] = nightStart.split(':').map(Number);
+        const [nightEndH, nightEndM] = nightEnd.split(':').map(Number);
+
+        const clockInHour = clockInTime.getHours();
+        const clockInMinute = clockInTime.getMinutes();
+        const clockInMinutes = clockInHour * 60 + clockInMinute;
+        const nightStartMinutes = nightStartH * 60 + nightStartM;
+        const nightEndMinutes = nightEndH * 60 + nightEndM;
+
+        // Handle night shift window that spans midnight
+        if (nightStartMinutes > nightEndMinutes) {
+          // e.g., 22:00 to 06:00
+          isNightShift = clockInMinutes >= nightStartMinutes || clockInMinutes <= nightEndMinutes;
+        } else {
+          // e.g., 00:00 to 08:00
+          isNightShift = clockInMinutes >= nightStartMinutes && clockInMinutes <= nightEndMinutes;
+        }
+
+        // Calculate night shift hours (simplified: if night shift, count hours within window)
+        if (isNightShift) {
+          nightShiftHours = Math.min(totalHours, 8); // Simplified calculation
+        }
+      }
+
       const { error } = await supabase
         .from('attendance_logs')
         .update({
@@ -146,6 +198,9 @@ export function useAttendanceLogs() {
           clock_out_longitude: longitude,
           within_geofence_at_clock_out: withinGeofence,
           total_hours: Number(totalHours.toFixed(2)),
+          overtime_hours: Number(overtimeHours.toFixed(2)),
+          is_night_shift: isNightShift,
+          night_shift_hours: Number(nightShiftHours.toFixed(2)),
         })
         .eq('id', todayLog.id);
 
@@ -153,7 +208,16 @@ export function useAttendanceLogs() {
 
       setTodayLog(null);
       setIsClocked(false);
-      toast.success('Clocked out successfully');
+      
+      let message = 'Clocked out successfully';
+      if (overtimeHours > 0) {
+        message += ` • +${overtimeHours.toFixed(1)}h overtime`;
+      }
+      if (isNightShift) {
+        message += ` • Night shift`;
+      }
+      
+      toast.success(message);
 
       // Trigger haptic feedback
       if ('vibrate' in navigator) {
