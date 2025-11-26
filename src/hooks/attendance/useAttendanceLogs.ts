@@ -57,10 +57,22 @@ export function useAttendanceLogs() {
     try {
       const { data, error } = await supabase
         .from('attendance_logs')
-        .select('*')
+        .select(`
+          *,
+          employee:profiles!attendance_logs_employee_id_fkey(
+            first_name,
+            last_name,
+            department,
+            position
+          ),
+          branch:attendance_branches!attendance_logs_branch_id_fkey(
+            name,
+            address
+          )
+        `)
         .eq('employee_id', profile.id)
         .order('clock_in_time', { ascending: false })
-        .limit(10);
+        .limit(50);
 
       if (error) throw error;
       setRecentLogs(data || []);
