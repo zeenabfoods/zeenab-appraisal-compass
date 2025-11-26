@@ -14,7 +14,9 @@ import { GeofenceAlertsList } from '@/components/attendance/GeofenceAlertsList';
 import { EyeServiceDashboard } from '@/components/attendance/EyeServiceDashboard';
 import { HRSecurityDashboard } from '@/components/attendance/HRSecurityDashboard';
 import { SecurityMonitor } from '@/components/attendance/SecurityMonitor';
-import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield } from 'lucide-react';
+import { AttendanceRulesConfig } from '@/components/attendance/AttendanceRulesConfig';
+import { ChargesManagement } from '@/components/attendance/ChargesManagement';
+import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import {
   Sidebar,
@@ -43,6 +45,8 @@ export default function AttendanceDashboard() {
     { id: 'history', label: 'My History', icon: Clock },
     { id: 'stats', label: 'Statistics', icon: TrendingUp },
     { id: 'branches', label: 'Branches', icon: Building2 },
+    { id: 'rules', label: 'Rules & Policies', icon: Settings },
+    { id: 'charges', label: 'Charges', icon: DollarSign },
     { id: 'break-config', label: 'Break Config', icon: Settings },
     { id: 'break-compliance', label: 'Compliance', icon: AlertCircle },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
@@ -180,6 +184,10 @@ export default function AttendanceDashboard() {
         return <HRSecurityDashboard />;
       case 'eye-service':
         return <EyeServiceDashboard />;
+      case 'rules':
+        return <AttendanceRulesConfig />;
+      case 'charges':
+        return <ChargesManagement />;
       default:
         return renderOverviewContent();
     }
