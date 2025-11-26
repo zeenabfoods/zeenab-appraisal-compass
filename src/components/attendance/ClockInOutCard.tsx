@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Clock, MapPin, Wifi, WifiOff, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { GeofenceMapView } from './GeofenceMapView';
 import { cn } from '@/lib/utils';
 import { useGeolocation } from '@/hooks/attendance/useGeolocation';
 import { useAttendanceLogs } from '@/hooks/attendance/useAttendanceLogs';
@@ -18,6 +19,7 @@ export function ClockInOutCard() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [mode, setMode] = useState<'office' | 'field'>('office');
   const [showFieldDialog, setShowFieldDialog] = useState(false);
+  const [showMap, setShowMap] = useState(false);
   const [fieldReason, setFieldReason] = useState('');
   const [fieldLocation, setFieldLocation] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -192,6 +194,8 @@ export function ClockInOutCard() {
 
   return (
     <>
+      {showMap && <GeofenceMapView onClose={() => setShowMap(false)} />}
+      
       <Card className="overflow-hidden bg-white shadow-[0_4px_12px_rgba(0,0,0,0.1)] border-attendance-card-border">
         {/* Date/Time Banner */}
         <div className="bg-attendance-primary text-white px-6 py-3 flex items-center justify-between">
@@ -283,6 +287,15 @@ export function ClockInOutCard() {
                   Distance: ~{Math.round(distanceFromOffice)}m from {activeBranch.name}
                 </p>
               )}
+              <Button
+                variant="outline"
+                onClick={() => setShowMap(true)}
+                size="sm"
+                className="w-full mt-3 border-attendance-primary/30 hover:bg-attendance-primary/5 hover:border-attendance-primary"
+              >
+                <MapPin className="h-4 w-4 mr-2" />
+                View Map
+              </Button>
             </div>
           )}
 
