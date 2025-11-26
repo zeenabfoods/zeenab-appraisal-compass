@@ -14,6 +14,7 @@ import {
   User,
   BookOpen,
   CheckSquare,
+  Clock,
 } from "lucide-react"
 
 import { useAuthContext } from "@/components/AuthProvider"
@@ -40,6 +41,11 @@ export function SimpleSidebar() {
         title: "My Appraisals",
         url: "/my-appraisals",
         icon: ClipboardList,
+      },
+      {
+        title: "Smart Attendance",
+        url: "/attendance",
+        icon: Clock,
       },
       {
         title: "Training Center",
