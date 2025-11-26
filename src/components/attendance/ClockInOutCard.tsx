@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Clock, MapPin, Wifi, WifiOff, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Clock, MapPin, Wifi, WifiOff, AlertCircle, CheckCircle2, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useGeolocation } from '@/hooks/attendance/useGeolocation';
 import { useAttendanceLogs } from '@/hooks/attendance/useAttendanceLogs';
@@ -10,6 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
+import { generateDeviceFingerprint, storeDeviceFingerprint, compareDeviceFingerprint } from '@/utils/deviceFingerprinting';
+import { detectLocationSpoofing } from '@/utils/locationSpoofingDetection';
 
 export function ClockInOutCard() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -54,12 +57,86 @@ export function ClockInOutCard() {
     };
   }, []);
 
+  const performSecurityChecks = async (): Promise<{ passed: boolean; warnings: string[] }> => {
+    const warnings: string[] = [];
+    
+    try {
+      // Check 1: Device Fingerprint Verification
+      const fingerprint = await generateDeviceFingerprint();
+      const deviceComparison = await compareDeviceFingerprint();
+      
+      if (!deviceComparison.isMatch && deviceComparison.similarityScore < 50) {
+        warnings.push('⚠️ Device verification failed. Different device detected.');
+      } else if (!deviceComparison.isMatch) {
+        warnings.push('⚠️ Device changes detected: ' + deviceComparison.changes.slice(0, 2).join(', '));
+      }
+      
+      // Store fingerprint if first time
+      if (deviceComparison.similarityScore === 0) {
+        storeDeviceFingerprint(fingerprint);
+      }
+
+      // Check 2: Location Spoofing Detection
+      if (latitude && longitude) {
+        const locationCheck = await detectLocationSpoofing(
+          latitude,
+          longitude,
+          10, // accuracy placeholder
+          undefined,
+          undefined
+        );
+
+        if (locationCheck.isSuspicious) {
+          warnings.push('🚨 Suspicious location detected: ' + locationCheck.suspicionReasons[0]);
+          toast.error('Security Alert', {
+            description: 'Suspicious location activity detected. This will be logged.',
+          });
+        }
+
+        if (locationCheck.warnings.length > 0) {
+          warnings.push('⚠️ Location warning: ' + locationCheck.warnings[0]);
+        }
+
+        // Block clock-in if confidence is too low
+        if (locationCheck.confidenceScore < 40) {
+          toast.error('Clock-in Blocked', {
+            description: 'Location security check failed. Please ensure GPS is enabled and not using location spoofing.',
+          });
+          return { passed: false, warnings };
+        }
+      }
+
+      // Show warnings but allow if score is acceptable
+      if (warnings.length > 0) {
+        toast.warning('Security Warnings', {
+          description: warnings[0],
+        });
+      } else {
+        toast.success('Security Check Passed', {
+          description: 'All security verifications completed successfully.',
+        });
+      }
+
+      return { passed: true, warnings };
+    } catch (error) {
+      console.error('Security check error:', error);
+      toast.error('Security check failed. Please try again.');
+      return { passed: false, warnings: ['Security check failed'] };
+    }
+  };
+
   const handleClockToggle = async () => {
     if (isClocked && todayLog) {
       // Clock out
       await clockOut(latitude, longitude, mode === 'office' ? isWithinGeofence : undefined);
     } else {
-      // Clock in
+      // Clock in - perform security checks first
+      const securityCheck = await performSecurityChecks();
+      
+      if (!securityCheck.passed) {
+        return;
+      }
+
       if (mode === 'field') {
         setShowFieldDialog(true);
       } else if (mode === 'office') {
@@ -84,6 +161,7 @@ export function ClockInOutCard() {
       return;
     }
 
+    // Security checks are already done before opening dialog
     await clockIn({
       locationType: 'field',
       latitude,
