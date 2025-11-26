@@ -15,6 +15,7 @@ import {
   X,
   BookOpen,
   CheckSquare,
+  Clock,
 } from "lucide-react"
 
 import { useAuthContext } from "@/components/AuthProvider"
@@ -54,6 +55,11 @@ export function ResponsiveSidebar() {
         title: "My Appraisals",
         url: "/my-appraisals",
         icon: ClipboardList,
+      },
+      {
+        title: "Smart Attendance",
+        url: "/attendance",
+        icon: Clock,
       },
       {
         title: "Training Center",
