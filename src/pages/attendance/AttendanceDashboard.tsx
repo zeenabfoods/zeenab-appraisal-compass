@@ -11,7 +11,8 @@ import { AttendanceAnalytics } from '@/components/attendance/AttendanceAnalytics
 import { GeofenceMonitor } from '@/components/attendance/GeofenceMonitor';
 import { GeofenceAlertsList } from '@/components/attendance/GeofenceAlertsList';
 import { EyeServiceDashboard } from '@/components/attendance/EyeServiceDashboard';
-import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye } from 'lucide-react';
+import { SecurityMonitor } from '@/components/attendance/SecurityMonitor';
+import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuthContext } from '@/components/AuthProvider';
@@ -49,7 +50,7 @@ export default function AttendanceDashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {isHRorAdmin ? (
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full max-w-5xl grid-cols-11">
+            <TabsList className="grid w-full max-w-6xl grid-cols-12">
               <TabsTrigger value="overview">
                 <Clock className="w-4 h-4 mr-2" />
                 Overview
@@ -90,6 +91,10 @@ export default function AttendanceDashboard() {
                 <MapPin className="w-4 h-4 mr-2" />
                 Geofence
               </TabsTrigger>
+              <TabsTrigger value="security">
+                <Shield className="w-4 h-4 mr-2" />
+                Security
+              </TabsTrigger>
               {(profile?.role === 'hr' || profile?.role === 'admin') && (
                 <TabsTrigger value="eye-service">
                   <Eye className="w-4 h-4 mr-2" />
@@ -106,6 +111,8 @@ export default function AttendanceDashboard() {
                 </div>
 
                 <div className="space-y-6">
+                  <SecurityMonitor />
+                  
                   <Card className="p-7 bg-gradient-to-br from-orange-50/80 to-amber-50/80 dark:from-orange-950/20 dark:to-amber-950/20 border-orange-200/60 dark:border-orange-800/60 shadow-lg shadow-orange-100/50 dark:shadow-none">
                     <div className="flex items-start gap-4">
                       <div className="p-3 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg shadow-orange-500/30">
@@ -229,7 +236,7 @@ export default function AttendanceDashboard() {
           </Tabs>
         ) : (
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full max-w-2xl grid-cols-5">
+            <TabsList className="grid w-full max-w-3xl grid-cols-6">
               <TabsTrigger value="overview">
                 <Clock className="w-4 h-4 mr-2" />
                 Overview
@@ -250,6 +257,10 @@ export default function AttendanceDashboard() {
                 <BarChart3 className="w-4 h-4 mr-2" />
                 Analytics
               </TabsTrigger>
+              <TabsTrigger value="security">
+                <Shield className="w-4 h-4 mr-2" />
+                Security
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
@@ -260,6 +271,8 @@ export default function AttendanceDashboard() {
                 </div>
 
             <div className="space-y-6">
+              <SecurityMonitor />
+              
               <Card className="p-7 bg-gradient-to-br from-orange-50/80 to-amber-50/80 dark:from-orange-950/20 dark:to-amber-950/20 border-orange-200/60 dark:border-orange-800/60 shadow-lg shadow-orange-100/50 dark:shadow-none">
                 <div className="flex items-start gap-4">
                   <div className="p-3 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg shadow-orange-500/30">
@@ -353,6 +366,93 @@ export default function AttendanceDashboard() {
 
         <TabsContent value="analytics">
           <AttendanceAnalytics />
+        </TabsContent>
+        
+        <TabsContent value="security">
+          <div className="space-y-6">
+            <div className="grid gap-6">
+              <Card className="p-6 bg-gradient-to-br from-blue-50/80 to-indigo-50/80 dark:from-blue-950/20 dark:to-indigo-950/20 border-blue-200/60 dark:border-blue-800/60">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg">
+                    <Shield className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100">Security & Anti-Fraud Protection</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Advanced security features to ensure attendance integrity
+                    </p>
+                  </div>
+                </div>
+              </Card>
+              
+              <SecurityMonitor />
+              
+              <Card className="p-6">
+                <h3 className="font-semibold text-base mb-4">Security Features</h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="p-4 border rounded-lg space-y-2">
+                    <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                      <Shield className="w-4 h-4" />
+                      <span className="font-medium text-sm">Device Fingerprinting</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Prevents multi-device fraud by tracking unique device characteristics
+                    </p>
+                  </div>
+                  
+                  <div className="p-4 border rounded-lg space-y-2">
+                    <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                      <MapPin className="w-4 h-4" />
+                      <span className="font-medium text-sm">Location Spoofing Detection</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Detects fake GPS locations and suspicious movement patterns
+                    </p>
+                  </div>
+                  
+                  <div className="p-4 border rounded-lg space-y-2">
+                    <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400">
+                      <Clock className="w-4 h-4" />
+                      <span className="font-medium text-sm">Time-stamped GPS Verification</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Validates location accuracy and timing consistency
+                    </p>
+                  </div>
+                  
+                  <div className="p-4 border rounded-lg space-y-2">
+                    <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400">
+                      <AlertCircle className="w-4 h-4" />
+                      <span className="font-medium text-sm">Suspicious Activity Monitoring</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Tracks rapid location changes and unusual patterns
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="security">
+          <div className="space-y-6">
+            <Card className="p-6 bg-gradient-to-br from-blue-50/80 to-indigo-50/80 dark:from-blue-950/20 dark:to-indigo-950/20 border-blue-200/60 dark:border-blue-800/60">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg">
+                  <Shield className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100">Security & Anti-Fraud Protection</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Your attendance is protected by advanced security features
+                  </p>
+                </div>
+              </div>
+            </Card>
+            
+            <SecurityMonitor />
+          </div>
         </TabsContent>
       </Tabs>
         )}
