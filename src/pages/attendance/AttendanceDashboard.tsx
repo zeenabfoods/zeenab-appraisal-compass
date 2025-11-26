@@ -7,7 +7,8 @@ import { HRAttendanceView } from '@/components/attendance/HRAttendanceView';
 import { BreakManagement } from '@/components/attendance/BreakManagement';
 import { BreakScheduleConfig } from '@/components/attendance/BreakScheduleConfig';
 import { BreakComplianceReport } from '@/components/attendance/BreakComplianceReport';
-import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings } from 'lucide-react';
+import { AttendanceAnalytics } from '@/components/attendance/AttendanceAnalytics';
+import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuthContext } from '@/components/AuthProvider';
@@ -42,7 +43,7 @@ export default function AttendanceDashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {isHRorAdmin ? (
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full max-w-5xl grid-cols-8">
+            <TabsList className="grid w-full max-w-5xl grid-cols-9">
               <TabsTrigger value="overview">
                 <Clock className="w-4 h-4 mr-2" />
                 Overview
@@ -74,6 +75,10 @@ export default function AttendanceDashboard() {
               <TabsTrigger value="break-compliance">
                 <AlertCircle className="w-4 h-4 mr-2" />
                 Compliance
+              </TabsTrigger>
+              <TabsTrigger value="analytics">
+                <BarChart3 className="w-4 h-4 mr-2" />
+                Analytics
               </TabsTrigger>
             </TabsList>
 
@@ -191,10 +196,14 @@ export default function AttendanceDashboard() {
             <TabsContent value="break-compliance">
               <BreakComplianceReport />
             </TabsContent>
+
+            <TabsContent value="analytics">
+              <AttendanceAnalytics />
+            </TabsContent>
           </Tabs>
         ) : (
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full max-w-2xl grid-cols-4">
+            <TabsList className="grid w-full max-w-2xl grid-cols-5">
               <TabsTrigger value="overview">
                 <Clock className="w-4 h-4 mr-2" />
                 Overview
@@ -210,6 +219,10 @@ export default function AttendanceDashboard() {
               <TabsTrigger value="stats">
                 <TrendingUp className="w-4 h-4 mr-2" />
                 Statistics
+              </TabsTrigger>
+              <TabsTrigger value="analytics">
+                <BarChart3 className="w-4 h-4 mr-2" />
+                Analytics
               </TabsTrigger>
             </TabsList>
 
@@ -310,6 +323,10 @@ export default function AttendanceDashboard() {
 
         <TabsContent value="stats">
           <AttendanceStats />
+        </TabsContent>
+
+        <TabsContent value="analytics">
+          <AttendanceAnalytics />
         </TabsContent>
       </Tabs>
         )}
