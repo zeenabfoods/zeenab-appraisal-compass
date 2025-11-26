@@ -10,7 +10,8 @@ import { BreakComplianceReport } from '@/components/attendance/BreakComplianceRe
 import { AttendanceAnalytics } from '@/components/attendance/AttendanceAnalytics';
 import { GeofenceMonitor } from '@/components/attendance/GeofenceMonitor';
 import { GeofenceAlertsList } from '@/components/attendance/GeofenceAlertsList';
-import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3 } from 'lucide-react';
+import { EyeServiceDashboard } from '@/components/attendance/EyeServiceDashboard';
+import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuthContext } from '@/components/AuthProvider';
@@ -48,7 +49,7 @@ export default function AttendanceDashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {isHRorAdmin ? (
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full max-w-5xl grid-cols-10">
+            <TabsList className="grid w-full max-w-5xl grid-cols-11">
               <TabsTrigger value="overview">
                 <Clock className="w-4 h-4 mr-2" />
                 Overview
@@ -89,6 +90,12 @@ export default function AttendanceDashboard() {
                 <MapPin className="w-4 h-4 mr-2" />
                 Geofence
               </TabsTrigger>
+              {(profile?.role === 'hr' || profile?.role === 'admin') && (
+                <TabsTrigger value="eye-service">
+                  <Eye className="w-4 h-4 mr-2" />
+                  Eye Service
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
@@ -213,6 +220,12 @@ export default function AttendanceDashboard() {
             <TabsContent value="geofence">
               <GeofenceAlertsList />
             </TabsContent>
+
+            {(profile?.role === 'hr' || profile?.role === 'admin') && (
+              <TabsContent value="eye-service">
+                <EyeServiceDashboard />
+              </TabsContent>
+            )}
           </Tabs>
         ) : (
           <Tabs defaultValue="overview" className="space-y-6">
