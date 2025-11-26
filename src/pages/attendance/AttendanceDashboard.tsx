@@ -23,6 +23,7 @@ import { OvertimePayrollReport } from '@/components/attendance/OvertimePayrollRe
 import { AttendanceBottomNav } from '@/components/attendance/AttendanceBottomNav';
 import { PullToRefreshIndicator } from '@/components/attendance/PullToRefreshIndicator';
 import { OfflineQueueIndicator } from '@/components/attendance/OfflineQueueIndicator';
+import { AnimatedPageWrapper } from '@/components/attendance/AnimatedPageWrapper';
 import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import {
@@ -187,48 +188,56 @@ export default function AttendanceDashboard() {
   );
 
   const renderContent = () => {
-    switch (activeView) {
-      case 'overview':
-        return renderOverviewContent();
-      case 'breaks':
-        return <BreakManagement />;
-      case 'hr-admin':
-        return <HRAttendanceView />;
-      case 'history':
-        return <AttendanceHistory />;
-      case 'stats':
-        return <AttendanceStats />;
-      case 'branches':
-        return <BranchManagement />;
-      case 'break-config':
-        return <BreakScheduleConfig />;
-      case 'break-compliance':
-        return <BreakComplianceReport />;
-      case 'analytics':
-        return <AttendanceAnalytics />;
-      case 'geofence':
-        return <GeofenceAlertsList />;
-      case 'security':
-        return <SecurityMonitor />;
-      case 'hr-security':
-        return <HRSecurityDashboard />;
-      case 'eye-service':
-        return <EyeServiceDashboard />;
-      case 'rules':
-        return <AttendanceRulesConfig />;
-      case 'charges':
-        return <ChargesManagement />;
-      case 'escalation':
-        return <EscalationRulesConfig />;
-      case 'auto-charges':
-        return <AutomaticChargeCalculation />;
-      case 'overtime-report':
-        return <OvertimePayrollReport />;
-      case 'overrides':
-        return <ManualOverrides />;
-      default:
-        return renderOverviewContent();
-    }
+    const content = (() => {
+      switch (activeView) {
+        case 'overview':
+          return renderOverviewContent();
+        case 'breaks':
+          return <BreakManagement />;
+        case 'hr-admin':
+          return <HRAttendanceView />;
+        case 'history':
+          return <AttendanceHistory />;
+        case 'stats':
+          return <AttendanceStats />;
+        case 'branches':
+          return <BranchManagement />;
+        case 'break-config':
+          return <BreakScheduleConfig />;
+        case 'break-compliance':
+          return <BreakComplianceReport />;
+        case 'analytics':
+          return <AttendanceAnalytics />;
+        case 'geofence':
+          return <GeofenceAlertsList />;
+        case 'security':
+          return <SecurityMonitor />;
+        case 'hr-security':
+          return <HRSecurityDashboard />;
+        case 'eye-service':
+          return <EyeServiceDashboard />;
+        case 'rules':
+          return <AttendanceRulesConfig />;
+        case 'charges':
+          return <ChargesManagement />;
+        case 'escalation':
+          return <EscalationRulesConfig />;
+        case 'auto-charges':
+          return <AutomaticChargeCalculation />;
+        case 'overtime-report':
+          return <OvertimePayrollReport />;
+        case 'overrides':
+          return <ManualOverrides />;
+        default:
+          return renderOverviewContent();
+      }
+    })();
+
+    return (
+      <AnimatedPageWrapper key={activeView}>
+        {content}
+      </AnimatedPageWrapper>
+    );
   };
 
   return (

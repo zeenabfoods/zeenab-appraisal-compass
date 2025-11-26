@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { format, parseISO, isSameDay } from 'date-fns';
 import { Filter } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAttendanceLogs } from '@/hooks/attendance/useAttendanceLogs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { listContainerVariants, listItemVariants } from '@/utils/animations';
 import {
   Sheet,
   SheetContent,
@@ -144,9 +146,17 @@ export function AttendanceHistory() {
             <p>No attendance records found</p>
           </div>
         ) : (
-          <div className="space-y-6">
-            {groupedLogs.map(([dateKey, logs]) => (
-              <div key={dateKey}>
+          <motion.div 
+            className="space-y-6"
+            variants={listContainerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            {groupedLogs.map(([dateKey, logs], groupIndex) => (
+              <motion.div 
+                key={dateKey}
+                variants={listItemVariants}
+              >
                 {/* Date Header */}
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold text-foreground">
@@ -158,11 +168,17 @@ export function AttendanceHistory() {
                 </div>
 
                 {/* Records for this date */}
-                <div className="space-y-3">
-                  {logs.map((log: any) => (
-                    <div
+                <motion.div 
+                  className="space-y-3"
+                  variants={listContainerVariants}
+                >
+                  {logs.map((log: any, logIndex) => (
+                    <motion.div
                       key={log.id}
                       className="bg-muted/30 rounded-lg p-4 hover:bg-muted/50 transition-colors"
+                      variants={listItemVariants}
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
                     >
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
@@ -232,12 +248,12 @@ export function AttendanceHistory() {
                           )}
                         </div>
                       )}
-                    </div>
+                    </motion.div>
                   ))}
-                </div>
-              </div>
+                </motion.div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         )}
       </CardContent>
     </Card>

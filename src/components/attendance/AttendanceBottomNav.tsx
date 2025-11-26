@@ -1,8 +1,10 @@
 import { Home, Clock, BarChart3, User, Fingerprint } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useAttendanceLogs } from '@/hooks/attendance/useAttendanceLogs';
 import { toast } from 'sonner';
+import { slideUpVariants } from '@/utils/animations';
 
 interface AttendanceBottomNavProps {
   activeView: string;
@@ -44,7 +46,12 @@ export function AttendanceBottomNav({ activeView, onViewChange }: AttendanceBott
   ];
 
   return (
-    <div className="lg:hidden">
+    <motion.div 
+      className="lg:hidden"
+      variants={slideUpVariants}
+      initial="hidden"
+      animate="visible"
+    >
       {/* Safe area spacer */}
       <div className="h-20" />
       
@@ -61,7 +68,7 @@ export function AttendanceBottomNav({ activeView, onViewChange }: AttendanceBott
             const IconComponent = item.icon;
 
             return (
-              <button
+              <motion.button
                 key={item.id}
                 onClick={() => onViewChange(item.id)}
                 className={cn(
@@ -70,15 +77,21 @@ export function AttendanceBottomNav({ activeView, onViewChange }: AttendanceBott
                     ? "text-attendance-primary"
                     : "text-muted-foreground hover:text-foreground"
                 )}
+                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.05 }}
               >
                 <IconComponent className="h-5 w-5 mb-1" />
                 <span className="text-xs font-medium">{item.label}</span>
-              </button>
+              </motion.button>
             );
           })}
 
           {/* Floating Center Button */}
-          <div className="absolute left-1/2 -translate-x-1/2 -top-6">
+          <motion.div 
+            className="absolute left-1/2 -translate-x-1/2 -top-6"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+          >
             <Button
               onClick={handleClockToggle}
               className={cn(
@@ -90,9 +103,9 @@ export function AttendanceBottomNav({ activeView, onViewChange }: AttendanceBott
             >
               <Fingerprint className="h-7 w-7 text-white" />
             </Button>
-          </div>
+          </motion.div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
