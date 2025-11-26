@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useAttendanceLogs } from '@/hooks/attendance/useAttendanceLogs';
 import { slideUpVariants } from '@/utils/animations';
+import { useAuthContext } from '@/components/AuthProvider';
 
 interface AttendanceBottomNavProps {
   activeView: string;
@@ -12,6 +13,8 @@ interface AttendanceBottomNavProps {
 
 export function AttendanceBottomNav({ activeView, onViewChange }: AttendanceBottomNavProps) {
   const { isClocked } = useAttendanceLogs();
+  const { profile } = useAuthContext();
+  const isHRorAdmin = profile?.role === 'hr' || profile?.role === 'admin';
   const [isPressing, setIsPressing] = useState(false);
   const pressTimeoutRef = useRef<number | null>(null);
 
@@ -69,7 +72,7 @@ export function AttendanceBottomNav({ activeView, onViewChange }: AttendanceBott
       label: 'Reports',
     },
     {
-      id: 'security',
+      id: isHRorAdmin ? 'security' : 'history',
       icon: User,
       label: 'Profile',
     },

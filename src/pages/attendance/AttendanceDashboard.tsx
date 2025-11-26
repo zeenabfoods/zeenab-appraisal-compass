@@ -92,7 +92,6 @@ export default function AttendanceDashboard() {
     { id: 'history', label: 'History', icon: Clock },
     { id: 'stats', label: 'Statistics', icon: TrendingUp },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-    { id: 'security', label: 'Security', icon: Shield },
   ];
 
   const menuItems = isHRorAdmin ? hrMenuItems : staffMenuItems;
