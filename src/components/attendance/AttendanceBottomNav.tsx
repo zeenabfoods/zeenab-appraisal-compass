@@ -128,24 +128,42 @@ export function AttendanceBottomNav({ activeView, onViewChange }: AttendanceBott
             onTouchEnd={endLongPress}
             onTouchCancel={endLongPress}
             className={cn(
-              "absolute left-1/2 -translate-x-1/2 -top-6",
-              "h-16 w-16 rounded-full shadow-lg",
+              "absolute left-1/2 -top-6",
+              "h-16 w-16 rounded-full",
               "flex items-center justify-center",
-              "transition-colors",
+              "transition-colors touch-none select-none",
               isClocked
-                ? "bg-attendance-danger hover:bg-attendance-danger/90"
-                : "bg-attendance-primary hover:bg-attendance-primary-hover"
+                ? "bg-attendance-danger"
+                : "bg-attendance-primary"
             )}
+            style={{
+              transform: 'translateX(-50%)',
+            }}
             animate={{
-              scale: isPressing ? 1.25 : 1,
+              scale: isPressing ? 1.3 : 1,
               boxShadow: isPressing
-                ? "0 0 35px rgba(255, 107, 53, 0.7)"
-                : "0 10px 25px -10px rgba(255, 107, 53, 0.4)",
+                ? [
+                    "0 0 0px rgba(255, 107, 53, 0.8), 0 0 30px rgba(255, 107, 53, 0.6), 0 0 50px rgba(255, 107, 53, 0.4)",
+                    "0 0 20px rgba(255, 107, 53, 1), 0 0 40px rgba(255, 107, 53, 0.8), 0 0 60px rgba(255, 107, 53, 0.6)",
+                    "0 0 0px rgba(255, 107, 53, 0.8), 0 0 30px rgba(255, 107, 53, 0.6), 0 0 50px rgba(255, 107, 53, 0.4)",
+                  ]
+                : "0 8px 25px -8px rgba(255, 107, 53, 0.5)",
             }}
             transition={{
-              type: 'spring',
-              stiffness: 300,
-              damping: 20,
+              scale: {
+                type: 'spring',
+                stiffness: 300,
+                damping: 20,
+              },
+              boxShadow: isPressing
+                ? {
+                    duration: 1.5,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }
+                : {
+                    duration: 0.3,
+                  },
             }}
           >
             <Fingerprint className="h-8 w-8 text-white" />
