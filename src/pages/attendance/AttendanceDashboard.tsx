@@ -2,6 +2,7 @@ import { ClockInOutCard } from '@/components/attendance/ClockInOutCard';
 import { AttendanceStats } from '@/components/attendance/AttendanceStats';
 import { RecentActivity } from '@/components/attendance/RecentActivity';
 import { BranchManagement } from '@/components/attendance/BranchManagement';
+import { AttendanceHistory } from '@/components/attendance/AttendanceHistory';
 import { MapPin, TrendingUp, Clock, AlertCircle, Building2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -54,6 +55,7 @@ export default function AttendanceDashboard() {
                   <ClockInOutCard />
                   <AttendanceStats />
                   <RecentActivity />
+                  <AttendanceHistory />
                 </div>
 
                 <div className="space-y-6">
@@ -146,6 +148,7 @@ export default function AttendanceDashboard() {
               <ClockInOutCard />
               <AttendanceStats />
               <RecentActivity />
+              <AttendanceHistory />
             </div>
 
             <div className="space-y-6">
