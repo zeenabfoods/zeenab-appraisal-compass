@@ -87,10 +87,19 @@ export function AttendanceBottomNav({ activeView, onViewChange }: AttendanceBott
           })}
 
           {/* Floating Center Button */}
-          <motion.div 
-            className="absolute left-1/2 -translate-x-1/2 -top-6"
+          <motion.button
+            onClick={handleClockToggle}
+            className={cn(
+              "absolute left-1/2 -translate-x-1/2 -top-6",
+              "h-16 w-16 rounded-full shadow-lg",
+              "flex items-center justify-center",
+              "transition-colors",
+              isClocked
+                ? "bg-attendance-danger hover:bg-attendance-danger/90"
+                : "bg-attendance-primary hover:bg-attendance-primary-hover"
+            )}
             whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 1.2 }}
+            whileTap={{ scale: 1.2, rotate: [0, -5, 5, -5, 0] }}
             animate={{
               boxShadow: [
                 "0 10px 30px -10px rgba(255, 107, 53, 0.3)",
@@ -103,26 +112,14 @@ export function AttendanceBottomNav({ activeView, onViewChange }: AttendanceBott
                 duration: 2,
                 repeat: Infinity,
                 ease: "easeInOut"
+              },
+              rotate: {
+                duration: 0.4
               }
             }}
           >
-            <motion.div
-              whileTap={{ rotate: [0, -5, 5, -5, 0] }}
-              transition={{ duration: 0.4 }}
-            >
-              <Button
-                onClick={handleClockToggle}
-                className={cn(
-                  "h-16 w-16 rounded-full shadow-lg transition-all relative",
-                  isClocked
-                    ? "bg-attendance-danger hover:bg-attendance-danger/90"
-                    : "bg-attendance-primary hover:bg-attendance-primary-hover"
-                )}
-              >
-                <Fingerprint className="h-8 w-8 text-white" />
-              </Button>
-            </motion.div>
-          </motion.div>
+            <Fingerprint className="h-8 w-8 text-white" />
+          </motion.button>
         </div>
       </div>
     </motion.div>
