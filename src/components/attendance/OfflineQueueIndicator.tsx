@@ -1,10 +1,12 @@
 import { RefreshCw, Wifi, WifiOff, Clock, AlertCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useSyncQueue } from '@/hooks/attendance/useSyncQueue';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
+import { scaleFadeVariants, listContainerVariants, listItemVariants } from '@/utils/animations';
 import {
   Tooltip,
   TooltipContent,
@@ -32,10 +34,16 @@ export function OfflineQueueIndicator() {
   if (pendingCount === 0 && isOnline) return null;
 
   return (
-    <Card className={cn(
-      "fixed bottom-20 lg:bottom-6 right-4 lg:right-6 z-40 shadow-xl border-2 transition-all duration-300",
-      !isOnline ? "border-red-500/50 bg-red-50/95 dark:bg-red-950/95" : "border-orange-500/50 bg-orange-50/95 dark:bg-orange-950/95"
-    )}>
+    <motion.div
+      variants={scaleFadeVariants}
+      initial="hidden"
+      animate="visible"
+      exit="hidden"
+    >
+      <Card className={cn(
+        "fixed bottom-20 lg:bottom-6 right-4 lg:right-6 z-40 shadow-xl border-2 transition-all duration-300",
+        !isOnline ? "border-red-500/50 bg-red-50/95 dark:bg-red-950/95" : "border-orange-500/50 bg-orange-50/95 dark:bg-orange-950/95"
+      )}>
       <div className="p-4">
         <div className="flex items-start gap-3">
           <div className={cn(
@@ -79,11 +87,17 @@ export function OfflineQueueIndicator() {
             </p>
 
             {queueItems.length > 0 && (
-              <div className="space-y-1.5 mb-3">
-                {queueItems.slice(0, 3).map((item) => (
-                  <div 
+              <motion.div 
+                className="space-y-1.5 mb-3"
+                variants={listContainerVariants}
+                initial="hidden"
+                animate="visible"
+              >
+                {queueItems.slice(0, 3).map((item, index) => (
+                  <motion.div 
                     key={item.id} 
                     className="flex items-center gap-2 text-xs p-2 bg-white/50 dark:bg-gray-900/50 rounded-lg"
+                    variants={listItemVariants}
                   >
                     <div className={cn(
                       "w-1.5 h-1.5 rounded-full",
@@ -106,14 +120,14 @@ export function OfflineQueueIndicator() {
                         </Tooltip>
                       </TooltipProvider>
                     )}
-                  </div>
+                  </motion.div>
                 ))}
                 {queueItems.length > 3 && (
                   <p className="text-xs text-muted-foreground text-center">
                     +{queueItems.length - 3} more
                   </p>
                 )}
-              </div>
+              </motion.div>
             )}
 
             {isOnline && pendingCount > 0 && (
@@ -153,5 +167,6 @@ export function OfflineQueueIndicator() {
         </div>
       </div>
     </Card>
+    </motion.div>
   );
 }
