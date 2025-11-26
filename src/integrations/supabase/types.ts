@@ -443,6 +443,484 @@ export type Database = {
           },
         ]
       }
+      attendance_branches: {
+        Row: {
+          address: string | null
+          created_at: string | null
+          geofence_radius: number
+          id: string
+          is_active: boolean | null
+          latitude: number
+          longitude: number
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string | null
+          geofence_radius?: number
+          id?: string
+          is_active?: boolean | null
+          latitude: number
+          longitude: number
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string | null
+          geofence_radius?: number
+          id?: string
+          is_active?: boolean | null
+          latitude?: number
+          longitude?: number
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      attendance_breaks: {
+        Row: {
+          attendance_log_id: string
+          break_duration_minutes: number | null
+          break_end: string | null
+          break_start: string
+          break_start_latitude: number | null
+          break_start_longitude: number | null
+          break_type: string
+          created_at: string | null
+          employee_id: string
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          attendance_log_id: string
+          break_duration_minutes?: number | null
+          break_end?: string | null
+          break_start?: string
+          break_start_latitude?: number | null
+          break_start_longitude?: number | null
+          break_type: string
+          created_at?: string | null
+          employee_id: string
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          attendance_log_id?: string
+          break_duration_minutes?: number | null
+          break_end?: string | null
+          break_start?: string
+          break_start_latitude?: number | null
+          break_start_longitude?: number | null
+          break_type?: string
+          created_at?: string | null
+          employee_id?: string
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_breaks_attendance_log_id_fkey"
+            columns: ["attendance_log_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_breaks_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_charges: {
+        Row: {
+          attendance_log_id: string | null
+          charge_amount: number
+          charge_date: string
+          charge_type: string
+          created_at: string | null
+          dispute_reason: string | null
+          dispute_resolution: string | null
+          disputed_at: string | null
+          employee_id: string
+          escalation_multiplier: number | null
+          id: string
+          is_escalated: boolean | null
+          status: string | null
+          updated_at: string | null
+          waived_at: string | null
+          waived_by: string | null
+          waiver_reason: string | null
+        }
+        Insert: {
+          attendance_log_id?: string | null
+          charge_amount: number
+          charge_date?: string
+          charge_type: string
+          created_at?: string | null
+          dispute_reason?: string | null
+          dispute_resolution?: string | null
+          disputed_at?: string | null
+          employee_id: string
+          escalation_multiplier?: number | null
+          id?: string
+          is_escalated?: boolean | null
+          status?: string | null
+          updated_at?: string | null
+          waived_at?: string | null
+          waived_by?: string | null
+          waiver_reason?: string | null
+        }
+        Update: {
+          attendance_log_id?: string | null
+          charge_amount?: number
+          charge_date?: string
+          charge_type?: string
+          created_at?: string | null
+          dispute_reason?: string | null
+          dispute_resolution?: string | null
+          disputed_at?: string | null
+          employee_id?: string
+          escalation_multiplier?: number | null
+          id?: string
+          is_escalated?: boolean | null
+          status?: string | null
+          updated_at?: string | null
+          waived_at?: string | null
+          waived_by?: string | null
+          waiver_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_charges_attendance_log_id_fkey"
+            columns: ["attendance_log_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_charges_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_charges_waived_by_fkey"
+            columns: ["waived_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_geofence_alerts: {
+        Row: {
+          acknowledged: boolean | null
+          alert_time: string | null
+          alert_type: string
+          branch_id: string | null
+          created_at: string | null
+          distance_from_branch: number
+          employee_id: string
+          id: string
+          latitude: number
+          longitude: number
+        }
+        Insert: {
+          acknowledged?: boolean | null
+          alert_time?: string | null
+          alert_type: string
+          branch_id?: string | null
+          created_at?: string | null
+          distance_from_branch: number
+          employee_id: string
+          id?: string
+          latitude: number
+          longitude: number
+        }
+        Update: {
+          acknowledged?: boolean | null
+          alert_time?: string | null
+          alert_type?: string
+          branch_id?: string | null
+          created_at?: string | null
+          distance_from_branch?: number
+          employee_id?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_geofence_alerts_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_geofence_alerts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_logs: {
+        Row: {
+          branch_id: string | null
+          clock_in_latitude: number | null
+          clock_in_longitude: number | null
+          clock_in_time: string
+          clock_out_latitude: number | null
+          clock_out_longitude: number | null
+          clock_out_time: string | null
+          created_at: string | null
+          device_timestamp: string | null
+          employee_id: string
+          field_work_location: string | null
+          field_work_reason: string | null
+          geofence_distance_at_clock_in: number | null
+          id: string
+          is_late: boolean | null
+          late_by_minutes: number | null
+          location_type: string
+          sync_status: string | null
+          total_hours: number | null
+          updated_at: string | null
+          within_geofence_at_clock_in: boolean | null
+          within_geofence_at_clock_out: boolean | null
+        }
+        Insert: {
+          branch_id?: string | null
+          clock_in_latitude?: number | null
+          clock_in_longitude?: number | null
+          clock_in_time?: string
+          clock_out_latitude?: number | null
+          clock_out_longitude?: number | null
+          clock_out_time?: string | null
+          created_at?: string | null
+          device_timestamp?: string | null
+          employee_id: string
+          field_work_location?: string | null
+          field_work_reason?: string | null
+          geofence_distance_at_clock_in?: number | null
+          id?: string
+          is_late?: boolean | null
+          late_by_minutes?: number | null
+          location_type: string
+          sync_status?: string | null
+          total_hours?: number | null
+          updated_at?: string | null
+          within_geofence_at_clock_in?: boolean | null
+          within_geofence_at_clock_out?: boolean | null
+        }
+        Update: {
+          branch_id?: string | null
+          clock_in_latitude?: number | null
+          clock_in_longitude?: number | null
+          clock_in_time?: string
+          clock_out_latitude?: number | null
+          clock_out_longitude?: number | null
+          clock_out_time?: string | null
+          created_at?: string | null
+          device_timestamp?: string | null
+          employee_id?: string
+          field_work_location?: string | null
+          field_work_reason?: string | null
+          geofence_distance_at_clock_in?: number | null
+          id?: string
+          is_late?: boolean | null
+          late_by_minutes?: number | null
+          location_type?: string
+          sync_status?: string | null
+          total_hours?: number | null
+          updated_at?: string | null
+          within_geofence_at_clock_in?: boolean | null
+          within_geofence_at_clock_out?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_logs_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_rules: {
+        Row: {
+          absence_charge_amount: number | null
+          created_at: string | null
+          created_by: string | null
+          grace_period_minutes: number | null
+          id: string
+          is_active: boolean | null
+          late_charge_amount: number | null
+          late_threshold_minutes: number | null
+          mandatory_break_duration_minutes: number | null
+          max_break_duration_minutes: number | null
+          rule_name: string
+          updated_at: string | null
+          work_end_time: string | null
+          work_start_time: string | null
+        }
+        Insert: {
+          absence_charge_amount?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          grace_period_minutes?: number | null
+          id?: string
+          is_active?: boolean | null
+          late_charge_amount?: number | null
+          late_threshold_minutes?: number | null
+          mandatory_break_duration_minutes?: number | null
+          max_break_duration_minutes?: number | null
+          rule_name: string
+          updated_at?: string | null
+          work_end_time?: string | null
+          work_start_time?: string | null
+        }
+        Update: {
+          absence_charge_amount?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          grace_period_minutes?: number | null
+          id?: string
+          is_active?: boolean | null
+          late_charge_amount?: number | null
+          late_threshold_minutes?: number | null
+          mandatory_break_duration_minutes?: number | null
+          max_break_duration_minutes?: number | null
+          rule_name?: string
+          updated_at?: string | null
+          work_end_time?: string | null
+          work_start_time?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_rules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_sessions: {
+        Row: {
+          created_at: string | null
+          employee_id: string
+          end_time: string | null
+          id: string
+          session_date: string
+          session_number: number
+          session_type: string | null
+          start_time: string
+          total_duration_minutes: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          employee_id: string
+          end_time?: string | null
+          id?: string
+          session_date?: string
+          session_number?: number
+          session_type?: string | null
+          start_time: string
+          total_duration_minutes?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          employee_id?: string
+          end_time?: string | null
+          id?: string
+          session_date?: string
+          session_number?: number
+          session_type?: string | null
+          start_time?: string
+          total_duration_minutes?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_sessions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_sync_queue: {
+        Row: {
+          created_at: string | null
+          created_offline: boolean | null
+          device_timestamp: string
+          employee_id: string
+          id: string
+          last_sync_attempt: string | null
+          operation_type: string
+          payload: Json
+          sync_attempts: number | null
+          sync_error: string | null
+          sync_status: string | null
+          synced_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_offline?: boolean | null
+          device_timestamp: string
+          employee_id: string
+          id?: string
+          last_sync_attempt?: string | null
+          operation_type: string
+          payload: Json
+          sync_attempts?: number | null
+          sync_error?: string | null
+          sync_status?: string | null
+          synced_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_offline?: boolean | null
+          device_timestamp?: string
+          employee_id?: string
+          id?: string
+          last_sync_attempt?: string | null
+          operation_type?: string
+          payload?: Json
+          sync_attempts?: number | null
+          sync_error?: string | null
+          sync_status?: string | null
+          synced_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_sync_queue_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       departments: {
         Row: {
           created_at: string
@@ -1235,6 +1713,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_distance_meters: {
+        Args: { lat1: number; lat2: number; lon1: number; lon2: number }
+        Returns: number
+      }
       calculate_performance_band: { Args: { score: number }; Returns: string }
       complete_appraisal_cycle: {
         Args: { cycle_id_param: string }
@@ -1277,6 +1759,14 @@ export type Database = {
       }
       is_cycle_accessible_to_employee: {
         Args: { cycle_id_param: string }
+        Returns: boolean
+      }
+      is_within_geofence: {
+        Args: {
+          branch_id_param: string
+          employee_lat: number
+          employee_lon: number
+        }
         Returns: boolean
       }
       notify_hr_manager_review: {
