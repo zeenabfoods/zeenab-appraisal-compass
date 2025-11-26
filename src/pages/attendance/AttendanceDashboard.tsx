@@ -19,7 +19,8 @@ import { ChargesManagement } from '@/components/attendance/ChargesManagement';
 import { ManualOverrides } from '@/components/attendance/ManualOverrides';
 import { EscalationRulesConfig } from '@/components/attendance/EscalationRulesConfig';
 import { AutomaticChargeCalculation } from '@/components/attendance/AutomaticChargeCalculation';
-import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator } from 'lucide-react';
+import { OvertimePayrollReport } from '@/components/attendance/OvertimePayrollReport';
+import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import {
   Sidebar,
@@ -52,6 +53,7 @@ export default function AttendanceDashboard() {
     { id: 'charges', label: 'Charges', icon: DollarSign },
     { id: 'escalation', label: 'Escalation Rules', icon: ArrowUpCircle },
     { id: 'auto-charges', label: 'Auto Charge Engine', icon: Calculator },
+    { id: 'overtime-report', label: 'Overtime Payroll', icon: FileText },
     { id: 'overrides', label: 'Manual Overrides', icon: Edit3 },
     { id: 'break-config', label: 'Break Config', icon: Settings },
     { id: 'break-compliance', label: 'Compliance', icon: AlertCircle },
@@ -198,6 +200,8 @@ export default function AttendanceDashboard() {
         return <EscalationRulesConfig />;
       case 'auto-charges':
         return <AutomaticChargeCalculation />;
+      case 'overtime-report':
+        return <OvertimePayrollReport />;
       case 'overrides':
         return <ManualOverrides />;
       default:
