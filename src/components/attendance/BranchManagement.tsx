@@ -19,6 +19,7 @@ export function BranchManagement() {
     latitude: '',
     longitude: '',
     geofence_radius: '100',
+    geofence_color: '#FF6B35',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,6 +32,7 @@ export function BranchManagement() {
         latitude: parseFloat(formData.latitude),
         longitude: parseFloat(formData.longitude),
         geofence_radius: parseInt(formData.geofence_radius),
+        geofence_color: formData.geofence_color,
         is_active: true,
       };
 
@@ -54,6 +56,7 @@ export function BranchManagement() {
       latitude: '',
       longitude: '',
       geofence_radius: '100',
+      geofence_color: '#FF6B35',
     });
     setEditingBranch(null);
   };
@@ -65,6 +68,7 @@ export function BranchManagement() {
       latitude: branch.latitude.toString(),
       longitude: branch.longitude.toString(),
       geofence_radius: branch.geofence_radius.toString(),
+      geofence_color: branch.geofence_color || '#FF6B35',
     });
     setEditingBranch(branch.id);
     setIsDialogOpen(true);
@@ -160,6 +164,29 @@ export function BranchManagement() {
                   Recommended: 100-200m for offices
                 </p>
               </div>
+              <div>
+                <Label htmlFor="color">Geofence Color</Label>
+                <div className="flex gap-2 items-center">
+                  <Input
+                    id="color"
+                    type="color"
+                    value={formData.geofence_color}
+                    onChange={(e) => setFormData({ ...formData, geofence_color: e.target.value })}
+                    className="w-20 h-10 cursor-pointer"
+                  />
+                  <Input
+                    type="text"
+                    value={formData.geofence_color}
+                    onChange={(e) => setFormData({ ...formData, geofence_color: e.target.value })}
+                    placeholder="#FF6B35"
+                    pattern="^#[0-9A-Fa-f]{6}$"
+                    className="flex-1"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Choose a color for this branch on the map
+                </p>
+              </div>
               <div className="flex gap-2 justify-end">
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                   <X className="w-4 h-4 mr-2" />
@@ -207,6 +234,13 @@ export function BranchManagement() {
                   <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                     <span>📍 {branch.latitude.toFixed(6)}, {branch.longitude.toFixed(6)}</span>
                     <span>🎯 {branch.geofence_radius}m radius</span>
+                    <span className="flex items-center gap-1">
+                      <span 
+                        className="w-4 h-4 rounded border" 
+                        style={{ backgroundColor: branch.geofence_color || '#FF6B35' }}
+                      />
+                      {branch.geofence_color || '#FF6B35'}
+                    </span>
                   </div>
                 </div>
                 <div className="flex gap-2">
