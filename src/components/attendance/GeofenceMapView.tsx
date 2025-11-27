@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import React from 'react';
 import { GoogleMap, Marker, Circle, useJsApiLoader } from '@react-google-maps/api';
-import { X, Navigation, MapPin } from 'lucide-react';
+import { X, Navigation, MapPin, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useGeolocation } from '@/hooks/attendance/useGeolocation';
 import { useBranches } from '@/hooks/attendance/useBranches';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 interface GeofenceMapViewProps {
   onClose: () => void;
@@ -25,16 +26,34 @@ const mapOptions = {
 };
 
 export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
-  const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string>(() => {
-    return localStorage.getItem('google_maps_api_key') || '';
-  });
-  const [showMap, setShowMap] = useState<boolean>(() => {
-    return !!localStorage.getItem('google_maps_api_key');
-  });
+  const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string>('');
+  const [loadingApiKey, setLoadingApiKey] = useState<boolean>(true);
+  const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
 
+  // Fetch API key from edge function
+  useEffect(() => {
+    const loadApiKey = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('get-google-maps-key');
+        if (error) throw error;
+        if (data?.apiKey) {
+          setGoogleMapsApiKey(data.apiKey);
+        } else {
+          throw new Error('API key not found');
+        }
+      } catch (err) {
+        console.error('Error loading Google Maps API key:', err);
+        setApiKeyError('Failed to load map configuration. Please contact HR.');
+      } finally {
+        setLoadingApiKey(false);
+      }
+    };
+    loadApiKey();
+  }, []);
+
   const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey,
+    googleMapsApiKey: googleMapsApiKey,
     id: 'geofence-google-map-script',
   });
   
@@ -57,13 +76,6 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
   const center = {
     lat: latitude || (branches && branches.length > 0 ? branches[0].latitude : 6.5244),
     lng: longitude || (branches && branches.length > 0 ? branches[0].longitude : 3.3792),
-  };
-
-  const handleApiKeySubmit = () => {
-    if (googleMapsApiKey.trim()) {
-      localStorage.setItem('google_maps_api_key', googleMapsApiKey.trim());
-      setShowMap(true);
-    }
   };
 
   useEffect(() => {
@@ -125,36 +137,17 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
       </div>
 
       {/* Map Container */}
-      {!showMap ? (
+      {loadingApiKey ? (
+        <div className="flex flex-col items-center justify-center h-full p-6">
+          <Loader2 className="h-16 w-16 text-attendance-primary animate-spin mb-4" />
+          <p className="text-sm text-muted-foreground">Loading map configuration...</p>
+        </div>
+      ) : apiKeyError ? (
         <div className="flex flex-col items-center justify-center h-full p-6">
           <MapPin className="h-16 w-16 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Google Maps API Key Required</h3>
+          <h3 className="text-lg font-semibold mb-2 text-red-600">Configuration Error</h3>
           <p className="text-sm text-muted-foreground text-center mb-4">
-            Please enter your Google Maps API key to view the geofence map
-          </p>
-          <div className="flex gap-2 w-full max-w-md">
-            <input
-              type="text"
-              placeholder="AIzaSy..."
-              value={googleMapsApiKey}
-              onChange={(e) => setGoogleMapsApiKey(e.target.value)}
-              className="flex-1 px-4 py-2 border rounded-lg"
-              onKeyPress={(e) => e.key === 'Enter' && handleApiKeySubmit()}
-            />
-            <Button onClick={handleApiKeySubmit} className="bg-attendance-primary hover:bg-attendance-primary-hover">
-              Save
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Get your API key from{' '}
-            <a
-              href="https://console.cloud.google.com/google/maps-apis"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-attendance-primary hover:underline"
-            >
-              Google Cloud Console
-            </a>
+            {apiKeyError}
           </p>
         </div>
       ) : (
@@ -238,7 +231,7 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
       )}
 
       {/* Distance Indicator Card */}
-      {googleMapsApiKey && nearestBranch && (
+      {!loadingApiKey && !apiKeyError && nearestBranch && (
         <div className="absolute bottom-24 left-4 right-4 z-10">
           <div className={cn(
             "bg-white rounded-2xl shadow-lg p-4 border-2 transition-colors",
