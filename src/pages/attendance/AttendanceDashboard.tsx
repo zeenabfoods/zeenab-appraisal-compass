@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useEnhancedProfile } from '@/hooks/useEnhancedProfile';
 import { ClockInOutCard } from '@/components/attendance/ClockInOutCard';
 import { AttendanceStats } from '@/components/attendance/AttendanceStats';
 import { RecentActivity } from '@/components/attendance/RecentActivity';
@@ -46,6 +47,7 @@ import { toast } from 'sonner';
 
 export default function AttendanceDashboard() {
   const { profile } = useAuthContext();
+  const { enhancedProfile, loading: profileLoading } = useEnhancedProfile();
   const isHRorAdmin = profile?.role === 'hr' || profile?.role === 'admin';
   const [activeView, setActiveView] = useState('overview');
 
@@ -93,7 +95,6 @@ export default function AttendanceDashboard() {
     { id: 'breaks', label: 'Breaks', icon: Coffee },
     { id: 'history', label: 'History', icon: Clock },
     { id: 'stats', label: 'Statistics', icon: TrendingUp },
-    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   ];
 
   const menuItems = isHRorAdmin ? hrMenuItems : staffMenuItems;
@@ -307,9 +308,24 @@ export default function AttendanceDashboard() {
                     {menuItems.find(item => item.id === activeView)?.label || 'Smart Attendance'}
                   </h1>
                 </div>
-                <div className="flex items-center gap-2.5 px-4 py-2 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-full border border-green-200/50 dark:border-green-800/50 shadow-sm">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-lg shadow-green-500/50" />
-                  <span className="text-xs font-semibold text-green-700 dark:text-green-400 tracking-wide">LIVE</span>
+                <div className="flex items-center gap-4">
+                  {!profileLoading && enhancedProfile && (
+                    <div className="hidden md:flex flex-col items-end text-sm">
+                      <p className="font-semibold text-foreground">
+                        {enhancedProfile.first_name} {enhancedProfile.last_name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {enhancedProfile.position || 'Staff'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {enhancedProfile.department_name || 'No Department'}
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2.5 px-4 py-2 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-full border border-green-200/50 dark:border-green-800/50 shadow-sm">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-lg shadow-green-500/50" />
+                    <span className="text-xs font-semibold text-green-700 dark:text-green-400 tracking-wide">LIVE</span>
+                  </div>
                 </div>
               </div>
             </div>
