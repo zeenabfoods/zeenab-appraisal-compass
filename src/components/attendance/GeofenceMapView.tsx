@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import React from 'react';
 import { GoogleMap, LoadScript, Marker, Circle } from '@react-google-maps/api';
 import { X, Navigation, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,9 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
   const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string>(() => {
     return localStorage.getItem('google_maps_api_key') || '';
   });
+  const [showMap, setShowMap] = useState<boolean>(() => {
+    return !!localStorage.getItem('google_maps_api_key');
+  });
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
   const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = useState(false);
   
@@ -54,6 +58,7 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
   const handleApiKeySubmit = () => {
     if (googleMapsApiKey.trim()) {
       localStorage.setItem('google_maps_api_key', googleMapsApiKey.trim());
+      setShowMap(true);
     }
   };
 
@@ -116,7 +121,7 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
       </div>
 
       {/* Map Container */}
-      {!googleMapsApiKey ? (
+      {!showMap ? (
         <div className="flex flex-col items-center justify-center h-full p-6">
           <MapPin className="h-16 w-16 text-muted-foreground mb-4" />
           <h3 className="text-lg font-semibold mb-2">Google Maps API Key Required</h3>
@@ -181,7 +186,7 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
               {isGoogleMapsLoaded && branches?.map((branch, index) => {
                 const branchColor = branch.geofence_color || '#FF6B35';
                 return (
-                  <div key={index}>
+                  <React.Fragment key={branch.id}>
                     {/* Geofence Circle */}
                     <Circle
                       center={{ lat: branch.latitude, lng: branch.longitude }}
@@ -213,7 +218,7 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
                         scaledSize: new google.maps.Size(32, 32),
                       }}
                     />
-                  </div>
+                  </React.Fragment>
                 );
               })}
             </GoogleMap>
