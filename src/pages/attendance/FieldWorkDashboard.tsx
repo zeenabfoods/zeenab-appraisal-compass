@@ -129,13 +129,7 @@ export default function FieldWorkDashboard() {
               </Card>
             )}
 
-            {isManager && (
-              <Card className="p-6">
-                <p className="text-center text-muted-foreground">
-                  Switch to "Team Tracking" tab to view all active field trips
-                </p>
-              </Card>
-            )}
+            {isManager && <ManagerFieldWorkView />}
           </TabsContent>
 
           <TabsContent value="history">
