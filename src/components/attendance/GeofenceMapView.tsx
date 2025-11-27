@@ -29,7 +29,6 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
   const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string | null>(null);
   const [loadingApiKey, setLoadingApiKey] = useState<boolean>(true);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
-  const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
 
   // Fetch API key from edge function
   useEffect(() => {
@@ -52,13 +51,56 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
     loadApiKey();
   }, []);
 
-  // Only initialize loader when we have the API key
+  return (
+    <div className="fixed inset-0 z-50 bg-background">
+      {/* Header */}
+      <div className="absolute top-0 left-0 right-0 z-10 bg-white/95 backdrop-blur-sm border-b shadow-sm">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex-1">
+            <h2 className="text-lg font-semibold">Geofence Map</h2>
+            <p className="text-sm text-muted-foreground">Your location & branch boundaries</p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="rounded-full"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Map Container */}
+      {loadingApiKey ? (
+        <div className="flex flex-col items-center justify-center h-full p-6">
+          <Loader2 className="h-16 w-16 text-attendance-primary animate-spin mb-4" />
+          <p className="text-sm text-muted-foreground">Loading map configuration...</p>
+        </div>
+      ) : apiKeyError ? (
+        <div className="flex flex-col items-center justify-center h-full p-6">
+          <MapPin className="h-16 w-16 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold mb-2 text-red-600">Configuration Error</h3>
+          <p className="text-sm text-muted-foreground text-center mb-4">
+            {apiKeyError}
+          </p>
+        </div>
+      ) : googleMapsApiKey ? (
+        <MapContent apiKey={googleMapsApiKey} onClose={onClose} />
+      ) : null}
+    </div>
+  );
+}
+
+function MapContent({ apiKey, onClose }: { apiKey: string; onClose: () => void }) {
+  const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
+
   const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: googleMapsApiKey || '',
+    googleMapsApiKey: apiKey,
     id: 'geofence-google-map-script',
     preventGoogleFontsLoading: true,
   });
-  
+
   const { branches } = useBranches();
   const { latitude, longitude, error: locationError } = useGeolocation(
     branches?.[0] ? {
@@ -118,54 +160,28 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-background">
-      {/* Header */}
-      <div className="absolute top-0 left-0 right-0 z-10 bg-white/95 backdrop-blur-sm border-b shadow-sm">
-        <div className="flex items-center justify-between p-4">
-          <div className="flex-1">
-            <h2 className="text-lg font-semibold">Geofence Map</h2>
-            <p className="text-sm text-muted-foreground">Your location & branch boundaries</p>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="rounded-full"
-          >
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
+  if (loadError) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p className="text-sm text-red-600">
+          Failed to load Google Maps. Please verify your API key.
+        </p>
       </div>
+    );
+  }
 
-      {/* Map Container */}
-      {loadingApiKey || !googleMapsApiKey ? (
-        <div className="flex flex-col items-center justify-center h-full p-6">
-          <Loader2 className="h-16 w-16 text-attendance-primary animate-spin mb-4" />
-          <p className="text-sm text-muted-foreground">Loading map configuration...</p>
-        </div>
-      ) : apiKeyError ? (
-        <div className="flex flex-col items-center justify-center h-full p-6">
-          <MapPin className="h-16 w-16 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2 text-red-600">Configuration Error</h3>
-          <p className="text-sm text-muted-foreground text-center mb-4">
-            {apiKeyError}
-          </p>
-        </div>
-      ) : (
-        <div className="absolute inset-0 pt-[73px]">
-          {loadError ? (
-            <div className="flex h-full items-center justify-center">
-              <p className="text-sm text-red-600">
-                Failed to load Google Maps. Please verify your API key.
-              </p>
-            </div>
-          ) : !isLoaded ? (
-            <div className="flex h-full items-center justify-center">
-              <p className="text-sm text-muted-foreground">Loading map...</p>
-            </div>
-          ) : (
-            <GoogleMap
+  if (!isLoaded) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p className="text-sm text-muted-foreground">Loading map...</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="absolute inset-0 pt-[73px]">
+        <GoogleMap
               mapContainerStyle={mapContainerStyle}
               center={center}
               zoom={15}
@@ -227,13 +243,11 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
                   </React.Fragment>
                 );
               })}
-            </GoogleMap>
-          )}
-        </div>
-      )}
+        </GoogleMap>
+      </div>
 
       {/* Distance Indicator Card */}
-      {!loadingApiKey && !apiKeyError && nearestBranch && (
+      {nearestBranch && (
         <div className="absolute bottom-24 left-4 right-4 z-10">
           <div className={cn(
             "bg-white rounded-2xl shadow-lg p-4 border-2 transition-colors",
@@ -277,7 +291,7 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
