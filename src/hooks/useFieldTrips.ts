@@ -1,0 +1,278 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuthContext } from '@/components/AuthProvider';
+import { toast } from 'sonner';
+
+export interface FieldTrip {
+  id: string;
+  employee_id: string;
+  purpose: string;
+  start_time: string;
+  expected_end_time: string;
+  actual_end_time: string | null;
+  vehicle_used: string | null;
+  vehicle_registration: string | null;
+  funds_allocated: number | null;
+  status: 'active' | 'completed' | 'abandoned';
+  start_location_lat: number | null;
+  start_location_lng: number | null;
+  end_location_lat: number | null;
+  end_location_lng: number | null;
+  total_distance_km: number | null;
+  destination_address: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LocationPoint {
+  id: string;
+  trip_id: string;
+  timestamp: string;
+  latitude: number;
+  longitude: number;
+  battery_level: number | null;
+  network_type: string | null;
+  speed_kmh: number | null;
+  accuracy_meters: number | null;
+}
+
+export interface TripEvidence {
+  id: string;
+  trip_id: string;
+  evidence_type: 'photo' | 'signature' | 'receipt' | 'document';
+  file_url: string | null;
+  description: string | null;
+  location_lat: number | null;
+  location_lng: number | null;
+  location_verified: boolean;
+  receipt_amount: number | null;
+  vendor_name: string | null;
+  captured_at: string;
+}
+
+export function useFieldTrips() {
+  const { profile } = useAuthContext();
+  const [trips, setTrips] = useState<FieldTrip[]>([]);
+  const [activeTrip, setActiveTrip] = useState<FieldTrip | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (profile) {
+      loadTrips();
+      loadActiveTrip();
+    }
+  }, [profile]);
+
+  const loadTrips = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('field_trips')
+        .select('*')
+        .eq('employee_id', profile?.id)
+        .order('start_time', { ascending: false });
+
+      if (error) throw error;
+      setTrips((data || []) as FieldTrip[]);
+    } catch (error) {
+      console.error('Error loading trips:', error);
+      toast.error('Failed to load trips');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadActiveTrip = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('field_trips')
+        .select('*')
+        .eq('employee_id', profile?.id)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (error) throw error;
+      setActiveTrip(data as FieldTrip | null);
+    } catch (error) {
+      console.error('Error loading active trip:', error);
+    }
+  };
+
+  const startTrip = async (tripData: {
+    purpose: string;
+    expected_end_time: string;
+    vehicle_used?: string;
+    vehicle_registration?: string;
+    funds_allocated?: number;
+    destination_address?: string;
+    notes?: string;
+  }) => {
+    try {
+      // Get current location
+      const position = await getCurrentPosition();
+      
+      const { data, error } = await supabase
+        .from('field_trips')
+        .insert({
+          employee_id: profile?.id,
+          ...tripData,
+          start_location_lat: position.coords.latitude,
+          start_location_lng: position.coords.longitude,
+          status: 'active'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setActiveTrip(data as FieldTrip);
+      await loadTrips();
+      
+      toast.success('Field trip started successfully');
+      return data;
+    } catch (error) {
+      console.error('Error starting trip:', error);
+      toast.error('Failed to start trip');
+      throw error;
+    }
+  };
+
+  const endTrip = async (tripId: string, notes?: string) => {
+    try {
+      const position = await getCurrentPosition();
+      
+      const { error } = await supabase
+        .from('field_trips')
+        .update({
+          status: 'completed',
+          actual_end_time: new Date().toISOString(),
+          end_location_lat: position.coords.latitude,
+          end_location_lng: position.coords.longitude,
+          notes: notes || null
+        })
+        .eq('id', tripId);
+
+      if (error) throw error;
+      
+      setActiveTrip(null);
+      await loadTrips();
+      
+      toast.success('Field trip completed successfully');
+    } catch (error) {
+      console.error('Error ending trip:', error);
+      toast.error('Failed to end trip');
+      throw error;
+    }
+  };
+
+  const recordLocationPoint = async (tripId: string) => {
+    try {
+      const position = await getCurrentPosition();
+      const battery = await getBatteryLevel();
+      const connection = (navigator as any).connection;
+
+      const { error } = await supabase
+        .from('location_points')
+        .insert({
+          trip_id: tripId,
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          battery_level: battery,
+          network_type: connection?.effectiveType || 'unknown',
+          speed_kmh: position.coords.speed ? position.coords.speed * 3.6 : null,
+          accuracy_meters: position.coords.accuracy
+        });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error recording location:', error);
+    }
+  };
+
+  const uploadEvidence = async (
+    tripId: string,
+    file: File,
+    evidenceType: 'photo' | 'signature' | 'receipt' | 'document',
+    metadata: {
+      description?: string;
+      receipt_amount?: number;
+      vendor_name?: string;
+    }
+  ) => {
+    try {
+      const position = await getCurrentPosition();
+      
+      // Upload file to storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${profile?.id}/${tripId}/${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('field-evidence')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('field-evidence')
+        .getPublicUrl(fileName);
+
+      // Record evidence
+      const { error: insertError } = await supabase
+        .from('trip_evidence')
+        .insert({
+          trip_id: tripId,
+          evidence_type: evidenceType,
+          file_url: publicUrl,
+          location_lat: position.coords.latitude,
+          location_lng: position.coords.longitude,
+          location_verified: true,
+          ...metadata
+        });
+
+      if (insertError) throw insertError;
+      
+      toast.success('Evidence uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading evidence:', error);
+      toast.error('Failed to upload evidence');
+      throw error;
+    }
+  };
+
+  return {
+    trips,
+    activeTrip,
+    loading,
+    startTrip,
+    endTrip,
+    recordLocationPoint,
+    uploadEvidence,
+    refreshTrips: loadTrips
+  };
+}
+
+async function getCurrentPosition(): Promise<GeolocationPosition> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation not supported'));
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    });
+  });
+}
+
+async function getBatteryLevel(): Promise<number> {
+  try {
+    const battery = await (navigator as any).getBattery();
+    return Math.round(battery.level * 100);
+  } catch {
+    return 100; // Default if not available
+  }
+}

@@ -1044,6 +1044,50 @@ export type Database = {
           },
         ]
       }
+      authorized_routes: {
+        Row: {
+          allowed_deviation_km: number | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          expected_path: string | null
+          id: string
+          is_active: boolean | null
+          route_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          allowed_deviation_km?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          expected_path?: string | null
+          id?: string
+          is_active?: boolean | null
+          route_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          allowed_deviation_km?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          expected_path?: string | null
+          id?: string
+          is_active?: boolean | null
+          route_name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "authorized_routes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       departments: {
         Row: {
           created_at: string
@@ -1318,6 +1362,80 @@ export type Database = {
           },
         ]
       }
+      field_trips: {
+        Row: {
+          actual_end_time: string | null
+          created_at: string | null
+          destination_address: string | null
+          employee_id: string
+          end_location_lat: number | null
+          end_location_lng: number | null
+          expected_end_time: string
+          funds_allocated: number | null
+          id: string
+          notes: string | null
+          purpose: string
+          start_location_lat: number | null
+          start_location_lng: number | null
+          start_time: string
+          status: string
+          total_distance_km: number | null
+          updated_at: string | null
+          vehicle_registration: string | null
+          vehicle_used: string | null
+        }
+        Insert: {
+          actual_end_time?: string | null
+          created_at?: string | null
+          destination_address?: string | null
+          employee_id: string
+          end_location_lat?: number | null
+          end_location_lng?: number | null
+          expected_end_time: string
+          funds_allocated?: number | null
+          id?: string
+          notes?: string | null
+          purpose: string
+          start_location_lat?: number | null
+          start_location_lng?: number | null
+          start_time?: string
+          status?: string
+          total_distance_km?: number | null
+          updated_at?: string | null
+          vehicle_registration?: string | null
+          vehicle_used?: string | null
+        }
+        Update: {
+          actual_end_time?: string | null
+          created_at?: string | null
+          destination_address?: string | null
+          employee_id?: string
+          end_location_lat?: number | null
+          end_location_lng?: number | null
+          expected_end_time?: string
+          funds_allocated?: number | null
+          id?: string
+          notes?: string | null
+          purpose?: string
+          start_location_lat?: number | null
+          start_location_lng?: number | null
+          start_time?: string
+          status?: string
+          total_distance_km?: number | null
+          updated_at?: string | null
+          vehicle_registration?: string | null
+          vehicle_used?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_trips_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       line_managers: {
         Row: {
           created_at: string
@@ -1356,6 +1474,53 @@ export type Database = {
             columns: ["manager_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      location_points: {
+        Row: {
+          accuracy_meters: number | null
+          battery_level: number | null
+          created_at: string | null
+          id: string
+          latitude: number
+          longitude: number
+          network_type: string | null
+          speed_kmh: number | null
+          timestamp: string
+          trip_id: string
+        }
+        Insert: {
+          accuracy_meters?: number | null
+          battery_level?: number | null
+          created_at?: string | null
+          id?: string
+          latitude: number
+          longitude: number
+          network_type?: string | null
+          speed_kmh?: number | null
+          timestamp?: string
+          trip_id: string
+        }
+        Update: {
+          accuracy_meters?: number | null
+          battery_level?: number | null
+          created_at?: string | null
+          id?: string
+          latitude?: number
+          longitude?: number
+          network_type?: string | null
+          speed_kmh?: number | null
+          timestamp?: string
+          trip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_points_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "field_trips"
             referencedColumns: ["id"]
           },
         ]
@@ -1937,6 +2102,116 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_alerts: {
+        Row: {
+          acknowledged: boolean | null
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          alert_type: string
+          created_at: string | null
+          id: string
+          location_lat: number | null
+          location_lng: number | null
+          message: string
+          severity: string
+          trip_id: string
+        }
+        Insert: {
+          acknowledged?: boolean | null
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type: string
+          created_at?: string | null
+          id?: string
+          location_lat?: number | null
+          location_lng?: number | null
+          message: string
+          severity: string
+          trip_id: string
+        }
+        Update: {
+          acknowledged?: boolean | null
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type?: string
+          created_at?: string | null
+          id?: string
+          location_lat?: number | null
+          location_lng?: number | null
+          message?: string
+          severity?: string
+          trip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_alerts_acknowledged_by_fkey"
+            columns: ["acknowledged_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_alerts_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "field_trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_evidence: {
+        Row: {
+          captured_at: string
+          created_at: string | null
+          description: string | null
+          evidence_type: string
+          file_url: string | null
+          id: string
+          location_lat: number | null
+          location_lng: number | null
+          location_verified: boolean | null
+          receipt_amount: number | null
+          trip_id: string
+          vendor_name: string | null
+        }
+        Insert: {
+          captured_at?: string
+          created_at?: string | null
+          description?: string | null
+          evidence_type: string
+          file_url?: string | null
+          id?: string
+          location_lat?: number | null
+          location_lng?: number | null
+          location_verified?: boolean | null
+          receipt_amount?: number | null
+          trip_id: string
+          vendor_name?: string | null
+        }
+        Update: {
+          captured_at?: string
+          created_at?: string | null
+          description?: string | null
+          evidence_type?: string
+          file_url?: string | null
+          id?: string
+          location_lat?: number | null
+          location_lng?: number | null
+          location_verified?: boolean | null
+          receipt_amount?: number | null
+          trip_id?: string
+          vendor_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_evidence_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "field_trips"
             referencedColumns: ["id"]
           },
         ]
