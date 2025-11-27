@@ -26,6 +26,7 @@ import { PullToRefreshIndicator } from '@/components/attendance/PullToRefreshInd
 import { OfflineQueueIndicator } from '@/components/attendance/OfflineQueueIndicator';
 import { AnimatedPageWrapper } from '@/components/attendance/AnimatedPageWrapper';
 import { AlertSoundManager } from '@/components/attendance/AlertSoundManager';
+import FieldWorkDashboard from '@/pages/attendance/FieldWorkDashboard';
 import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText, Volume2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import {
@@ -199,7 +200,7 @@ export default function AttendanceDashboard() {
         case 'breaks':
           return <BreakManagement />;
         case 'field-work':
-          return <div className="p-6 text-center text-muted-foreground">Field Work module coming soon. Access via /attendance/field-work route.</div>;
+          return <FieldWorkDashboard />;
         case 'hr-admin':
           return <HRAttendanceView />;
         case 'history':
