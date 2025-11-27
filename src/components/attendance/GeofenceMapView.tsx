@@ -24,7 +24,9 @@ const mapOptions = {
 };
 
 export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
-  const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string>('');
+  const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string>(() => {
+    return localStorage.getItem('google_maps_api_key') || '';
+  });
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
   const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = useState(false);
   
@@ -43,9 +45,16 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
     isWithin: boolean;
   } | null>(null);
 
+  // Auto-center on first branch or user location
   const center = {
-    lat: latitude || 6.5244, // Lagos, Nigeria default
-    lng: longitude || 3.3792,
+    lat: latitude || (branches && branches.length > 0 ? branches[0].latitude : 6.5244),
+    lng: longitude || (branches && branches.length > 0 ? branches[0].longitude : 3.3792),
+  };
+
+  const handleApiKeySubmit = () => {
+    if (googleMapsApiKey.trim()) {
+      localStorage.setItem('google_maps_api_key', googleMapsApiKey.trim());
+    }
   };
 
   useEffect(() => {
@@ -114,13 +123,19 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
           <p className="text-sm text-muted-foreground text-center mb-4">
             Please enter your Google Maps API key to view the geofence map
           </p>
-          <input
-            type="text"
-            placeholder="AIzaSy..."
-            value={googleMapsApiKey}
-            onChange={(e) => setGoogleMapsApiKey(e.target.value)}
-            className="w-full max-w-md px-4 py-2 border rounded-lg"
-          />
+          <div className="flex gap-2 w-full max-w-md">
+            <input
+              type="text"
+              placeholder="AIzaSy..."
+              value={googleMapsApiKey}
+              onChange={(e) => setGoogleMapsApiKey(e.target.value)}
+              className="flex-1 px-4 py-2 border rounded-lg"
+              onKeyPress={(e) => e.key === 'Enter' && handleApiKeySubmit()}
+            />
+            <Button onClick={handleApiKeySubmit} className="bg-attendance-primary hover:bg-attendance-primary-hover">
+              Save
+            </Button>
+          </div>
           <p className="text-xs text-muted-foreground mt-2">
             Get your API key from{' '}
             <a
