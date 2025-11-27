@@ -100,9 +100,7 @@ export default function AttendanceDashboard() {
     { id: 'stats', label: 'Statistics', icon: TrendingUp },
   ];
 
-  const menuItems = (isHRorAdmin ? hrMenuItems : staffMenuItems).filter(
-    (item) => item.id !== 'field-work' || profile?.role === 'hr' || profile?.role === 'manager'
-  );
+  const menuItems = isHRorAdmin ? hrMenuItems : staffMenuItems;
 
   const renderOverviewContent = () => (
     <div className="grid lg:grid-cols-3 gap-8">
@@ -202,16 +200,7 @@ export default function AttendanceDashboard() {
         case 'breaks':
           return <BreakManagement />;
         case 'field-work':
-          return profile?.role === 'hr' || profile?.role === 'manager' ? (
-            <FieldWorkDashboard />
-          ) : (
-            <Card className="p-6 text-center">
-              <h3 className="text-lg font-semibold mb-2">Field Work Access Restricted</h3>
-              <p className="text-sm text-muted-foreground">
-                Only HR and Manager users can access the Field Work dashboard.
-              </p>
-            </Card>
-          );
+          return <FieldWorkDashboard />;
         case 'hr-admin':
           return <HRAttendanceView />;
         case 'history':
