@@ -159,41 +159,44 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
               )}
 
               {/* Branch Markers and Geofence Circles */}
-              {branches?.map((branch, index) => (
-                <div key={index}>
-                  {/* Geofence Circle */}
-                  <Circle
-                    center={{ lat: branch.latitude, lng: branch.longitude }}
-                    radius={branch.geofence_radius}
-                    options={{
-                      fillColor: '#FF6B35',
-                      fillOpacity: 0.2,
-                      strokeColor: '#FF6B35',
-                      strokeWeight: 2,
-                      strokeOpacity: 0.8,
-                    }}
-                  />
-                  
-                  {/* Branch Marker */}
-                  <Marker
-                    position={{ lat: branch.latitude, lng: branch.longitude }}
-                    title={branch.name}
-                    label={{
-                      text: branch.name,
-                      className: 'font-semibold',
-                    }}
-                    icon={{
-                      url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-                          <circle cx="16" cy="16" r="14" fill="#FF6B35" stroke="white" stroke-width="2"/>
-                          <path d="M16 10c-2.2 0-4 1.8-4 4 0 3 4 8 4 8s4-5 4-8c0-2.2-1.8-4-4-4zm0 5.5c-.8 0-1.5-.7-1.5-1.5s.7-1.5 1.5-1.5 1.5.7 1.5 1.5-.7 1.5-1.5 1.5z" fill="white"/>
-                        </svg>
-                      `),
-                      scaledSize: new google.maps.Size(32, 32),
-                    }}
-                  />
-                </div>
-              ))}
+              {branches?.map((branch, index) => {
+                const branchColor = branch.geofence_color || '#FF6B35';
+                return (
+                  <div key={index}>
+                    {/* Geofence Circle */}
+                    <Circle
+                      center={{ lat: branch.latitude, lng: branch.longitude }}
+                      radius={branch.geofence_radius}
+                      options={{
+                        fillColor: branchColor,
+                        fillOpacity: 0.2,
+                        strokeColor: branchColor,
+                        strokeWeight: 2,
+                        strokeOpacity: 0.8,
+                      }}
+                    />
+                    
+                    {/* Branch Marker */}
+                    <Marker
+                      position={{ lat: branch.latitude, lng: branch.longitude }}
+                      title={branch.name}
+                      label={{
+                        text: branch.name,
+                        className: 'font-semibold',
+                      }}
+                      icon={{
+                        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+                            <circle cx="16" cy="16" r="14" fill="${branchColor}" stroke="white" stroke-width="2"/>
+                            <path d="M16 10c-2.2 0-4 1.8-4 4 0 3 4 8 4 8s4-5 4-8c0-2.2-1.8-4-4-4zm0 5.5c-.8 0-1.5-.7-1.5-1.5s.7-1.5 1.5-1.5 1.5.7 1.5 1.5-.7 1.5-1.5 1.5z" fill="white"/>
+                          </svg>
+                        `),
+                        scaledSize: new google.maps.Size(32, 32),
+                      }}
+                    />
+                  </div>
+                );
+              })}
             </GoogleMap>
           </LoadScript>
         </div>
