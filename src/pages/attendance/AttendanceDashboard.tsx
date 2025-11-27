@@ -24,7 +24,8 @@ import { AttendanceBottomNav } from '@/components/attendance/AttendanceBottomNav
 import { PullToRefreshIndicator } from '@/components/attendance/PullToRefreshIndicator';
 import { OfflineQueueIndicator } from '@/components/attendance/OfflineQueueIndicator';
 import { AnimatedPageWrapper } from '@/components/attendance/AnimatedPageWrapper';
-import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText } from 'lucide-react';
+import { AlertSoundManager } from '@/components/attendance/AlertSoundManager';
+import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText, Volume2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import {
   Sidebar,
@@ -81,6 +82,7 @@ export default function AttendanceDashboard() {
     { id: 'break-compliance', label: 'Compliance', icon: AlertCircle },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'geofence', label: 'Geofence', icon: MapPin },
+    { id: 'alert-sound', label: 'Alert Sounds', icon: Volume2 },
     { id: 'security', label: 'My Security', icon: Shield },
     { id: 'hr-security', label: 'Security Dashboard', icon: Shield },
     { id: 'eye-service', label: 'Eye Service', icon: Eye },
@@ -227,6 +229,8 @@ export default function AttendanceDashboard() {
           return <OvertimePayrollReport />;
         case 'overrides':
           return <ManualOverrides />;
+        case 'alert-sound':
+          return <AlertSoundManager />;
         default:
           return renderOverviewContent();
       }
