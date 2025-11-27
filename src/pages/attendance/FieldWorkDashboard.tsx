@@ -67,7 +67,7 @@ export default function FieldWorkDashboard() {
               Real-time tracking and management for field operations
             </p>
           </div>
-          {!isManager && enhancedProfile && (
+          {enhancedProfile && (
             <div className="text-right text-sm">
               <p className="font-semibold text-foreground">
                 {enhancedProfile.first_name} {enhancedProfile.last_name}
@@ -136,30 +136,33 @@ export default function FieldWorkDashboard() {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            {!activeTrip && !isManager && (
-              <Card className="p-6">
-                <StartFieldTripDialog />
-              </Card>
-            )}
-
-            {activeTrip && !isManager && (
-              <div className="grid gap-6 lg:grid-cols-2">
-                <ActiveTripTracker />
-                <FieldTripMapTracker tripId={activeTrip.id} />
+            {/* Personal Trip Section - Available to ALL users */}
+            {activeTrip ? (
+              <div className="space-y-4">
+                {isManager && <h3 className="text-lg font-semibold">My Active Trip</h3>}
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <ActiveTripTracker />
+                  <FieldTripMapTracker tripId={activeTrip.id} />
+                </div>
               </div>
-            )}
-
-            {!activeTrip && !isManager && (
+            ) : (
               <Card className="p-8 text-center">
                 <MapPin className="h-16 w-16 mx-auto text-muted-foreground/50 mb-4" />
                 <h3 className="text-xl font-semibold mb-2">No Active Field Trip</h3>
                 <p className="text-muted-foreground mb-6">
                   Start a new field trip to begin tracking your location and activities
                 </p>
+                <StartFieldTripDialog />
               </Card>
             )}
 
-            {isManager && <ManagerFieldWorkView />}
+            {/* Team Tracking Section - Only for Managers/HR */}
+            {isManager && (
+              <div className="mt-8 space-y-4">
+                <h3 className="text-lg font-semibold">Team Tracking</h3>
+                <ManagerFieldWorkView />
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="history">
