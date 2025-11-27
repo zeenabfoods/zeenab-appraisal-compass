@@ -107,7 +107,7 @@ export default function AttendanceDashboard() {
       </div>
 
       <div className="space-y-6">
-        <SecurityMonitor />
+        {isHRorAdmin && <SecurityMonitor />}
         
         <Card className="p-7 bg-gradient-to-br from-orange-50/80 to-amber-50/80 dark:from-orange-950/20 dark:to-amber-950/20 border-orange-200/60 dark:border-orange-800/60 shadow-lg shadow-orange-100/50 dark:shadow-none">
           <div className="flex items-start gap-4">
