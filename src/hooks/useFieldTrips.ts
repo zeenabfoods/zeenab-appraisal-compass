@@ -290,8 +290,9 @@ async function getCurrentPosition(): Promise<GeolocationPosition> {
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
+        timeout: 30000,
+        // Allow using a recent cached position (up to 5 minutes old)
+        maximumAge: 300000
       }
     );
   });
