@@ -70,6 +70,7 @@ export default function AttendanceDashboard() {
   const hrMenuItems = [
     { id: 'overview', label: 'Overview', icon: Clock },
     { id: 'breaks', label: 'Breaks', icon: Coffee },
+    { id: 'field-work', label: 'Field Work', icon: MapPin },
     { id: 'hr-admin', label: 'HR Admin', icon: Users },
     { id: 'history', label: 'My History', icon: Clock },
     { id: 'stats', label: 'Statistics', icon: TrendingUp },
@@ -93,6 +94,7 @@ export default function AttendanceDashboard() {
   const staffMenuItems = [
     { id: 'overview', label: 'Overview', icon: Clock },
     { id: 'breaks', label: 'Breaks', icon: Coffee },
+    { id: 'field-work', label: 'Field Work', icon: MapPin },
     { id: 'history', label: 'History', icon: Clock },
     { id: 'stats', label: 'Statistics', icon: TrendingUp },
   ];
@@ -196,6 +198,8 @@ export default function AttendanceDashboard() {
           return renderOverviewContent();
         case 'breaks':
           return <BreakManagement />;
+        case 'field-work':
+          return <div className="p-6 text-center text-muted-foreground">Field Work module coming soon. Access via /attendance/field-work route.</div>;
         case 'hr-admin':
           return <HRAttendanceView />;
         case 'history':
