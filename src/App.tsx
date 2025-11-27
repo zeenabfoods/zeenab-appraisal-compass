@@ -10,6 +10,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import ManagerAppraisals from "./pages/ManagerAppraisals";
 import MyAppraisals from "./pages/MyAppraisals";
 import EmployeeManagement from "./pages/EmployeeManagement";
@@ -87,6 +88,7 @@ function App() {
               <div className="pwa-safe-area">
                 <Routes>
                   <Route path="/auth" element={<Auth />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
                   <Route path="/manager-appraisals" element={<ProtectedRoute><ManagerAppraisals /></ProtectedRoute>} />
                   <Route path="/my-appraisals" element={<ProtectedRoute><MyAppraisals /></ProtectedRoute>} />
