@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ManagerAppraisals from "./pages/ManagerAppraisals";
@@ -82,6 +83,7 @@ function App() {
           <Sonner />
           <BrowserRouter>
             <AuthProvider>
+              <PWAInstallPrompt />
               <div className="pwa-safe-area">
                 <Routes>
                   <Route path="/auth" element={<Auth />} />
