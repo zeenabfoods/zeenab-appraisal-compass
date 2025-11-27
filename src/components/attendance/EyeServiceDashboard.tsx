@@ -11,7 +11,8 @@ import {
   Calendar,
   Clock,
   Target,
-  Shield
+  Shield,
+  Building2
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
@@ -20,16 +21,22 @@ import {
   EyeServiceMetrics, 
   DetectionFlag,
   AttendanceLog,
-  ManagerPresence 
+  ManagerPresence,
+  CalendarEvent,
+  aggregateDepartmentMetrics,
+  DepartmentEyeServiceSummary
 } from '@/utils/eyeServiceDetection';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PatternCorrelationHeatMap } from './PatternCorrelationHeatMap';
+import { DepartmentEyeServiceComparison } from './DepartmentEyeServiceComparison';
 
 interface EmployeeMetrics {
   employeeId: string;
   employeeName: string;
   department: string;
+  departmentId: string;
   metrics: EyeServiceMetrics;
 }
 
@@ -37,8 +44,10 @@ export function EyeServiceDashboard() {
   const { profile } = useAuthContext();
   const [loading, setLoading] = useState(true);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
+  const [selectedView, setSelectedView] = useState<'individual' | 'department'>('individual');
   const [employees, setEmployees] = useState<any[]>([]);
   const [employeeMetrics, setEmployeeMetrics] = useState<EmployeeMetrics[]>([]);
+  const [departmentSummaries, setDepartmentSummaries] = useState<DepartmentEyeServiceSummary[]>([]);
 
   const isHRorAdmin = profile?.role === 'hr' || profile?.role === 'admin';
 
@@ -55,7 +64,7 @@ export function EyeServiceDashboard() {
       // Fetch all active employees
       const { data: employeesData, error: empError } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, department, line_manager_id')
+        .select('id, first_name, last_name, department, department_id, line_manager_id')
         .eq('is_active', true)
         .order('first_name');
 
@@ -69,12 +78,23 @@ export function EyeServiceDashboard() {
           employeeId: emp.id,
           employeeName: `${emp.first_name} ${emp.last_name}`,
           department: emp.department || 'N/A',
+          departmentId: emp.department_id || '',
           metrics
         };
       });
 
       const metricsResults = await Promise.all(metricsPromises);
       setEmployeeMetrics(metricsResults);
+
+      // Calculate department summaries
+      const deptSummaries = aggregateDepartmentMetrics(
+        metricsResults.map(m => ({
+          departmentId: m.departmentId,
+          departmentName: m.department,
+          metrics: m.metrics
+        }))
+      );
+      setDepartmentSummaries(deptSummaries);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load eye service analytics');
@@ -117,9 +137,14 @@ export function EyeServiceDashboard() {
         }));
       }
 
-      // For meeting detection, we could integrate with calendar systems
-      // For now, use empty array (future enhancement)
-      const meetingDates: string[] = [];
+      // Fetch calendar events for meeting detection
+      const { data: calendarEvents } = await supabase
+        .from('manager_calendar_events')
+        .select('event_date, event_type, is_c_level')
+        .gte('event_date', sixtyDaysAgo.toISOString().split('T')[0])
+        .in('event_type', ['meeting', 'c_level_meeting', 'department_meeting']);
+
+      const meetingDates = (calendarEvents || []).map(event => event.event_date);
 
       return analyzeEyeService(logs as AttendanceLog[], managerPresence, meetingDates);
     } catch (error) {
@@ -220,20 +245,34 @@ export function EyeServiceDashboard() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-            <SelectTrigger className="w-[300px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Employees</SelectItem>
-              {employees.map(emp => (
-                <SelectItem key={emp.id} value={emp.id}>
-                  {emp.first_name} {emp.last_name} - {emp.department}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <CardContent className="space-y-4">
+          <div className="flex gap-4">
+            <Select value={selectedView} onValueChange={(v) => setSelectedView(v as any)}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="individual">Individual View</SelectItem>
+                <SelectItem value="department">Department View</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {selectedView === 'individual' && (
+              <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                <SelectTrigger className="w-[300px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Employees</SelectItem>
+                  {employees.map(emp => (
+                    <SelectItem key={emp.id} value={emp.id}>
+                      {emp.first_name} {emp.last_name} - {emp.department}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -300,119 +339,157 @@ export function EyeServiceDashboard() {
         </Card>
       </div>
 
-      {/* Employee Details */}
-      <div className="space-y-4">
-        {loading ? (
-          <Card>
-            <CardContent className="pt-6 text-center">
-              <p className="text-muted-foreground">Analyzing behavioral patterns...</p>
-            </CardContent>
-          </Card>
-        ) : filteredMetrics.length === 0 ? (
-          <Card>
-            <CardContent className="pt-6 text-center">
-              <p className="text-muted-foreground">No data available</p>
-            </CardContent>
-          </Card>
-        ) : (
-          filteredMetrics.map((empMetric) => (
-            <Card key={empMetric.employeeId}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>{empMetric.employeeName}</CardTitle>
-                    <CardDescription>{empMetric.department}</CardDescription>
-                  </div>
-                  <Badge className={`${getRiskColor(empMetric.metrics.riskLevel)} text-white`}>
-                    {getRiskIcon(empMetric.metrics.riskLevel)} {empMetric.metrics.riskLevel.toUpperCase()} RISK
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <Tabs defaultValue="overview">
-                  <TabsList>
-                    <TabsTrigger value="overview">Overview</TabsTrigger>
-                    <TabsTrigger value="patterns">Detection Flags</TabsTrigger>
-                    <TabsTrigger value="coaching">Coaching</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="overview" className="space-y-4">
-                    {/* Consistency Score */}
+      {/* Employee Details or Department Comparison */}
+      {selectedView === 'department' ? (
+        <DepartmentEyeServiceComparison departments={departmentSummaries} />
+      ) : (
+        <div className="space-y-4">
+          {loading ? (
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <p className="text-muted-foreground">Analyzing behavioral patterns...</p>
+              </CardContent>
+            </Card>
+          ) : filteredMetrics.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <p className="text-muted-foreground">No data available</p>
+              </CardContent>
+            </Card>
+          ) : (
+            filteredMetrics.map((empMetric) => (
+              <Card key={empMetric.employeeId}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
                     <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium">Consistency Score</span>
-                        <span className="text-2xl font-bold">{empMetric.metrics.consistencyScore}%</span>
-                      </div>
-                      <Progress value={empMetric.metrics.consistencyScore} className="h-2" />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Measures behavior consistency when manager is present vs. absent
-                      </p>
+                      <CardTitle>{empMetric.employeeName}</CardTitle>
+                      <CardDescription>{empMetric.department}</CardDescription>
                     </div>
+                    <Badge className={`${getRiskColor(empMetric.metrics.riskLevel)} text-white`}>
+                      {getRiskIcon(empMetric.metrics.riskLevel)} {empMetric.metrics.riskLevel.toUpperCase()} RISK
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <Tabs defaultValue="overview">
+                    <TabsList>
+                      <TabsTrigger value="overview">Overview</TabsTrigger>
+                      <TabsTrigger value="heatmap">Heat Map</TabsTrigger>
+                      <TabsTrigger value="patterns">Detection Flags</TabsTrigger>
+                      <TabsTrigger value="coaching">Coaching</TabsTrigger>
+                    </TabsList>
 
-                    {/* Patterns Summary */}
-                    {empMetric.metrics.patterns.length > 0 && (
-                      <div className="space-y-2">
-                        <h4 className="text-sm font-semibold">Behavioral Patterns</h4>
-                        {empMetric.metrics.patterns.map((pattern, idx) => (
-                          <div key={idx} className="p-3 bg-muted rounded-lg">
-                            <div className="font-medium text-sm">{pattern.type}</div>
-                            <div className="text-sm text-muted-foreground">{pattern.description}</div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              Variance: {Math.round(pattern.variance)} min • Occurrences: {pattern.occurrences}
+                    <TabsContent value="overview" className="space-y-4">
+                      {/* Consistency Score */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">Consistency Score</span>
+                          <span className="text-2xl font-bold">{empMetric.metrics.consistencyScore}%</span>
+                        </div>
+                        <Progress value={empMetric.metrics.consistencyScore} className="h-2" />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Measures behavior consistency when manager is present vs. absent
+                        </p>
+                      </div>
+
+                      {/* Productivity Correlation */}
+                      {empMetric.metrics.productivityCorrelation && (
+                        <div className="p-4 bg-muted rounded-lg space-y-2">
+                          <h4 className="text-sm font-semibold">Productivity Correlation</h4>
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <div className="text-muted-foreground">With Manager Present</div>
+                              <div className="text-lg font-bold">
+                                {empMetric.metrics.productivityCorrelation.withManagerPresent}h
+                              </div>
                             </div>
+                            <div>
+                              <div className="text-muted-foreground">Without Manager</div>
+                              <div className="text-lg font-bold">
+                                {empMetric.metrics.productivityCorrelation.withoutManagerPresent}h
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Correlation Strength: {Math.round(empMetric.metrics.productivityCorrelation.correlationStrength * 100)}%
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Patterns Summary */}
+                      {empMetric.metrics.patterns.length > 0 && (
+                        <div className="space-y-2">
+                          <h4 className="text-sm font-semibold">Behavioral Patterns</h4>
+                          {empMetric.metrics.patterns.map((pattern, idx) => (
+                            <div key={idx} className="p-3 bg-muted rounded-lg">
+                              <div className="font-medium text-sm">{pattern.type}</div>
+                              <div className="text-sm text-muted-foreground">{pattern.description}</div>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                Variance: {Math.round(pattern.variance)} min • Occurrences: {pattern.occurrences}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value="heatmap">
+                      {empMetric.metrics.weeklyVariance && (
+                        <PatternCorrelationHeatMap 
+                          weeklyVariance={empMetric.metrics.weeklyVariance}
+                          employeeName={empMetric.employeeName}
+                        />
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value="patterns" className="space-y-3">
+                      {empMetric.metrics.detectionFlags.length === 0 ? (
+                        <div className="text-center py-6 text-muted-foreground">
+                          <Target className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                          <p>No concerning patterns detected</p>
+                          <p className="text-sm">Behavior is consistent across all scenarios</p>
+                        </div>
+                      ) : (
+                        empMetric.metrics.detectionFlags.map((flag, idx) => (
+                          <div key={idx} className="p-4 border rounded-lg">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <Badge className={getSeverityColor(flag.severity)}>
+                                  {flag.severity.toUpperCase()}
+                                </Badge>
+                                <div className="font-semibold mt-2">
+                                  {flag.rule.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                                </div>
+                              </div>
+                              <AlertTriangle className="h-5 w-5 text-orange-500" />
+                            </div>
+                            <p className="text-sm text-muted-foreground">{flag.description}</p>
+                          </div>
+                        ))
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value="coaching" className="space-y-3">
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-semibold flex items-center gap-2">
+                          <Target className="h-4 w-4" />
+                          Coaching Recommendations
+                        </h4>
+                        {empMetric.metrics.recommendations.map((rec, idx) => (
+                          <div key={idx} className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                            <div className="min-w-[20px] text-blue-600 font-semibold">{idx + 1}.</div>
+                            <p className="text-sm text-blue-900 dark:text-blue-100">{rec}</p>
                           </div>
                         ))}
                       </div>
-                    )}
-                  </TabsContent>
-
-                  <TabsContent value="patterns" className="space-y-3">
-                    {empMetric.metrics.detectionFlags.length === 0 ? (
-                      <div className="text-center py-6 text-muted-foreground">
-                        <Target className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                        <p>No concerning patterns detected</p>
-                        <p className="text-sm">Behavior is consistent across all scenarios</p>
-                      </div>
-                    ) : (
-                      empMetric.metrics.detectionFlags.map((flag, idx) => (
-                        <div key={idx} className="p-4 border rounded-lg">
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex-1">
-                              <Badge className={getSeverityColor(flag.severity)}>
-                                {flag.severity.toUpperCase()}
-                              </Badge>
-                              <div className="font-semibold mt-2">
-                                {flag.rule.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                              </div>
-                            </div>
-                            <AlertTriangle className="h-5 w-5 text-orange-500" />
-                          </div>
-                          <p className="text-sm text-muted-foreground">{flag.description}</p>
-                        </div>
-                      ))
-                    )}
-                  </TabsContent>
-
-                  <TabsContent value="coaching" className="space-y-3">
-                    <div className="space-y-2">
-                      <h4 className="text-sm font-semibold flex items-center gap-2">
-                        <Target className="h-4 w-4" />
-                        Coaching Recommendations
-                      </h4>
-                      {empMetric.metrics.recommendations.map((rec, idx) => (
-                        <div key={idx} className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                          <div className="min-w-[20px] text-blue-600 font-semibold">{idx + 1}.</div>
-                          <p className="text-sm text-blue-900 dark:text-blue-100">{rec}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }

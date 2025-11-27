@@ -1241,6 +1241,59 @@ export type Database = {
           },
         ]
       }
+      eye_service_department_summary: {
+        Row: {
+          analysis_date: string
+          avg_consistency_score: number
+          created_at: string | null
+          department_id: string | null
+          department_name: string
+          high_risk_count: number
+          id: string
+          low_risk_count: number
+          manager_presence_rate: number
+          medium_risk_count: number
+          total_employees: number
+          updated_at: string | null
+        }
+        Insert: {
+          analysis_date?: string
+          avg_consistency_score?: number
+          created_at?: string | null
+          department_id?: string | null
+          department_name: string
+          high_risk_count?: number
+          id?: string
+          low_risk_count?: number
+          manager_presence_rate?: number
+          medium_risk_count?: number
+          total_employees?: number
+          updated_at?: string | null
+        }
+        Update: {
+          analysis_date?: string
+          avg_consistency_score?: number
+          created_at?: string | null
+          department_id?: string | null
+          department_name?: string
+          high_risk_count?: number
+          id?: string
+          low_risk_count?: number
+          manager_presence_rate?: number
+          medium_risk_count?: number
+          total_employees?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eye_service_department_summary_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       line_managers: {
         Row: {
           created_at: string
@@ -1276,6 +1329,63 @@ export type Database = {
           },
           {
             foreignKeyName: "line_managers_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      manager_calendar_events: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          department_ids: string[] | null
+          event_date: string
+          event_time: string | null
+          event_type: string
+          id: string
+          is_c_level: boolean | null
+          manager_id: string
+          notes: string | null
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          department_ids?: string[] | null
+          event_date: string
+          event_time?: string | null
+          event_type: string
+          id?: string
+          is_c_level?: boolean | null
+          manager_id: string
+          notes?: string | null
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          department_ids?: string[] | null
+          event_date?: string
+          event_time?: string | null
+          event_type?: string
+          id?: string
+          is_c_level?: boolean | null
+          manager_id?: string
+          notes?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manager_calendar_events_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manager_calendar_events_manager_id_fkey"
             columns: ["manager_id"]
             isOneToOne: false
             referencedRelation: "profiles"
