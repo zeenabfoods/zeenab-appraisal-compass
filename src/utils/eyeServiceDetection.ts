@@ -16,12 +16,22 @@ export interface ManagerPresence {
   clockInTime?: string;
 }
 
+export interface CalendarEvent {
+  id: string;
+  event_type: 'meeting' | 'c_level_meeting' | 'department_meeting' | 'all_hands' | 'availability';
+  event_date: string;
+  event_time?: string;
+  is_c_level: boolean;
+}
+
 export interface EyeServiceMetrics {
   consistencyScore: number; // 0-100
   riskLevel: 'low' | 'medium' | 'high';
   detectionFlags: DetectionFlag[];
   patterns: BehavioralPattern[];
   recommendations: string[];
+  weeklyVariance?: WeeklyVarianceData;
+  productivityCorrelation?: ProductivityCorrelation;
 }
 
 export interface DetectionFlag {
@@ -36,6 +46,32 @@ export interface BehavioralPattern {
   description: string;
   variance: number;
   occurrences: number;
+}
+
+export interface WeeklyVarianceData {
+  monday: number;
+  tuesday: number;
+  wednesday: number;
+  thursday: number;
+  friday: number;
+}
+
+export interface ProductivityCorrelation {
+  withManagerPresent: number;
+  withoutManagerPresent: number;
+  correlationStrength: number; // 0-1
+}
+
+export interface DepartmentEyeServiceSummary {
+  departmentId: string;
+  departmentName: string;
+  totalEmployees: number;
+  lowRiskCount: number;
+  mediumRiskCount: number;
+  highRiskCount: number;
+  avgConsistencyScore: number;
+  managerPresenceRate: number;
+  topPatterns: BehavioralPattern[];
 }
 
 /**
@@ -321,6 +357,80 @@ function formatMinutes(minutes: number): string {
 }
 
 /**
+ * Calculate weekly variance data for heat map visualization
+ */
+export function calculateWeeklyVariance(logs: AttendanceLog[]): WeeklyVarianceData {
+  const dayGroups: { [key: number]: Date[] } = {
+    1: [], // Monday
+    2: [], // Tuesday
+    3: [], // Wednesday
+    4: [], // Thursday
+    5: []  // Friday
+  };
+
+  logs.forEach(log => {
+    const logDate = new Date(log.clock_in_time);
+    const dayOfWeek = getDay(logDate);
+    if (dayGroups[dayOfWeek]) {
+      dayGroups[dayOfWeek].push(logDate);
+    }
+  });
+
+  return {
+    monday: dayGroups[1].length > 0 ? calculateAverageClockInMinutes(dayGroups[1]) : 0,
+    tuesday: dayGroups[2].length > 0 ? calculateAverageClockInMinutes(dayGroups[2]) : 0,
+    wednesday: dayGroups[3].length > 0 ? calculateAverageClockInMinutes(dayGroups[3]) : 0,
+    thursday: dayGroups[4].length > 0 ? calculateAverageClockInMinutes(dayGroups[4]) : 0,
+    friday: dayGroups[5].length > 0 ? calculateAverageClockInMinutes(dayGroups[5]) : 0,
+  };
+}
+
+/**
+ * Calculate productivity correlation with manager presence
+ */
+export function calculateProductivityCorrelation(
+  logs: AttendanceLog[],
+  managerPresence: ManagerPresence[]
+): ProductivityCorrelation {
+  const withManager: number[] = [];
+  const withoutManager: number[] = [];
+
+  logs.forEach(log => {
+    if (!log.total_hours) return;
+    
+    const logDate = new Date(log.clock_in_time);
+    const presence = managerPresence.find(p => 
+      isSameDay(new Date(p.date), logDate)
+    );
+    
+    if (presence?.wasPresent) {
+      withManager.push(log.total_hours);
+    } else {
+      withoutManager.push(log.total_hours);
+    }
+  });
+
+  const avgWithManager = withManager.length > 0 
+    ? withManager.reduce((a, b) => a + b, 0) / withManager.length 
+    : 0;
+  const avgWithoutManager = withoutManager.length > 0 
+    ? withoutManager.reduce((a, b) => a + b, 0) / withoutManager.length 
+    : 0;
+
+  // Calculate correlation strength (0-1)
+  const totalAvg = (avgWithManager + avgWithoutManager) / 2;
+  const correlationStrength = totalAvg > 0 
+    ? Math.abs(avgWithManager - avgWithoutManager) / totalAvg 
+    : 0;
+
+  return {
+    withManagerPresent: Math.round(avgWithManager * 10) / 10,
+    withoutManagerPresent: Math.round(avgWithoutManager * 10) / 10,
+    correlationStrength: Math.min(1, correlationStrength)
+  };
+}
+
+/**
  * Analyze complete eye service metrics for an employee
  */
 export function analyzeEyeService(
@@ -356,12 +466,75 @@ export function analyzeEyeService(
       occurrences: logs.length
     });
   }
+
+  // Calculate additional metrics for enhanced analysis
+  const weeklyVariance = calculateWeeklyVariance(logs);
+  const productivityCorrelation = calculateProductivityCorrelation(logs, managerPresence);
   
   return {
     consistencyScore,
     riskLevel,
     detectionFlags: flags,
     patterns,
-    recommendations
+    recommendations,
+    weeklyVariance,
+    productivityCorrelation
   };
+}
+
+/**
+ * Aggregate eye service metrics by department
+ */
+export function aggregateDepartmentMetrics(
+  employeeMetrics: Array<{
+    departmentId: string;
+    departmentName: string;
+    metrics: EyeServiceMetrics;
+  }>
+): DepartmentEyeServiceSummary[] {
+  const departmentMap = new Map<string, DepartmentEyeServiceSummary>();
+
+  employeeMetrics.forEach(({ departmentId, departmentName, metrics }) => {
+    if (!departmentMap.has(departmentId)) {
+      departmentMap.set(departmentId, {
+        departmentId,
+        departmentName,
+        totalEmployees: 0,
+        lowRiskCount: 0,
+        mediumRiskCount: 0,
+        highRiskCount: 0,
+        avgConsistencyScore: 0,
+        managerPresenceRate: 0,
+        topPatterns: []
+      });
+    }
+
+    const summary = departmentMap.get(departmentId)!;
+    summary.totalEmployees++;
+    summary.avgConsistencyScore += metrics.consistencyScore;
+
+    if (metrics.riskLevel === 'low') summary.lowRiskCount++;
+    else if (metrics.riskLevel === 'medium') summary.mediumRiskCount++;
+    else if (metrics.riskLevel === 'high') summary.highRiskCount++;
+
+    // Collect patterns for aggregation
+    metrics.patterns.forEach(pattern => {
+      const existing = summary.topPatterns.find(p => p.type === pattern.type);
+      if (existing) {
+        existing.occurrences++;
+        existing.variance = (existing.variance + pattern.variance) / 2;
+      } else {
+        summary.topPatterns.push({ ...pattern });
+      }
+    });
+  });
+
+  // Calculate averages and finalize
+  return Array.from(departmentMap.values()).map(summary => ({
+    ...summary,
+    avgConsistencyScore: Math.round(summary.avgConsistencyScore / summary.totalEmployees),
+    topPatterns: summary.topPatterns
+      .sort((a, b) => b.occurrences - a.occurrences)
+      .slice(0, 3)
+  }));
 }
