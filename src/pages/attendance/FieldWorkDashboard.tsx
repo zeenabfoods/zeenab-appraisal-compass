@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthContext } from '@/components/AuthProvider';
 import { useEnhancedProfile } from '@/hooks/useEnhancedProfile';
-import { useFieldTrips } from '@/hooks/useFieldTrips';
+import { useFieldTrips, FieldTrip } from '@/hooks/useFieldTrips';
+import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -19,10 +20,39 @@ export default function FieldWorkDashboard() {
   const { trips, activeTrip, loading } = useFieldTrips();
   const isManager = profile?.role === 'manager' || profile?.role === 'hr' || profile?.role === 'admin';
   const [activeTab, setActiveTab] = useState('overview');
+  const [allTrips, setAllTrips] = useState<FieldTrip[]>([]);
+  const [allTripsLoading, setAllTripsLoading] = useState(false);
 
-  const totalTrips = trips.length;
-  const completedTrips = trips.filter(t => t.status === 'completed').length;
-  const activeTripsCount = trips.filter(t => t.status === 'active').length;
+  // Load all trips for managers
+  useEffect(() => {
+    if (isManager) {
+      loadAllTrips();
+    }
+  }, [isManager]);
+
+  const loadAllTrips = async () => {
+    try {
+      setAllTripsLoading(true);
+      const { data, error } = await supabase
+        .from('field_trips')
+        .select('*')
+        .order('start_time', { ascending: false });
+
+      if (error) throw error;
+      setAllTrips((data || []) as FieldTrip[]);
+    } catch (error) {
+      console.error('Error loading all trips:', error);
+    } finally {
+      setAllTripsLoading(false);
+    }
+  };
+
+  const displayTrips = isManager ? allTrips : trips;
+  const displayLoading = isManager ? allTripsLoading : loading;
+  
+  const totalTrips = displayTrips.length;
+  const completedTrips = displayTrips.filter(t => t.status === 'completed').length;
+  const activeTripsCount = displayTrips.filter(t => t.status === 'active').length;
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-orange-50/30 via-white to-amber-50/30 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-6">
@@ -133,7 +163,7 @@ export default function FieldWorkDashboard() {
           </TabsContent>
 
           <TabsContent value="history">
-            <FieldTripHistory trips={trips.filter(t => t.status === 'completed')} loading={loading} />
+            <FieldTripHistory trips={displayTrips.filter(t => t.status === 'completed')} loading={displayLoading} />
           </TabsContent>
 
           {isManager && (
