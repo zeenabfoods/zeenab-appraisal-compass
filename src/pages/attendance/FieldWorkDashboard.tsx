@@ -54,6 +54,62 @@ export default function FieldWorkDashboard() {
   const completedTrips = displayTrips.filter(t => t.status === 'completed').length;
   const activeTripsCount = displayTrips.filter(t => t.status === 'active').length;
 
+  const isHR = profile?.role === 'hr' || profile?.role === 'admin';
+
+  // Staff and managers only see their own active trip
+  if (!isHR) {
+    return (
+      <div className="min-h-screen w-full bg-gradient-to-br from-orange-50/30 via-white to-amber-50/30 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-6">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-600 via-orange-500 to-amber-600 bg-clip-text text-transparent">
+                My Active Trip
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                Manage your current field trip
+              </p>
+            </div>
+            {enhancedProfile && (
+              <div className="text-right text-sm">
+                <p className="font-semibold text-foreground">
+                  {enhancedProfile.first_name} {enhancedProfile.last_name}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {enhancedProfile.position || 'Staff'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {enhancedProfile.department_name || 'No Department'}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* My Active Trip Section */}
+          {activeTrip ? (
+            <div className="space-y-4">
+              <div className="grid gap-6 lg:grid-cols-2">
+                <ActiveTripTracker />
+                <FieldTripMapTracker tripId={activeTrip.id} />
+              </div>
+            </div>
+          ) : (
+            <Card className="p-8 text-center">
+              <MapPin className="h-16 w-16 mx-auto text-muted-foreground/50 mb-4" />
+              <h3 className="text-xl font-semibold mb-2">No Active Field Trip</h3>
+              <p className="text-muted-foreground mb-6">
+                Start a new field trip to begin tracking your location and activities
+              </p>
+              <StartFieldTripDialog startTripOverride={startTrip} />
+            </Card>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // HR users get full dashboard
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-orange-50/30 via-white to-amber-50/30 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -82,7 +138,7 @@ export default function FieldWorkDashboard() {
           )}
         </div>
 
-        {/* Stats Cards */}
+        {/* Stats Cards - HR Only */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="p-6 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20">
             <div className="flex items-center justify-between">
@@ -127,18 +183,18 @@ export default function FieldWorkDashboard() {
           </Card>
         </div>
 
-        {/* Main Content */}
+        {/* Main Content - HR Only */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
-            {isManager && <TabsTrigger value="team">Team Tracking</TabsTrigger>}
+            <TabsTrigger value="team">Team Tracking</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
             {activeTrip ? (
               <div className="space-y-4">
-                {isManager && <h3 className="text-lg font-semibold">My Active Trip</h3>}
+                <h3 className="text-lg font-semibold">My Active Trip</h3>
                 <div className="grid gap-6 lg:grid-cols-2">
                   <ActiveTripTracker />
                   <FieldTripMapTracker tripId={activeTrip.id} />
@@ -155,23 +211,19 @@ export default function FieldWorkDashboard() {
               </Card>
             )}
 
-            {isManager && (
-              <div className="mt-8 space-y-4">
-                <h3 className="text-lg font-semibold">Team Tracking</h3>
-                <ManagerFieldWorkView />
-              </div>
-            )}
+            <div className="mt-8 space-y-4">
+              <h3 className="text-lg font-semibold">Team Tracking</h3>
+              <ManagerFieldWorkView />
+            </div>
           </TabsContent>
 
           <TabsContent value="history">
             <FieldTripHistory trips={displayTrips.filter(t => t.status === 'completed')} loading={displayLoading} />
           </TabsContent>
 
-          {isManager && (
-            <TabsContent value="team">
-              <ManagerFieldWorkView />
-            </TabsContent>
-          )}
+          <TabsContent value="team">
+            <ManagerFieldWorkView />
+          </TabsContent>
         </Tabs>
       </div>
     </div>
