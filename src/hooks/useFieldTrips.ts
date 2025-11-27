@@ -131,9 +131,19 @@ export function useFieldTrips() {
       
       toast.success('Field trip started successfully');
       return data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error starting trip:', error);
-      toast.error('Failed to start trip');
+      
+      // Show specific error message
+      if (error.message?.includes('User denied')) {
+        toast.error('Location permission denied. Please enable location access to start a field trip.');
+      } else if (error.message?.includes('Geolocation')) {
+        toast.error('Location services are not available. Please enable location on your device.');
+      } else if (error.code === 'PGRST116') {
+        toast.error('Database error: Cannot create field trip. Please contact support.');
+      } else {
+        toast.error(error.message || 'Failed to start trip. Please try again.');
+      }
       throw error;
     }
   };
@@ -256,15 +266,34 @@ export function useFieldTrips() {
 async function getCurrentPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      reject(new Error('Geolocation not supported'));
+      reject(new Error('Geolocation is not supported by your browser'));
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 0
-    });
+    navigator.geolocation.getCurrentPosition(
+      resolve,
+      (error) => {
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            reject(new Error('User denied the request for Geolocation.'));
+            break;
+          case error.POSITION_UNAVAILABLE:
+            reject(new Error('Location information is unavailable.'));
+            break;
+          case error.TIMEOUT:
+            reject(new Error('The request to get user location timed out.'));
+            break;
+          default:
+            reject(new Error('An unknown error occurred while getting location.'));
+            break;
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
   });
 }
 
