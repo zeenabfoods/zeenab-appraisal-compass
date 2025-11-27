@@ -967,6 +967,30 @@ export type Database = {
           },
         ]
       }
+      attendance_settings: {
+        Row: {
+          alert_sound_url: string | null
+          alert_volume: number | null
+          created_at: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          alert_sound_url?: string | null
+          alert_volume?: number | null
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          alert_sound_url?: string | null
+          alert_volume?: number | null
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       attendance_sync_queue: {
         Row: {
           created_at: string | null
