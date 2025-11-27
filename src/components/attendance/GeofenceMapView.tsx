@@ -26,7 +26,7 @@ const mapOptions = {
 };
 
 export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
-  const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string>('');
+  const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string | null>(null);
   const [loadingApiKey, setLoadingApiKey] = useState<boolean>(true);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
@@ -52,9 +52,11 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
     loadApiKey();
   }, []);
 
+  // Only initialize loader when we have the API key
   const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: googleMapsApiKey,
+    googleMapsApiKey: googleMapsApiKey || '',
     id: 'geofence-google-map-script',
+    preventGoogleFontsLoading: true,
   });
   
   const { branches } = useBranches();
@@ -137,7 +139,7 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
       </div>
 
       {/* Map Container */}
-      {loadingApiKey ? (
+      {loadingApiKey || !googleMapsApiKey ? (
         <div className="flex flex-col items-center justify-center h-full p-6">
           <Loader2 className="h-16 w-16 text-attendance-primary animate-spin mb-4" />
           <p className="text-sm text-muted-foreground">Loading map configuration...</p>
