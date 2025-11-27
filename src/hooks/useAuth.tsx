@@ -276,32 +276,25 @@ export function useAuth() {
 
   const resetPassword = async (email: string) => {
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      // Always attempt to send the reset email
+      await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`
       });
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive"
-        });
-        return { error };
-      }
-
+      // Always show success message for security (don't reveal if email exists)
       toast({
         title: "Success",
-        description: "Password reset link has been sent to your email."
+        description: "If this email is registered, a password reset link has been sent."
       });
 
       return { error: null };
     } catch (error: any) {
+      // Even on error, show success message to not reveal email existence
       toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
+        title: "Success",
+        description: "If this email is registered, a password reset link has been sent."
       });
-      return { error };
+      return { error: null };
     }
   };
 
