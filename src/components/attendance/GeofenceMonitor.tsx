@@ -77,26 +77,94 @@ export function GeofenceMonitor() {
     }
   };
 
-  const playBeep = (frequency: number, duration: number) => {
+  const playAlert = async () => {
     try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
+      // Fetch alert settings
+      const { data: settings } = await supabase
+        .from('attendance_settings')
+        .select('*')
+        .single();
 
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-
-      oscillator.frequency.value = frequency;
-      oscillator.type = 'sine';
-
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
-
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + duration);
+      let soundUrl: string;
+      
+      if (settings?.alert_sound_url) {
+        // Use uploaded custom sound
+        const { data } = supabase.storage
+          .from('alert-sounds')
+          .getPublicUrl(settings.alert_sound_url);
+        soundUrl = data.publicUrl;
+      } else {
+        // Generate default beep sound
+        soundUrl = generateDefaultBeep();
+      }
+      
+      const audio = new Audio(soundUrl);
+      audio.volume = settings?.alert_volume || 0.8;
+      await audio.play();
     } catch (error) {
-      console.error('Error playing beep:', error);
+      console.error('Error playing geofence alert:', error);
     }
+  };
+
+  const generateDefaultBeep = (): string => {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const sampleRate = audioContext.sampleRate;
+    const duration = 0.5;
+    const frequency = 880;
+    
+    const length = sampleRate * duration;
+    const buffer = audioContext.createBuffer(1, length, sampleRate);
+    const channelData = buffer.getChannelData(0);
+    
+    for (let i = 0; i < length; i++) {
+      const t = i / sampleRate;
+      const envelope = Math.exp(-t * 4);
+      channelData[i] = Math.sin(2 * Math.PI * frequency * t) * envelope;
+    }
+    
+    const wavData = encodeWAV(buffer);
+    const blob = new Blob([wavData], { type: 'audio/wav' });
+    return URL.createObjectURL(blob);
+  };
+
+  const encodeWAV = (buffer: AudioBuffer): ArrayBuffer => {
+    const length = buffer.length * buffer.numberOfChannels * 2;
+    const arrayBuffer = new ArrayBuffer(44 + length);
+    const view = new DataView(arrayBuffer);
+    const channels = [buffer.getChannelData(0)];
+    const sampleRate = buffer.sampleRate;
+    let pos = 0;
+
+    const writeString = (str: string) => {
+      for (let i = 0; i < str.length; i++) {
+        view.setUint8(pos++, str.charCodeAt(i));
+      }
+    };
+
+    writeString('RIFF');
+    view.setUint32(pos, 36 + length, true); pos += 4;
+    writeString('WAVE');
+    writeString('fmt ');
+    view.setUint32(pos, 16, true); pos += 4;
+    view.setUint16(pos, 1, true); pos += 2;
+    view.setUint16(pos, buffer.numberOfChannels, true); pos += 2;
+    view.setUint32(pos, sampleRate, true); pos += 4;
+    view.setUint32(pos, sampleRate * 2 * buffer.numberOfChannels, true); pos += 4;
+    view.setUint16(pos, buffer.numberOfChannels * 2, true); pos += 2;
+    view.setUint16(pos, 16, true); pos += 2;
+    writeString('data');
+    view.setUint32(pos, length, true); pos += 4;
+
+    const volume = 0.9;
+    for (let i = 0; i < buffer.length; i++) {
+      for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+        const sample = Math.max(-1, Math.min(1, channels[channel][i])) * volume;
+        view.setInt16(pos, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+        pos += 2;
+      }
+    }
+
+    return arrayBuffer;
   };
 
   const showNotification = (title: string, body: string, icon?: string) => {
@@ -150,9 +218,8 @@ export function GeofenceMonitor() {
 
       // Entering geofence
       if (isInside && wasInside === false) {
-        // Double beep for entering
-        playBeep(800, 0.2);
-        setTimeout(() => playBeep(1000, 0.2), 250);
+        // Play alert sound
+        playAlert();
 
         showNotification(
           '📍 Entered Office Zone',
@@ -175,8 +242,8 @@ export function GeofenceMonitor() {
 
       // Exiting geofence
       if (!isInside && wasInside === true) {
-        // Single long beep for exiting
-        playBeep(600, 0.4);
+        // Play alert sound
+        playAlert();
 
         showNotification(
           '⚠️ Left Office Zone',
