@@ -17,7 +17,7 @@ import { formatDistanceToNow } from 'date-fns';
 export default function FieldWorkDashboard() {
   const { profile } = useAuthContext();
   const { enhancedProfile } = useEnhancedProfile();
-  const { trips, activeTrip, loading } = useFieldTrips();
+  const { trips, activeTrip, loading, startTrip } = useFieldTrips();
   const isManager = profile?.role === 'manager' || profile?.role === 'hr' || profile?.role === 'admin';
   const [activeTab, setActiveTab] = useState('overview');
   const [allTrips, setAllTrips] = useState<FieldTrip[]>([]);
@@ -136,7 +136,6 @@ export default function FieldWorkDashboard() {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            {/* Personal Trip Section - Available to ALL users */}
             {activeTrip ? (
               <div className="space-y-4">
                 {isManager && <h3 className="text-lg font-semibold">My Active Trip</h3>}
@@ -152,11 +151,10 @@ export default function FieldWorkDashboard() {
                 <p className="text-muted-foreground mb-6">
                   Start a new field trip to begin tracking your location and activities
                 </p>
-                <StartFieldTripDialog />
+                <StartFieldTripDialog startTripOverride={startTrip} />
               </Card>
             )}
 
-            {/* Team Tracking Section - Only for Managers/HR */}
             {isManager && (
               <div className="mt-8 space-y-4">
                 <h3 className="text-lg font-semibold">Team Tracking</h3>
