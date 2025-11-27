@@ -150,17 +150,29 @@ export function useFieldTrips() {
 
   const endTrip = async (tripId: string, notes?: string) => {
     try {
-      const position = await getCurrentPosition();
+      let position: GeolocationPosition | null = null;
+
+      // Try to get the current location, but don't block ending the trip if it fails
+      try {
+        position = await getCurrentPosition();
+      } catch (geoError) {
+        console.warn('Could not get current location when ending trip:', geoError);
+      }
+
+      const updatePayload: any = {
+        status: 'completed',
+        actual_end_time: new Date().toISOString(),
+        notes: notes || null,
+      };
+
+      if (position) {
+        updatePayload.end_location_lat = position.coords.latitude;
+        updatePayload.end_location_lng = position.coords.longitude;
+      }
       
       const { error } = await supabase
         .from('field_trips')
-        .update({
-          status: 'completed',
-          actual_end_time: new Date().toISOString(),
-          end_location_lat: position.coords.latitude,
-          end_location_lng: position.coords.longitude,
-          notes: notes || null
-        })
+        .update(updatePayload)
         .eq('id', tripId);
 
       if (error) throw error;
@@ -211,7 +223,14 @@ export function useFieldTrips() {
     }
   ) => {
     try {
-      const position = await getCurrentPosition();
+      let position: GeolocationPosition | null = null;
+
+      // Try to get the current location for verification, but don't block upload if it fails
+      try {
+        position = await getCurrentPosition();
+      } catch (geoError) {
+        console.warn('Could not get current location when uploading evidence:', geoError);
+      }
       
       // Upload file to storage
       const fileExt = file.name.split('.').pop();
@@ -228,18 +247,20 @@ export function useFieldTrips() {
         .from('field-evidence')
         .getPublicUrl(fileName);
 
+      const evidencePayload: any = {
+        trip_id: tripId,
+        evidence_type: evidenceType,
+        file_url: publicUrl,
+        location_lat: position?.coords.latitude ?? null,
+        location_lng: position?.coords.longitude ?? null,
+        location_verified: !!position,
+        ...metadata,
+      };
+
       // Record evidence
       const { error: insertError } = await supabase
         .from('trip_evidence')
-        .insert({
-          trip_id: tripId,
-          evidence_type: evidenceType,
-          file_url: publicUrl,
-          location_lat: position.coords.latitude,
-          location_lng: position.coords.longitude,
-          location_verified: true,
-          ...metadata
-        });
+        .insert(evidencePayload);
 
       if (insertError) throw insertError;
       
