@@ -19,8 +19,21 @@ const TRIP_PURPOSES = [
   'Other'
 ];
 
-export function StartFieldTripDialog() {
-  const { startTrip } = useFieldTrips();
+interface StartFieldTripDialogProps {
+  startTripOverride?: (tripData: {
+    purpose: string;
+    expected_end_time: string;
+    vehicle_used?: string;
+    vehicle_registration?: string;
+    funds_allocated?: number;
+    destination_address?: string;
+    notes?: string;
+  }) => Promise<any>;
+}
+
+export function StartFieldTripDialog({ startTripOverride }: StartFieldTripDialogProps) {
+  const { startTrip: hookStartTrip } = useFieldTrips();
+  const startTrip = startTripOverride ?? hookStartTrip;
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
