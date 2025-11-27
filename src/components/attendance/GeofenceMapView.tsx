@@ -26,6 +26,7 @@ const mapOptions = {
 export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
   const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string>('');
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
+  const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = useState(false);
   
   const { branches } = useBranches();
   const { latitude, longitude, error: locationError } = useGeolocation(
@@ -134,7 +135,10 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
         </div>
       ) : (
         <div className="absolute inset-0 pt-[73px]">
-          <LoadScript googleMapsApiKey={googleMapsApiKey}>
+          <LoadScript 
+            googleMapsApiKey={googleMapsApiKey}
+            onLoad={() => setIsGoogleMapsLoaded(true)}
+          >
             <GoogleMap
               mapContainerStyle={mapContainerStyle}
               center={center}
@@ -143,7 +147,7 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
               onLoad={onMapLoad}
             >
               {/* User Location Marker */}
-              {latitude && longitude && (
+              {isGoogleMapsLoaded && latitude && longitude && (
                 <Marker
                   position={{ lat: latitude, lng: longitude }}
                   icon={{
@@ -159,7 +163,7 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
               )}
 
               {/* Branch Markers and Geofence Circles */}
-              {branches?.map((branch, index) => {
+              {isGoogleMapsLoaded && branches?.map((branch, index) => {
                 const branchColor = branch.geofence_color || '#FF6B35';
                 return (
                   <div key={index}>
