@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import React from 'react';
-import { GoogleMap, LoadScript, Marker, Circle } from '@react-google-maps/api';
+import { GoogleMap, Marker, Circle, useJsApiLoader } from '@react-google-maps/api';
 import { X, Navigation, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useGeolocation } from '@/hooks/attendance/useGeolocation';
@@ -32,7 +32,11 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
     return !!localStorage.getItem('google_maps_api_key');
   });
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
-  const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = useState(false);
+
+  const { isLoaded, loadError } = useJsApiLoader({
+    googleMapsApiKey,
+    id: 'geofence-google-map-script',
+  });
   
   const { branches } = useBranches();
   const { latitude, longitude, error: locationError } = useGeolocation(
@@ -155,10 +159,17 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
         </div>
       ) : (
         <div className="absolute inset-0 pt-[73px]">
-          <LoadScript 
-            googleMapsApiKey={googleMapsApiKey}
-            onLoad={() => setIsGoogleMapsLoaded(true)}
-          >
+          {loadError ? (
+            <div className="flex h-full items-center justify-center">
+              <p className="text-sm text-red-600">
+                Failed to load Google Maps. Please verify your API key.
+              </p>
+            </div>
+          ) : !isLoaded ? (
+            <div className="flex h-full items-center justify-center">
+              <p className="text-sm text-muted-foreground">Loading map...</p>
+            </div>
+          ) : (
             <GoogleMap
               mapContainerStyle={mapContainerStyle}
               center={center}
@@ -167,7 +178,7 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
               onLoad={onMapLoad}
             >
               {/* User Location Marker */}
-              {isGoogleMapsLoaded && latitude && longitude && (
+              {isLoaded && latitude && longitude && (
                 <Marker
                   position={{ lat: latitude, lng: longitude }}
                   icon={{
@@ -183,7 +194,7 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
               )}
 
               {/* Branch Markers and Geofence Circles */}
-              {isGoogleMapsLoaded && branches?.map((branch, index) => {
+              {isLoaded && branches?.map((branch) => {
                 const branchColor = branch.geofence_color || '#FF6B35';
                 return (
                   <React.Fragment key={branch.id}>
@@ -222,7 +233,7 @@ export function GeofenceMapView({ onClose }: GeofenceMapViewProps) {
                 );
               })}
             </GoogleMap>
-          </LoadScript>
+          )}
         </div>
       )}
 
