@@ -156,12 +156,12 @@ export function BranchManagement() {
                   type="number"
                   value={formData.geofence_radius}
                   onChange={(e) => setFormData({ ...formData, geofence_radius: e.target.value })}
-                  min="50"
+                  min="1"
                   max="500"
                   required
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Recommended: 100-200m for offices
+                  Minimum: 1m, Recommended: 100-200m for offices
                 </p>
               </div>
               <div>
