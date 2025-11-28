@@ -8,18 +8,31 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAttendanceCharges } from '@/hooks/attendance/useAttendanceCharges';
-import { DollarSign, Download, Filter, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { DollarSign, Download, Filter, CheckCircle, XCircle, AlertCircle, Trash2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export function ChargesManagement() {
-  const { charges, loading, updateChargeStatus, getMonthlyReport } = useAttendanceCharges();
+  const { charges, loading, updateChargeStatus, getMonthlyReport, deleteCharge, deleteAllCharges } = useAttendanceCharges();
   const { profile } = useAuth();
   const [selectedCharge, setSelectedCharge] = useState<typeof charges[0] | null>(null);
   const [actionType, setActionType] = useState<'waive' | 'resolve' | null>(null);
   const [reason, setReason] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const filteredCharges = useMemo(() => {
     return charges.filter((charge) => {
@@ -65,6 +78,24 @@ export function ChargesManagement() {
       setReason('');
     } catch (error) {
       console.error('Error processing charge action:', error);
+    }
+  };
+
+  const handleDeleteCharge = async (id: string) => {
+    try {
+      await deleteCharge(id);
+      setDeleteTargetId(null);
+    } catch (error) {
+      console.error('Error deleting charge:', error);
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    try {
+      await deleteAllCharges();
+      setShowDeleteAllDialog(false);
+    } catch (error) {
+      console.error('Error deleting all charges:', error);
     }
   };
 
@@ -120,10 +151,16 @@ export function ChargesManagement() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Financial Charges Management</h2>
-        <Button onClick={handleExportMonthly}>
-          <Download className="w-4 h-4 mr-2" />
-          Export Monthly Report
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="destructive" onClick={() => setShowDeleteAllDialog(true)} disabled={charges.length === 0}>
+            <Trash2 className="w-4 h-4 mr-2" />
+            Delete All Charges
+          </Button>
+          <Button onClick={handleExportMonthly}>
+            <Download className="w-4 h-4 mr-2" />
+            Export Monthly Report
+          </Button>
+        </div>
       </div>
 
       {/* Statistics Cards */}
@@ -243,31 +280,40 @@ export function ChargesManagement() {
                     </div>
                   )}
                 </div>
-                {charge.status === 'pending' && (
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setSelectedCharge(charge);
-                        setActionType('waive');
-                      }}
-                    >
-                      Waive
-                    </Button>
-                    {charge.dispute_reason && (
+                <div className="flex gap-2">
+                  {charge.status === 'pending' && (
+                    <>
                       <Button
                         size="sm"
+                        variant="outline"
                         onClick={() => {
                           setSelectedCharge(charge);
-                          setActionType('resolve');
+                          setActionType('waive');
                         }}
                       >
-                        Resolve
+                        Waive
                       </Button>
-                    )}
-                  </div>
-                )}
+                      {charge.dispute_reason && (
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setSelectedCharge(charge);
+                            setActionType('resolve');
+                          }}
+                        >
+                          Resolve
+                        </Button>
+                      )}
+                    </>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setDeleteTargetId(charge.id)}
+                  >
+                    <Trash2 className="w-4 h-4 text-destructive" />
+                  </Button>
+                </div>
               </div>
             </Card>
           ))
@@ -309,6 +355,49 @@ export function ChargesManagement() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Single Charge Dialog */}
+      <AlertDialog open={!!deleteTargetId} onOpenChange={() => setDeleteTargetId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Charge?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this charge record. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteTargetId && handleDeleteCharge(deleteTargetId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete All Charges Dialog */}
+      <AlertDialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete All Charges?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete all {charges.length} charge records from the system. 
+              This is useful for cleaning test data before production rollout. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAll}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete All
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
