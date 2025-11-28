@@ -22,10 +22,11 @@ export async function playAttendanceNotification(eventType: string) {
     // Play alert beep first
     let beepUrl: string;
     if (alertSettings?.alert_sound_url) {
-      const { data } = supabase.storage
+      const { data, error } = await supabase.storage
         .from('alert-sounds')
-        .getPublicUrl(alertSettings.alert_sound_url);
-      beepUrl = data.publicUrl;
+        .createSignedUrl(alertSettings.alert_sound_url, 60);
+      if (error || !data?.signedUrl) throw error || new Error('Could not create signed URL for alert sound');
+      beepUrl = data.signedUrl;
     } else {
       beepUrl = generateDefaultBeep();
     }
@@ -37,11 +38,12 @@ export async function playAttendanceNotification(eventType: string) {
     // Wait 500ms then play voice guide
     if (voiceGuide?.audio_file_url) {
       setTimeout(async () => {
-        const { data } = supabase.storage
+        const { data, error } = await supabase.storage
           .from('alert-sounds')
-          .getPublicUrl(voiceGuide.audio_file_url);
+          .createSignedUrl(voiceGuide.audio_file_url, 60);
+        if (error || !data?.signedUrl) return;
         
-        const voiceAudio = new Audio(data.publicUrl);
+        const voiceAudio = new Audio(data.signedUrl);
         voiceAudio.volume = voiceGuide.volume || 0.8;
         await voiceAudio.play();
       }, 500);

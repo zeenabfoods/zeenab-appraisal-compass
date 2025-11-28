@@ -50,11 +50,12 @@ export function useAlertSound() {
       let soundUrl: string;
       
       if (settings?.alert_sound_url) {
-        // Use uploaded custom sound
-        const { data } = supabase.storage
+        // Use uploaded custom sound with signed URL (works even if bucket is private)
+        const { data, error } = await supabase.storage
           .from('alert-sounds')
-          .getPublicUrl(settings.alert_sound_url);
-        soundUrl = data.publicUrl;
+          .createSignedUrl(settings.alert_sound_url, 60);
+        if (error || !data?.signedUrl) throw error || new Error('Could not create signed URL for alert sound');
+        soundUrl = data.signedUrl;
       } else {
         // Generate default beep sound
         soundUrl = generateDefaultBeep();
