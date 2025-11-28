@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuthContext } from '@/components/AuthProvider';
 import { toast } from 'sonner';
 import { MapPin, AlertTriangle, CheckCircle } from 'lucide-react';
-import { playAttendanceNotification } from '@/utils/attendanceNotifications';
+import { useAlertSound } from '@/hooks/useAlertSound';
 
 interface Branch {
   id: string;
@@ -34,6 +34,7 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
 
 export function GeofenceMonitor() {
   const { profile } = useAuthContext();
+  const { playAlertSound } = useAlertSound();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isMonitoring, setIsMonitoring] = useState(false);
   const watchIdRef = useRef<number | null>(null);
@@ -219,8 +220,8 @@ export function GeofenceMonitor() {
 
       // Entering geofence
       if (isInside && wasInside === false) {
-        // Play alert sound and voice guide
-        playAttendanceNotification('geofence_entry');
+        // Play alert sound
+        playAlertSound();
 
         showNotification(
           '📍 Entered Office Zone',
@@ -243,8 +244,8 @@ export function GeofenceMonitor() {
 
       // Exiting geofence
       if (!isInside && wasInside === true) {
-        // Play alert sound and voice guide
-        playAttendanceNotification('geofence_exit');
+        // Play alert sound
+        playAlertSound();
 
         showNotification(
           '⚠️ Left Office Zone',
