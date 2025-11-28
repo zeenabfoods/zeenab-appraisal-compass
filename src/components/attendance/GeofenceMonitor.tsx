@@ -216,7 +216,7 @@ export function GeofenceMonitor() {
     branches.forEach((branch) => {
       const distance = calculateDistance(latitude, longitude, branch.latitude, branch.longitude);
       const isInside = distance <= branch.geofence_radius;
-      const wasInside = previousStatusRef.current.get(branch.id);
+      const wasInside = previousStatusRef.current.get(branch.id) ?? false;
 
       // Entering geofence
       if (isInside && wasInside === false) {
@@ -306,6 +306,7 @@ export function GeofenceMonitor() {
       },
       (error) => {
         console.error('Error watching location:', error);
+        toast.error('Cannot track location. Please allow location access and keep GPS turned on.');
       },
       {
         enableHighAccuracy: true,
