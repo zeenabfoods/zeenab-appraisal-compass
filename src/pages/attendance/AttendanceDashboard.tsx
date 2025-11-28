@@ -25,8 +25,9 @@ import { AttendanceBottomNav } from '@/components/attendance/AttendanceBottomNav
 import { OfflineQueueIndicator } from '@/components/attendance/OfflineQueueIndicator';
 import { AnimatedPageWrapper } from '@/components/attendance/AnimatedPageWrapper';
 import { AlertSoundManager } from '@/components/attendance/AlertSoundManager';
+import { LatenessDashboard } from '@/components/attendance/LatenessDashboard';
 import FieldWorkDashboard from '@/pages/attendance/FieldWorkDashboard';
-import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText, Volume2 } from 'lucide-react';
+import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText, Volume2, ClockAlert } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import {
   Sidebar,
@@ -54,6 +55,7 @@ export default function AttendanceDashboard() {
     { id: 'breaks', label: 'Breaks', icon: Coffee },
     { id: 'field-work', label: 'Field Work', icon: MapPin },
     { id: 'hr-admin', label: 'HR Admin', icon: Users },
+    { id: 'lateness', label: 'Lateness Tracking', icon: ClockAlert },
     { id: 'history', label: 'My History', icon: Clock },
     { id: 'stats', label: 'Statistics', icon: TrendingUp },
     { id: 'branches', label: 'Branches', icon: Building2 },
@@ -184,6 +186,8 @@ export default function AttendanceDashboard() {
           return <FieldWorkDashboard />;
         case 'hr-admin':
           return <HRAttendanceView />;
+        case 'lateness':
+          return <LatenessDashboard />;
         case 'history':
           return <AttendanceHistory />;
         case 'stats':
