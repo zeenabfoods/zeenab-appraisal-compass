@@ -212,8 +212,11 @@ export function ClockInOutCard() {
 
   if (logsLoading) {
     return (
-      <Card className="p-8 bg-white">
-        <div className="text-center text-muted-foreground">Loading attendance data...</div>
+      <Card className="p-8 bg-gradient-to-b from-black via-zinc-950 to-black border border-attendance-primary/20 shadow-[0_20px_60px_rgba(255,107,53,0.3)]">
+        <div className="text-center text-white/60 font-semibold flex items-center justify-center gap-3">
+          <div className="w-5 h-5 border-2 border-attendance-primary border-t-transparent rounded-full animate-spin" />
+          Loading attendance data...
+        </div>
       </Card>
     );
   }
@@ -222,11 +225,44 @@ export function ClockInOutCard() {
     <>
       {showMap && <GeofenceMapView onClose={() => setShowMap(false)} />}
       
-      <Card className="overflow-hidden bg-white shadow-[0_4px_12px_rgba(0,0,0,0.1)] border-attendance-card-border w-full max-w-full">
+      <Card className="overflow-hidden bg-gradient-to-b from-black via-zinc-950 to-black shadow-[0_20px_60px_rgba(255,107,53,0.3)] border border-attendance-primary/20 w-full max-w-full relative">
+        {/* Animated Glowing Orb Background */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
+          <div className="relative w-64 h-64 sm:w-80 sm:h-80">
+            {/* Multiple glowing rings for depth */}
+            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-attendance-primary/30 to-orange-600/30 blur-3xl animate-pulse" 
+                 style={{ animationDuration: '3s' }} />
+            <div className="absolute inset-8 rounded-full bg-gradient-to-r from-attendance-primary/40 to-orange-500/40 blur-2xl animate-pulse" 
+                 style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
+            <div className="absolute inset-16 rounded-full bg-attendance-primary/50 blur-xl animate-pulse" 
+                 style={{ animationDuration: '2.5s', animationDelay: '1s' }} />
+            
+            {/* Spinning ring effect */}
+            <svg className="absolute inset-0 w-full h-full animate-spin" style={{ animationDuration: '8s' }}>
+              <circle
+                cx="50%"
+                cy="50%"
+                r="45%"
+                fill="none"
+                stroke="url(#gradient1)"
+                strokeWidth="2"
+                strokeDasharray="4 8"
+                opacity="0.6"
+              />
+              <defs>
+                <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="hsl(var(--attendance-primary))" stopOpacity="0.8" />
+                  <stop offset="100%" stopColor="hsl(var(--attendance-primary))" stopOpacity="0.1" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+        </div>
+
         {/* Date/Time Banner */}
-        <div className="bg-attendance-primary text-white px-3 sm:px-6 py-3 flex items-center justify-between w-full">
+        <div className="bg-gradient-to-r from-attendance-primary via-orange-600 to-attendance-primary text-white px-3 sm:px-6 py-3 flex items-center justify-between w-full relative z-10 shadow-lg shadow-attendance-primary/20">
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <span className="font-semibold truncate">{dayName}, {dateStr}</span>
+            <span className="font-bold truncate text-sm tracking-wide">{dayName}, {dateStr}</span>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             {isOnline ? (
@@ -234,23 +270,29 @@ export function ClockInOutCard() {
             ) : (
               <WifiOff className="w-4 h-4" />
             )}
-            <span className="text-xs">{isOnline ? 'Online' : 'Offline'}</span>
+            <span className="text-xs font-semibold">{isOnline ? 'Online' : 'Offline'}</span>
           </div>
         </div>
 
-        <div className="p-4 sm:p-8 w-full max-w-full">
+        <div className="p-4 sm:p-8 w-full max-w-full relative z-10">
           {/* Hero Time Display */}
           <div className="text-center mb-4 sm:mb-6 w-full">
-            <div className="text-sm text-muted-foreground mb-2 font-medium">
-              {isClocked ? 'Clocked In' : 'Clock In'}
+            <div className="text-xs uppercase tracking-widest text-white/60 mb-3 font-bold">
+              {isClocked ? 'Currently Active' : 'Ready to Start'}
             </div>
-            <div className="text-5xl sm:text-6xl md:text-7xl font-bold text-attendance-primary tracking-tight mb-2 break-all">
-              {timeStr}
+            <div className="text-6xl sm:text-7xl md:text-8xl font-black text-white tracking-tighter mb-2 break-all relative">
+              <span className="relative inline-block" style={{
+                textShadow: '0 0 40px hsl(var(--attendance-primary)), 0 0 80px hsl(var(--attendance-primary) / 0.5), 0 0 120px hsl(var(--attendance-primary) / 0.3)'
+              }}>
+                {timeStr}
+              </span>
             </div>
             {isClocked && clockInTime && (
-              <div className="mt-2 sm:mt-4 inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-muted rounded-lg max-w-full">
-                <span className="text-sm text-muted-foreground whitespace-nowrap">Work Duration</span>
-                <span className="text-lg font-bold text-foreground whitespace-nowrap">
+              <div className="mt-4 sm:mt-6 inline-flex items-center gap-3 px-4 sm:px-6 py-3 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 max-w-full">
+                <span className="text-xs uppercase tracking-wider text-white/70 whitespace-nowrap font-semibold">Duration</span>
+                <span className="text-2xl font-black text-white whitespace-nowrap" style={{
+                  textShadow: '0 0 20px hsl(var(--attendance-primary) / 0.5)'
+                }}>
                   {elapsedHours}h {elapsedMinutes}m {elapsedSeconds}s
                 </span>
               </div>
@@ -263,10 +305,10 @@ export function ClockInOutCard() {
               variant={mode === 'office' ? 'default' : 'outline'}
               size="lg"
               className={cn(
-                "flex-1 h-12",
+                "flex-1 h-14 font-bold tracking-wide transition-all duration-300",
                 mode === 'office' 
-                  ? "bg-attendance-primary hover:bg-attendance-primary-hover text-white" 
-                  : "border-2 hover:bg-muted"
+                  ? "bg-gradient-to-r from-attendance-primary to-orange-600 hover:from-orange-600 hover:to-attendance-primary text-white shadow-lg shadow-attendance-primary/30 border-0" 
+                  : "border-2 border-white/20 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white hover:border-white/30 backdrop-blur-sm"
               )}
               onClick={() => setMode('office')}
             >
@@ -277,10 +319,10 @@ export function ClockInOutCard() {
               variant={mode === 'field' ? 'default' : 'outline'}
               size="lg"
               className={cn(
-                "flex-1 h-12",
+                "flex-1 h-14 font-bold tracking-wide transition-all duration-300",
                 mode === 'field' 
-                  ? "bg-attendance-info hover:opacity-90 text-white" 
-                  : "border-2 hover:bg-muted"
+                  ? "bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-blue-600 hover:to-cyan-500 text-white shadow-lg shadow-cyan-500/30 border-0" 
+                  : "border-2 border-white/20 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white hover:border-white/30 backdrop-blur-sm"
               )}
               onClick={() => setMode('field')}
             >
@@ -291,25 +333,25 @@ export function ClockInOutCard() {
 
           {/* Geofence Status */}
           {mode === 'office' && activeBranch && (
-            <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-muted/50 rounded-lg border">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">Geofence Status</span>
+            <div className="mb-4 sm:mb-6 p-4 sm:p-5 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 shadow-xl">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-bold text-white uppercase tracking-wider">Location Status</span>
                 {geoLoading ? (
-                  <Badge variant="secondary" className="animate-pulse">Detecting...</Badge>
+                  <Badge variant="secondary" className="animate-pulse bg-white/10 text-white border-white/20">Detecting...</Badge>
                 ) : isWithinGeofence ? (
-                  <Badge className="bg-attendance-success text-white">✓ Inside {activeBranch.name}</Badge>
+                  <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white border-0 shadow-lg shadow-green-500/30 font-bold">✓ Inside {activeBranch.name}</Badge>
                 ) : (
-                  <Badge variant="destructive">⚠ Outside Office</Badge>
+                  <Badge className="bg-gradient-to-r from-red-500 to-rose-600 text-white border-0 shadow-lg shadow-red-500/30 font-bold">⚠ Outside Office</Badge>
                 )}
               </div>
               {geoError && (
-                <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                <p className="text-xs text-red-400 mt-2 flex items-center gap-1 font-semibold">
                   <AlertCircle className="w-3 h-3" />
                   {geoError}
                 </p>
               )}
               {!geoLoading && distanceFromOffice !== null && (
-                <p className="text-xs text-muted-foreground mt-2">
+                <p className="text-xs text-white/60 mt-2 font-medium">
                   Distance: ~{Math.round(distanceFromOffice)}m from {activeBranch.name}
                 </p>
               )}
@@ -317,7 +359,7 @@ export function ClockInOutCard() {
                 variant="outline"
                 onClick={() => setShowMap(true)}
                 size="sm"
-                className="w-full mt-3 border-attendance-primary/30 hover:bg-attendance-primary/5 hover:border-attendance-primary"
+                className="w-full mt-3 border-2 border-white/20 bg-white/5 text-white hover:bg-white/10 hover:border-white/40 font-bold tracking-wide transition-all duration-300"
               >
                 <MapPin className="h-4 w-4 mr-2" />
                 View Map
@@ -326,8 +368,8 @@ export function ClockInOutCard() {
           )}
 
           {mode === 'office' && !activeBranch && (
-            <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200">
-              <p className="text-sm text-amber-800 dark:text-amber-200 flex items-center gap-2">
+            <div className="mb-6 p-4 bg-amber-500/10 backdrop-blur-sm rounded-2xl border border-amber-500/30">
+              <p className="text-sm text-amber-400 flex items-center gap-2 font-semibold">
                 <AlertCircle className="w-4 h-4" />
                 No active branch configured. Contact HR.
               </p>
@@ -340,20 +382,20 @@ export function ClockInOutCard() {
             onClick={handleClockToggle}
             disabled={!isClocked && !canClockIn}
             className={cn(
-              "w-full h-14 text-lg font-semibold",
+              "w-full h-16 text-xl font-black uppercase tracking-wider transition-all duration-300 disabled:opacity-30",
               isClocked
-                ? "bg-attendance-danger hover:opacity-90 text-white"
-                : "bg-attendance-primary hover:bg-attendance-primary-hover text-white"
+                ? "bg-gradient-to-r from-red-600 via-rose-600 to-red-600 hover:from-rose-600 hover:via-red-600 hover:to-rose-600 text-white shadow-2xl shadow-red-600/40 border-0"
+                : "bg-gradient-to-r from-attendance-primary via-orange-600 to-attendance-primary hover:from-orange-600 hover:via-attendance-primary hover:to-orange-600 text-white shadow-2xl shadow-attendance-primary/40 border-0"
             )}
           >
             {isClocked ? (
               <>
-                <Clock className="w-5 h-5 mr-2" />
+                <Clock className="w-6 h-6 mr-3" />
                 Clock Out
               </>
             ) : (
               <>
-                <CheckCircle2 className="w-5 h-5 mr-2" />
+                <CheckCircle2 className="w-6 h-6 mr-3" />
                 Clock In
               </>
             )}
