@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.get-google-maps-key]
 verify_jwt = false
+
+[functions.auto-clockout-handler]
+verify_jwt = false

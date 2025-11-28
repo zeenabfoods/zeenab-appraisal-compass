@@ -749,6 +749,7 @@ export type Database = {
       }
       attendance_logs: {
         Row: {
+          auto_clocked_out: boolean | null
           branch_id: string | null
           clock_in_latitude: number | null
           clock_in_longitude: number | null
@@ -758,6 +759,7 @@ export type Database = {
           clock_out_time: string | null
           created_at: string | null
           device_timestamp: string | null
+          early_closure: boolean | null
           employee_id: string
           field_work_location: string | null
           field_work_reason: string | null
@@ -776,6 +778,7 @@ export type Database = {
           within_geofence_at_clock_out: boolean | null
         }
         Insert: {
+          auto_clocked_out?: boolean | null
           branch_id?: string | null
           clock_in_latitude?: number | null
           clock_in_longitude?: number | null
@@ -785,6 +788,7 @@ export type Database = {
           clock_out_time?: string | null
           created_at?: string | null
           device_timestamp?: string | null
+          early_closure?: boolean | null
           employee_id: string
           field_work_location?: string | null
           field_work_reason?: string | null
@@ -803,6 +807,7 @@ export type Database = {
           within_geofence_at_clock_out?: boolean | null
         }
         Update: {
+          auto_clocked_out?: boolean | null
           branch_id?: string | null
           clock_in_latitude?: number | null
           clock_in_longitude?: number | null
@@ -812,6 +817,7 @@ export type Database = {
           clock_out_time?: string | null
           created_at?: string | null
           device_timestamp?: string | null
+          early_closure?: boolean | null
           employee_id?: string
           field_work_location?: string | null
           field_work_reason?: string | null
@@ -852,6 +858,7 @@ export type Database = {
           allow_multiple_sessions_per_day: boolean
           created_at: string | null
           created_by: string | null
+          early_closure_charge_amount: number | null
           grace_period_minutes: number | null
           id: string
           is_active: boolean | null
@@ -873,6 +880,7 @@ export type Database = {
           allow_multiple_sessions_per_day?: boolean
           created_at?: string | null
           created_by?: string | null
+          early_closure_charge_amount?: number | null
           grace_period_minutes?: number | null
           id?: string
           is_active?: boolean | null
@@ -894,6 +902,7 @@ export type Database = {
           allow_multiple_sessions_per_day?: boolean
           created_at?: string | null
           created_by?: string | null
+          early_closure_charge_amount?: number | null
           grace_period_minutes?: number | null
           id?: string
           is_active?: boolean | null
