@@ -86,11 +86,12 @@ export function useVoiceGuides() {
         return;
       }
 
-      const { data } = supabase.storage
+      const { data, error } = await supabase.storage
         .from('alert-sounds')
-        .getPublicUrl(guide.audio_file_url);
+        .createSignedUrl(guide.audio_file_url, 60);
+      if (error || !data?.signedUrl) throw error || new Error('Could not create signed URL for voice guide');
 
-      const audio = new Audio(data.publicUrl);
+      const audio = new Audio(data.signedUrl);
       audio.volume = guide.volume;
       await audio.play();
     } catch (error) {
