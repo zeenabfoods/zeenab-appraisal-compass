@@ -103,8 +103,8 @@ export default function AttendanceDashboard() {
   const menuItems = isHRorAdmin ? hrMenuItems : staffMenuItems;
 
   const renderOverviewContent = () => (
-    <div className="grid lg:grid-cols-3 gap-8">
-      <div className="lg:col-span-2 space-y-8">
+    <div className="grid lg:grid-cols-3 gap-4 lg:gap-8">
+      <div className="lg:col-span-2 space-y-4 lg:space-y-8">
         <ClockInOutCard />
         <AttendanceStats />
         <RecentActivity />
@@ -336,7 +336,7 @@ export default function AttendanceDashboard() {
             </div>
           </header>
 
-          <main className="flex-1 overflow-auto p-6" data-pull-to-refresh>
+          <main className="flex-1 overflow-auto p-3 sm:p-6" data-pull-to-refresh>
             {renderContent()}
           </main>
 
