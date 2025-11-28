@@ -88,32 +88,56 @@ export function useAttendanceLogs() {
     }
 
     try {
-      // Fetch active attendance rules to check multi-session policy
-      const { data: activeRules } = await supabase
-        .from('attendance_rules')
-        .select('allow_multiple_sessions_per_day')
-        .eq('is_active', true)
-        .limit(1)
-        .maybeSingle();
+      // Check today's sessions for one-transition-only rule
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
 
-      // If multi-session is disabled, check if already clocked in today
-      if (activeRules && !activeRules.allow_multiple_sessions_per_day) {
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
+      const { data: todaySessions } = await supabase
+        .from('attendance_logs')
+        .select('location_type, clock_out_time')
+        .eq('employee_id', profile.id)
+        .gte('clock_in_time', todayStart.toISOString())
+        .order('clock_in_time', { ascending: true });
 
-        const { data: existingLog } = await supabase
-          .from('attendance_logs')
-          .select('id')
-          .eq('employee_id', profile.id)
-          .gte('clock_in_time', todayStart.toISOString())
-          .limit(1)
-          .maybeSingle();
-
-        if (existingLog) {
-          toast.error('Already Clocked In Today', {
-            description: 'Multiple clock-ins per day are disabled by HR policy. Please contact HR if you need assistance.',
+      // Check if trying to clock in at office
+      if (params.locationType === 'office') {
+        // Block if already has an office session today
+        const hasOfficeSession = todaySessions?.some(s => s.location_type === 'office');
+        if (hasOfficeSession) {
+          toast.error('Office Session Already Exists', {
+            description: 'You already have an office session today. Only one office session per day is allowed.',
           });
           return;
+        }
+
+        // Block if already transitioned (has field session)
+        const hasFieldSession = todaySessions?.some(s => s.location_type === 'field');
+        if (hasFieldSession) {
+          toast.error('Cannot Return to Office Mode', {
+            description: 'You have already transitioned to field work today. Only one transition per day is allowed.',
+          });
+          return;
+        }
+
+        // Auto clock-out any active field trip before clocking into office
+        const { data: activeFieldTrip } = await supabase
+          .from('field_trips')
+          .select('id')
+          .eq('employee_id', profile.id)
+          .eq('status', 'active')
+          .maybeSingle();
+
+        if (activeFieldTrip) {
+          await supabase
+            .from('field_trips')
+            .update({
+              status: 'completed',
+              actual_end_time: new Date().toISOString(),
+              notes: 'Auto-completed when clocking in at office'
+            })
+            .eq('id', activeFieldTrip.id);
+          
+          toast.info('Field trip auto-completed');
         }
       }
 

@@ -109,6 +109,59 @@ export function useFieldTrips() {
     notes?: string;
   }) => {
     try {
+      // Check today's sessions for one-transition-only rule
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      const { data: todayFieldTrips } = await supabase
+        .from('field_trips')
+        .select('id')
+        .eq('employee_id', profile?.id)
+        .gte('start_time', todayStart.toISOString());
+
+      // Block if already has a field session today
+      if (todayFieldTrips && todayFieldTrips.length > 0) {
+        toast.error('Field Session Already Exists', {
+          description: 'You already have a field trip today. Only one field session per day is allowed.',
+        });
+        throw new Error('Field session already exists today');
+      }
+
+      // Check if already transitioned (has office session)
+      const { data: officeSession } = await supabase
+        .from('attendance_logs')
+        .select('location_type, id, clock_out_time')
+        .eq('employee_id', profile?.id)
+        .eq('location_type', 'office')
+        .gte('clock_in_time', todayStart.toISOString())
+        .maybeSingle();
+
+      if (officeSession && !officeSession.clock_out_time) {
+        // Auto clock-out the active office session
+        const clockOutTime = new Date().toISOString();
+        const { data: logData } = await supabase
+          .from('attendance_logs')
+          .select('clock_in_time')
+          .eq('id', officeSession.id)
+          .single();
+
+        if (logData) {
+          const clockInTime = new Date(logData.clock_in_time);
+          const diffMs = new Date(clockOutTime).getTime() - clockInTime.getTime();
+          const totalHours = diffMs / (1000 * 60 * 60);
+
+          await supabase
+            .from('attendance_logs')
+            .update({
+              clock_out_time: clockOutTime,
+              total_hours: Number(totalHours.toFixed(2)),
+            })
+            .eq('id', officeSession.id);
+          
+          toast.info('Office session auto-completed');
+        }
+      }
+
       // Get current location
       const position = await getCurrentPosition();
       
@@ -125,6 +178,19 @@ export function useFieldTrips() {
         .single();
 
       if (error) throw error;
+
+      // Create a field attendance log entry
+      await supabase
+        .from('attendance_logs')
+        .insert({
+          employee_id: profile?.id,
+          location_type: 'field',
+          clock_in_latitude: position.coords.latitude,
+          clock_in_longitude: position.coords.longitude,
+          field_work_reason: tripData.purpose,
+          field_work_location: tripData.destination_address || 'Field Location',
+          device_timestamp: new Date().toISOString(),
+        });
       
       setActiveTrip(data as FieldTrip);
       await loadTrips();
@@ -176,6 +242,36 @@ export function useFieldTrips() {
         .eq('id', tripId);
 
       if (error) throw error;
+
+      // Find and clock out the field attendance log
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      const { data: fieldLog } = await supabase
+        .from('attendance_logs')
+        .select('id, clock_in_time')
+        .eq('employee_id', profile?.id)
+        .eq('location_type', 'field')
+        .is('clock_out_time', null)
+        .gte('clock_in_time', todayStart.toISOString())
+        .maybeSingle();
+
+      if (fieldLog) {
+        const clockOutTime = new Date().toISOString();
+        const clockInTime = new Date(fieldLog.clock_in_time);
+        const diffMs = new Date(clockOutTime).getTime() - clockInTime.getTime();
+        const totalHours = diffMs / (1000 * 60 * 60);
+
+        await supabase
+          .from('attendance_logs')
+          .update({
+            clock_out_time: clockOutTime,
+            clock_out_latitude: position?.coords.latitude,
+            clock_out_longitude: position?.coords.longitude,
+            total_hours: Number(totalHours.toFixed(2)),
+          })
+          .eq('id', fieldLog.id);
+      }
       
       setActiveTrip(null);
       await loadTrips();
