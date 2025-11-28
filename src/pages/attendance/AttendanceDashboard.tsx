@@ -25,9 +25,10 @@ import { AttendanceBottomNav } from '@/components/attendance/AttendanceBottomNav
 import { OfflineQueueIndicator } from '@/components/attendance/OfflineQueueIndicator';
 import { AnimatedPageWrapper } from '@/components/attendance/AnimatedPageWrapper';
 import { AlertSoundManager } from '@/components/attendance/AlertSoundManager';
+import { VoiceGuideManager } from '@/components/attendance/VoiceGuideManager';
 import { LatenessDashboard } from '@/components/attendance/LatenessDashboard';
 import FieldWorkDashboard from '@/pages/attendance/FieldWorkDashboard';
-import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText, Volume2, ClockAlert } from 'lucide-react';
+import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText, Volume2, ClockAlert, Mic } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import {
   Sidebar,
@@ -70,6 +71,7 @@ export default function AttendanceDashboard() {
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'geofence', label: 'Geofence', icon: MapPin },
     { id: 'alert-sound', label: 'Alert Sounds', icon: Volume2 },
+    { id: 'voice-guides', label: 'Voice Guides', icon: Mic },
     { id: 'security', label: 'My Security', icon: Shield },
     { id: 'hr-security', label: 'Security Dashboard', icon: Shield },
     { id: 'eye-service', label: 'Eye Service', icon: Eye },
@@ -222,6 +224,8 @@ export default function AttendanceDashboard() {
           return <ManualOverrides />;
         case 'alert-sound':
           return <AlertSoundManager />;
+        case 'voice-guides':
+          return <VoiceGuideManager />;
         default:
           return renderOverviewContent();
       }
