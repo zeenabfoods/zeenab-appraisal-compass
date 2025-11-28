@@ -60,6 +60,7 @@ export function useLatenessData() {
         endDate = format(endOfMonth(selectedDate), 'yyyy-MM-dd');
       }
 
+      // First get attendance logs with employee and branch info
       let query = supabase
         .from('attendance_logs')
         .select(`
@@ -69,15 +70,7 @@ export function useLatenessData() {
           clock_out_time,
           is_late,
           late_by_minutes,
-          employee:profiles!attendance_logs_employee_id_fkey(
-            first_name,
-            last_name,
-            department_id,
-            department:departments(name)
-          ),
-          branch:attendance_branches!attendance_logs_branch_id_fkey(
-            name
-          )
+          branch_id
         `)
         .order('clock_in_time', { ascending: false });
 
@@ -95,15 +88,41 @@ export function useLatenessData() {
         query = query.eq('branch_id', branchFilter);
       }
 
-      const { data, error } = await query;
+      const { data: logsData, error: logsError } = await query;
 
-      if (error) throw error;
+      if (logsError) throw logsError;
+
+      // Get employee details
+      const employeeIds = [...new Set(logsData?.map(log => log.employee_id) || [])];
+      const { data: employeesData } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, department_id')
+        .in('id', employeeIds);
+
+      // Get department details
+      const deptIds = [...new Set(employeesData?.map(emp => emp.department_id).filter(Boolean) || [])];
+      const { data: departmentsData } = await supabase
+        .from('departments')
+        .select('id, name')
+        .in('id', deptIds);
+
+      // Get branch details
+      const branchIds = [...new Set(logsData?.map(log => log.branch_id).filter(Boolean) || [])];
+      const { data: branchesData } = await supabase
+        .from('attendance_branches')
+        .select('id, name')
+        .in('id', branchIds);
+
+      // Create lookup maps
+      const employeeMap = new Map(employeesData?.map(emp => [emp.id, emp]) || []);
+      const deptMap = new Map(departmentsData?.map(dept => [dept.id, dept]) || []);
+      const branchMap = new Map(branchesData?.map(branch => [branch.id, branch]) || []);
 
       // Process and filter data
-      let processedRecords: LatenessRecord[] = (data || []).map((log: any) => {
-        const employee = log.employee || {};
-        const department = employee.department || {};
-        const branch = log.branch || {};
+      let processedRecords: LatenessRecord[] = (logsData || []).map((log: any) => {
+        const employee = employeeMap.get(log.employee_id);
+        const department = employee?.department_id ? deptMap.get(employee.department_id) : null;
+        const branch = log.branch_id ? branchMap.get(log.branch_id) : null;
         
         let status: 'on-time' | 'late' | 'absent' | 'early-closure' = 'on-time';
         
@@ -123,9 +142,9 @@ export function useLatenessData() {
         return {
           id: log.id,
           employee_id: log.employee_id,
-          employee_name: `${employee.first_name || ''} ${employee.last_name || ''}`.trim(),
-          department_name: department.name || 'No Department',
-          branch_name: branch.name || 'No Branch',
+          employee_name: `${employee?.first_name || ''} ${employee?.last_name || ''}`.trim() || 'Unknown',
+          department_name: department?.name || 'No Department',
+          branch_name: branch?.name || 'No Branch',
           clock_in_time: log.clock_in_time,
           clock_out_time: log.clock_out_time,
           is_late: log.is_late || false,
