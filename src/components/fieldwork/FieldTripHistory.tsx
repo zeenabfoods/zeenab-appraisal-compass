@@ -1,20 +1,71 @@
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MapPin, Calendar, Car, DollarSign, Eye } from 'lucide-react';
+import { MapPin, Calendar, Car, DollarSign, Eye, Trash2 } from 'lucide-react';
 import { FieldTrip } from '@/hooks/useFieldTrips';
 import { format } from 'date-fns';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FieldTripMapTracker } from './FieldTripMapTracker';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface FieldTripHistoryProps {
   trips: FieldTrip[];
   loading: boolean;
+  onTripDeleted?: () => void;
 }
 
-export function FieldTripHistory({ trips, loading }: FieldTripHistoryProps) {
+export function FieldTripHistory({ trips, loading, onTripDeleted }: FieldTripHistoryProps) {
   const [selectedTrip, setSelectedTrip] = useState<FieldTrip | null>(null);
+  const [tripToDelete, setTripToDelete] = useState<FieldTrip | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { profile } = useAuth();
+
+  const isHROrAdmin = profile?.role === 'hr' || profile?.role === 'admin';
+
+  const handleDeleteTrip = async () => {
+    if (!tripToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      // First delete location points associated with this trip
+      const { error: pointsError } = await supabase
+        .from('location_points')
+        .delete()
+        .eq('trip_id', tripToDelete.id);
+
+      if (pointsError) throw pointsError;
+
+      // Then delete the trip itself
+      const { error: tripError } = await supabase
+        .from('field_trips')
+        .delete()
+        .eq('id', tripToDelete.id);
+
+      if (tripError) throw tripError;
+
+      toast.success('Field trip deleted successfully');
+      setTripToDelete(null);
+      onTripDeleted?.();
+    } catch (error) {
+      console.error('Error deleting trip:', error);
+      toast.error('Failed to delete field trip');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -88,14 +139,27 @@ export function FieldTripHistory({ trips, loading }: FieldTripHistoryProps) {
                 )}
               </div>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedTrip(trip)}
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                View Route
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedTrip(trip)}
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  View Route
+                </Button>
+                
+                {isHROrAdmin && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setTripToDelete(trip)}
+                    className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </div>
           </Card>
         ))}
@@ -125,6 +189,28 @@ export function FieldTripHistory({ trips, loading }: FieldTripHistoryProps) {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!tripToDelete} onOpenChange={() => setTripToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Field Trip</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this field trip record? This will permanently remove the trip
+              and all its location tracking data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteTrip}
+              disabled={isDeleting}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

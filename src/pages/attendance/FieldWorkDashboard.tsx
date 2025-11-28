@@ -218,7 +218,11 @@ export default function FieldWorkDashboard() {
           </TabsContent>
 
           <TabsContent value="history">
-            <FieldTripHistory trips={displayTrips.filter(t => t.status === 'completed')} loading={displayLoading} />
+            <FieldTripHistory 
+              trips={displayTrips.filter(t => t.status === 'completed')} 
+              loading={displayLoading}
+              onTripDeleted={loadAllTrips}
+            />
           </TabsContent>
 
           <TabsContent value="team">
