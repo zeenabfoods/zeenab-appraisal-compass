@@ -222,13 +222,13 @@ export function ClockInOutCard() {
     <>
       {showMap && <GeofenceMapView onClose={() => setShowMap(false)} />}
       
-      <Card className="overflow-hidden bg-white shadow-[0_4px_12px_rgba(0,0,0,0.1)] border-attendance-card-border">
+      <Card className="overflow-hidden bg-white shadow-[0_4px_12px_rgba(0,0,0,0.1)] border-attendance-card-border w-full max-w-full">
         {/* Date/Time Banner */}
-        <div className="bg-attendance-primary text-white px-3 sm:px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold">{dayName}, {dateStr}</span>
+        <div className="bg-attendance-primary text-white px-3 sm:px-6 py-3 flex items-center justify-between w-full">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <span className="font-semibold truncate">{dayName}, {dateStr}</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {isOnline ? (
               <Wifi className="w-4 h-4" />
             ) : (
@@ -238,19 +238,19 @@ export function ClockInOutCard() {
           </div>
         </div>
 
-        <div className="p-4 sm:p-8">
+        <div className="p-4 sm:p-8 w-full max-w-full">
           {/* Hero Time Display */}
-          <div className="text-center mb-4 sm:mb-6">
+          <div className="text-center mb-4 sm:mb-6 w-full">
             <div className="text-sm text-muted-foreground mb-2 font-medium">
               {isClocked ? 'Clocked In' : 'Clock In'}
             </div>
-            <div className="text-5xl sm:text-6xl md:text-7xl font-bold text-attendance-primary tracking-tight mb-2">
+            <div className="text-5xl sm:text-6xl md:text-7xl font-bold text-attendance-primary tracking-tight mb-2 break-all">
               {timeStr}
             </div>
             {isClocked && clockInTime && (
-              <div className="mt-2 sm:mt-4 inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-muted rounded-lg">
-                <span className="text-sm text-muted-foreground">Work Duration</span>
-                <span className="text-lg font-bold text-foreground">
+              <div className="mt-2 sm:mt-4 inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-muted rounded-lg max-w-full">
+                <span className="text-sm text-muted-foreground whitespace-nowrap">Work Duration</span>
+                <span className="text-lg font-bold text-foreground whitespace-nowrap">
                   {elapsedHours}h {elapsedMinutes}m {elapsedSeconds}s
                 </span>
               </div>
@@ -258,7 +258,7 @@ export function ClockInOutCard() {
           </div>
 
           {/* Mode Toggles */}
-          <div className="flex gap-2 sm:gap-3 mb-4 sm:mb-6">
+          <div className="flex gap-2 sm:gap-3 mb-4 sm:mb-6 w-full max-w-full">
             <Button
               variant={mode === 'office' ? 'default' : 'outline'}
               size="lg"

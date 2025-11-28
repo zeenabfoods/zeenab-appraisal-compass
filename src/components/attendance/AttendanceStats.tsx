@@ -95,16 +95,16 @@ export function AttendanceStats() {
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4">
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full max-w-full">
       {displayStats.map((stat, index) => (
         <Card 
           key={index}
-          className="p-4 sm:p-6 bg-white hover:shadow-md transition-all duration-300 border-attendance-card-border"
+          className="p-4 sm:p-6 bg-white hover:shadow-md transition-all duration-300 border-attendance-card-border w-full min-w-0"
         >
-          <div className="text-left">
-            <p className="text-xs sm:text-sm text-muted-foreground mb-1 sm:mb-2">{stat.label}</p>
-            <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-attendance-primary mb-1">{stat.value}</p>
-            <p className="text-xs text-muted-foreground">{stat.subtext}</p>
+          <div className="text-left w-full">
+            <p className="text-xs sm:text-sm text-muted-foreground mb-1 sm:mb-2 truncate">{stat.label}</p>
+            <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-attendance-primary mb-1 break-all">{stat.value}</p>
+            <p className="text-xs text-muted-foreground truncate">{stat.subtext}</p>
           </div>
         </Card>
       ))}

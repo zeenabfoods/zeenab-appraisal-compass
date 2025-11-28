@@ -84,8 +84,8 @@ export default function AttendanceDashboard() {
   const menuItems = isHRorAdmin ? hrMenuItems : staffMenuItems;
 
   const renderOverviewContent = () => (
-    <div className="grid lg:grid-cols-3 gap-4 lg:gap-8">
-      <div className="lg:col-span-2 space-y-4 lg:space-y-8">
+    <div className="grid lg:grid-cols-3 gap-4 lg:gap-8 w-full max-w-full">
+      <div className="lg:col-span-2 space-y-4 lg:space-y-8 min-w-0">
         <ClockInOutCard />
         <AttendanceStats />
         <RecentActivity />
@@ -232,7 +232,7 @@ export default function AttendanceDashboard() {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen w-full flex bg-gradient-to-br from-orange-50/30 via-white to-amber-50/30 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
+      <div className="min-h-screen w-full flex overflow-x-hidden bg-gradient-to-br from-orange-50/30 via-white to-amber-50/30 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
         {/* Background geofence monitoring */}
         <GeofenceMonitor />
         
@@ -276,9 +276,9 @@ export default function AttendanceDashboard() {
         </Sidebar>
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col min-w-0 max-w-full overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0 w-full overflow-x-hidden">
           <header className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-b border-orange-100/50 dark:border-gray-800 sticky top-0 z-50 shadow-sm">
-            <div className="px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center gap-2 sm:gap-4">
+            <div className="px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center gap-2 sm:gap-4 w-full">
               <SidebarTrigger />
               <div className="flex items-center justify-between flex-1">
                 <div className="space-y-1">
@@ -309,7 +309,7 @@ export default function AttendanceDashboard() {
             </div>
           </header>
 
-          <main className="flex-1 overflow-auto p-3 sm:p-6 min-w-0">
+          <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-6 w-full">
             {renderContent()}
           </main>
 
