@@ -265,7 +265,9 @@ export function LatenessDashboard() {
                     <TableCell>
                       {record.clock_out_time ? format(new Date(record.clock_out_time), 'MMM dd, hh:mm a') : 'N/A'}
                     </TableCell>
-                    <TableCell>{record.late_by_minutes > 0 ? `${record.late_by_minutes} mins` : '-'}</TableCell>
+                    <TableCell>
+                      {record.is_late && record.late_by_minutes > 0 ? `${record.late_by_minutes} mins` : '-'}
+                    </TableCell>
                     <TableCell>{getStatusBadge(record.status)}</TableCell>
                   </TableRow>
                 ))

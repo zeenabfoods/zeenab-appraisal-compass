@@ -129,6 +129,7 @@ export function useLatenessData() {
         if (!log.clock_in_time) {
           status = 'absent';
         } else if (log.is_late) {
+          // Prioritize late status over early closure
           status = 'late';
         } else if (log.clock_out_time) {
           const clockOut = new Date(log.clock_out_time);
