@@ -108,11 +108,47 @@ export function useAttendanceCharges() {
     fetchCharges();
   }, [fetchCharges]);
 
+  const deleteCharge = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('attendance_charges')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      toast.success('Charge deleted successfully');
+      await fetchCharges();
+    } catch (error) {
+      console.error('Error deleting charge:', error);
+      toast.error('Failed to delete charge');
+      throw error;
+    }
+  };
+
+  const deleteAllCharges = async () => {
+    try {
+      const { error } = await supabase
+        .from('attendance_charges')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all records
+
+      if (error) throw error;
+      toast.success('All charges deleted successfully');
+      await fetchCharges();
+    } catch (error) {
+      console.error('Error deleting all charges:', error);
+      toast.error('Failed to delete all charges');
+      throw error;
+    }
+  };
+
   return {
     charges,
     loading,
     updateChargeStatus,
     getMonthlyReport,
+    deleteCharge,
+    deleteAllCharges,
     refetch: fetchCharges,
   };
 }
