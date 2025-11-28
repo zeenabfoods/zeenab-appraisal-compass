@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Tables, TablesInsert } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 import { useAuthContext } from '@/components/AuthProvider';
+import { playAttendanceNotification } from '@/utils/attendanceNotifications';
 
 type AttendanceLog = Tables<'attendance_logs'>;
 type AttendanceLogInsert = TablesInsert<'attendance_logs'>;
@@ -166,6 +167,9 @@ export function useAttendanceLogs() {
       setIsClocked(true);
       toast.success('Clocked in successfully');
 
+      // Play sound notification
+      playAttendanceNotification('clock_in_success');
+
       // Trigger haptic feedback if available
       if ('vibrate' in navigator) {
         navigator.vibrate(50);
@@ -271,6 +275,9 @@ export function useAttendanceLogs() {
       }
       
       toast.success(message);
+
+      // Play sound notification
+      playAttendanceNotification('clock_out_success');
 
       // Trigger haptic feedback
       if ('vibrate' in navigator) {
