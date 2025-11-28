@@ -2225,6 +2225,42 @@ export type Database = {
           },
         ]
       }
+      voice_guides: {
+        Row: {
+          audio_file_url: string | null
+          created_at: string | null
+          event_category: string
+          event_type: string
+          id: string
+          is_active: boolean | null
+          phrase_text: string
+          updated_at: string | null
+          volume: number | null
+        }
+        Insert: {
+          audio_file_url?: string | null
+          created_at?: string | null
+          event_category: string
+          event_type: string
+          id?: string
+          is_active?: boolean | null
+          phrase_text: string
+          updated_at?: string | null
+          volume?: number | null
+        }
+        Update: {
+          audio_file_url?: string | null
+          created_at?: string | null
+          event_category?: string
+          event_type?: string
+          id?: string
+          is_active?: boolean | null
+          phrase_text?: string
+          updated_at?: string | null
+          volume?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
