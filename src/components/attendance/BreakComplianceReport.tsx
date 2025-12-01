@@ -28,6 +28,12 @@ export function BreakComplianceReport() {
   const [compliance, setCompliance] = useState<BreakCompliance[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'took_break' | 'missed_break'>('all');
+  const [stats, setStats] = useState({
+    total: 0,
+    taken: 0,
+    missed: 0,
+    onTime: 0,
+  });
 
   useEffect(() => {
     fetchBreakCompliance();
@@ -122,6 +128,13 @@ export function BreakComplianceReport() {
       });
 
       setCompliance(complianceData);
+
+      const total = complianceData.length;
+      const taken = (breaks ?? []).length;
+      const onTime = (breaks ?? []).filter((b) => b.was_on_time).length;
+      const missed = Math.max(total - taken, 0);
+
+      setStats({ total, taken, missed, onTime });
     } catch (error) {
       console.error('Error fetching break compliance:', error);
       toast.error('Failed to load break compliance data');
@@ -157,12 +170,6 @@ export function BreakComplianceReport() {
     );
   };
 
-  const stats = {
-    total: compliance.length,
-    taken: compliance.filter((c) => c.took_break).length,
-    missed: compliance.filter((c) => !c.took_break).length,
-    onTime: compliance.filter((c) => c.was_on_time).length,
-  };
 
   const filteredCompliance = compliance.filter((item) => {
     if (filter === 'took_break') return item.took_break;
