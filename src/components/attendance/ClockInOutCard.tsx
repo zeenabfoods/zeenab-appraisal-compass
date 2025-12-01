@@ -26,22 +26,42 @@ export function ClockInOutCard() {
   
   const { branches } = useBranches();
   const { isClocked, todayLog, clockIn, clockOut, loading: logsLoading, refetch: refetchLogs } = useAttendanceLogs();
-  const activeBranch = branches.find(b => b.is_active);
+  const activeBranches = branches.filter(b => b.is_active);
 
   const { 
     latitude, 
     longitude, 
-    isWithinGeofence, 
     loading: geoLoading, 
     error: geoError,
-    distanceFromOffice 
-  } = useGeolocation(
-    mode === 'office' && activeBranch ? {
-      latitude: activeBranch.latitude,
-      longitude: activeBranch.longitude,
-      radius: activeBranch.geofence_radius,
-    } : undefined
-  );
+  } = useGeolocation();
+
+  // Calculate distance and check geofence for all active branches
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371e3; // Earth's radius in meters
+    const φ1 = (lat1 * Math.PI) / 180;
+    const φ2 = (lat2 * Math.PI) / 180;
+    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+    const a =
+      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c;
+  };
+
+  // Find which branch the employee is within (if any)
+  const currentBranch = activeBranches.find(branch => {
+    if (!latitude || !longitude) return false;
+    const distance = calculateDistance(latitude, longitude, branch.latitude, branch.longitude);
+    return distance <= branch.geofence_radius;
+  });
+
+  const isWithinGeofence = !!currentBranch;
+  const distanceFromOffice = currentBranch && latitude && longitude 
+    ? calculateDistance(latitude, longitude, currentBranch.latitude, currentBranch.longitude)
+    : null;
 
   // Update time every second
   useEffect(() => {
@@ -151,14 +171,17 @@ export function ClockInOutCard() {
       if (mode === 'field') {
         setShowFieldDialog(true);
       } else if (mode === 'office') {
-        if (!activeBranch) {
+        if (activeBranches.length === 0) {
+          toast.error('No Active Branch', {
+            description: 'No active branch configured. Contact HR.',
+          });
           return;
         }
         
         // Validate geofence status before allowing clock-in
         if (!isWithinGeofence) {
           toast.error('Cannot Clock In', {
-            description: 'You are outside the office geofence. Please move closer to the office to clock in.',
+            description: 'You are outside any office geofence. Please move closer to an office branch to clock in.',
           });
           return;
         }
@@ -167,7 +190,7 @@ export function ClockInOutCard() {
           locationType: 'office',
           latitude,
           longitude,
-          branchId: activeBranch.id,
+          branchId: currentBranch!.id,
           withinGeofence: isWithinGeofence,
           geofenceDistance: distanceFromOffice,
         });
@@ -206,7 +229,7 @@ export function ClockInOutCard() {
     setFieldLocation('');
   };
 
-  const canClockIn = mode === 'field' || (mode === 'office' && activeBranch && !geoLoading);
+  const canClockIn = mode === 'field' || (mode === 'office' && activeBranches.length > 0 && !geoLoading);
   const clockInTime = todayLog ? new Date(todayLog.clock_in_time) : null;
   const elapsedMs = clockInTime ? Date.now() - clockInTime.getTime() : 0;
   const elapsedHours = Math.floor(elapsedMs / (1000 * 60 * 60));
@@ -340,14 +363,14 @@ export function ClockInOutCard() {
           </div>
 
           {/* Geofence Status */}
-          {mode === 'office' && activeBranch && (
+          {mode === 'office' && activeBranches.length > 0 && (
             <div className="mb-4 sm:mb-6 p-4 sm:p-5 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 shadow-xl">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm font-bold text-white uppercase tracking-wider">Location Status</span>
                 {geoLoading ? (
                   <Badge variant="secondary" className="animate-pulse bg-white/10 text-white border-white/20">Detecting...</Badge>
-                ) : isWithinGeofence ? (
-                  <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white border-0 shadow-lg shadow-green-500/30 font-bold">✓ Inside {activeBranch.name}</Badge>
+                ) : isWithinGeofence && currentBranch ? (
+                  <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white border-0 shadow-lg shadow-green-500/30 font-bold">✓ Inside {currentBranch.name}</Badge>
                 ) : (
                   <Badge className="bg-gradient-to-r from-red-500 to-rose-600 text-white border-0 shadow-lg shadow-red-500/30 font-bold">⚠ Outside Office</Badge>
                 )}
@@ -358,9 +381,9 @@ export function ClockInOutCard() {
                   {geoError}
                 </p>
               )}
-              {!geoLoading && distanceFromOffice !== null && (
+              {!geoLoading && currentBranch && distanceFromOffice !== null && (
                 <p className="text-xs text-white/60 mt-2 font-medium">
-                  Distance: ~{Math.round(distanceFromOffice)}m from {activeBranch.name}
+                  Distance: ~{Math.round(distanceFromOffice)}m from {currentBranch.name}
                 </p>
               )}
               <Button
@@ -375,7 +398,7 @@ export function ClockInOutCard() {
             </div>
           )}
 
-          {mode === 'office' && !activeBranch && (
+          {mode === 'office' && activeBranches.length === 0 && (
             <div className="mb-6 p-4 bg-amber-500/10 backdrop-blur-sm rounded-2xl border border-amber-500/30">
               <p className="text-sm text-amber-400 flex items-center gap-2 font-semibold">
                 <AlertCircle className="w-4 h-4" />
