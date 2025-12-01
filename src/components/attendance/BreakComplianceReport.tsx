@@ -153,6 +153,16 @@ export function BreakComplianceReport() {
       );
     }
 
+    // Handle unscheduled breaks (no scheduled time to compare against)
+    if (item.scheduled_time === 'N/A' || item.was_on_time === null) {
+      return (
+        <Badge variant="secondary" className="gap-1 bg-blue-500 text-white">
+          <Coffee className="h-3 w-3" />
+          Unscheduled
+        </Badge>
+      );
+    }
+
     if (item.was_on_time) {
       return (
         <Badge variant="default" className="gap-1 bg-green-500">
