@@ -770,7 +770,11 @@ export type Database = {
           late_by_minutes: number | null
           location_type: string
           night_shift_hours: number | null
+          overtime_approved: boolean | null
+          overtime_approved_at: string | null
           overtime_hours: number | null
+          overtime_prompted_at: string | null
+          overtime_start_time: string | null
           sync_status: string | null
           total_hours: number | null
           updated_at: string | null
@@ -799,7 +803,11 @@ export type Database = {
           late_by_minutes?: number | null
           location_type: string
           night_shift_hours?: number | null
+          overtime_approved?: boolean | null
+          overtime_approved_at?: string | null
           overtime_hours?: number | null
+          overtime_prompted_at?: string | null
+          overtime_start_time?: string | null
           sync_status?: string | null
           total_hours?: number | null
           updated_at?: string | null
@@ -828,7 +836,11 @@ export type Database = {
           late_by_minutes?: number | null
           location_type?: string
           night_shift_hours?: number | null
+          overtime_approved?: boolean | null
+          overtime_approved_at?: string | null
           overtime_hours?: number | null
+          overtime_prompted_at?: string | null
+          overtime_start_time?: string | null
           sync_status?: string | null
           total_hours?: number | null
           updated_at?: string | null

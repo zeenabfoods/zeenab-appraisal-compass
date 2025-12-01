@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
     const [closeHour, closeMin] = closingTime.split(':').map(Number);
     const autoClockoutTime = `${closeHour.toString().padStart(2, '0')}:${(closeMin + 1).toString().padStart(2, '0')}:00`;
 
-    // Find all employees still clocked in (both office and field)
+    // Find all employees still clocked in (office only, and NOT doing overtime)
     const { data: activeSessions, error: sessionsError } = await supabaseClient
       .from('attendance_logs')
       .select(`
@@ -63,6 +63,7 @@ Deno.serve(async (req) => {
         employee_id,
         clock_in_time,
         location_type,
+        overtime_approved,
         employee:profiles!attendance_logs_employee_id_fkey(
           id,
           first_name,
@@ -71,7 +72,9 @@ Deno.serve(async (req) => {
         )
       `)
       .is('clock_out_time', null)
-      .eq('early_closure', false);
+      .eq('location_type', 'office')
+      .eq('early_closure', false)
+      .or('overtime_approved.is.null,overtime_approved.eq.false');
 
     if (sessionsError) {
       console.error('Failed to fetch active sessions:', sessionsError);
