@@ -73,6 +73,26 @@ export function useBreaks(attendanceLogId: string | null) {
       return;
     }
 
+    // Check if employee already has a break today
+    const today = new Date().toISOString().split('T')[0];
+    const { data: existingBreaks, error: checkError } = await supabase
+      .from('attendance_breaks')
+      .select('id')
+      .eq('employee_id', profile.id)
+      .gte('break_start', `${today}T00:00:00`)
+      .lte('break_start', `${today}T23:59:59`);
+
+    if (checkError) {
+      console.error('Error checking existing breaks:', checkError);
+    }
+
+    if (existingBreaks && existingBreaks.length > 0) {
+      toast.error('Only One Break Per Day', {
+        description: 'You have already taken your break for today. Only one break is allowed per employee per day.',
+      });
+      return;
+    }
+
     try {
       setLoading(true);
 
