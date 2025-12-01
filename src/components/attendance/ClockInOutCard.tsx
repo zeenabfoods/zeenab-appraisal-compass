@@ -155,6 +155,14 @@ export function ClockInOutCard() {
           return;
         }
         
+        // Validate geofence status before allowing clock-in
+        if (!isWithinGeofence) {
+          toast.error('Cannot Clock In', {
+            description: 'You are outside the office geofence. Please move closer to the office to clock in.',
+          });
+          return;
+        }
+        
         await clockIn({
           locationType: 'office',
           latitude,
