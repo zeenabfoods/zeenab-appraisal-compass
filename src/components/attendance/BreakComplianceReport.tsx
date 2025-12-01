@@ -66,7 +66,9 @@ export function BreakComplianceReport() {
 
       // Build compliance report
       const complianceData: BreakCompliance[] = [];
+      const processedBreakIds = new Set<string>();
 
+      // First, add all scheduled breaks
       schedules?.forEach((schedule) => {
         employees?.forEach((employee) => {
           // Check if department applies (null means all departments)
@@ -81,6 +83,10 @@ export function BreakComplianceReport() {
             (b) => b.employee_id === employee.id && b.schedule_id === schedule.id
           );
 
+          if (employeeBreak) {
+            processedBreakIds.add(employeeBreak.id);
+          }
+
           complianceData.push({
             employee_id: employee.id,
             employee_name: `${employee.first_name} ${employee.last_name}`,
@@ -93,6 +99,26 @@ export function BreakComplianceReport() {
             minutes_late: employeeBreak?.minutes_late || null,
           });
         });
+      });
+
+      // Add unscheduled breaks (breaks without schedule_id or not matched above)
+      breaks?.forEach((breakRecord) => {
+        if (!processedBreakIds.has(breakRecord.id)) {
+          const employee = employees?.find((e) => e.id === breakRecord.employee_id);
+          if (employee) {
+            complianceData.push({
+              employee_id: employee.id,
+              employee_name: `${employee.first_name} ${employee.last_name}`,
+              department: employee.department || 'N/A',
+              schedule_name: breakRecord.break_type + ' (Not Scheduled)',
+              scheduled_time: 'N/A',
+              actual_break_start: breakRecord.break_start,
+              took_break: true,
+              was_on_time: null,
+              minutes_late: null,
+            });
+          }
+        }
       });
 
       setCompliance(complianceData);
