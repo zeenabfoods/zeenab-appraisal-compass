@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { generateDeviceFingerprint, storeDeviceFingerprint, compareDeviceFingerprint } from '@/utils/deviceFingerprinting';
 import { detectLocationSpoofing } from '@/utils/locationSpoofingDetection';
+import { OvertimePromptDialog } from './OvertimePromptDialog';
 
 export function ClockInOutCard() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -433,6 +434,19 @@ export function ClockInOutCard() {
           </Button>
         </div>
       </Card>
+
+      {todayLog && todayLog.location_type === 'office' && !todayLog.clock_out_time && (
+        <OvertimePromptDialog
+          attendanceLogId={todayLog.id}
+          onResponse={(approved) => {
+            if (approved) {
+              toast.success('Overtime Tracking Started', {
+                description: 'Your overtime hours are now being tracked.',
+              });
+            }
+          }}
+        />
+      )}
 
       <Dialog open={showFieldDialog} onOpenChange={setShowFieldDialog}>
         <DialogContent>

@@ -195,6 +195,13 @@ export function useAttendanceLogs() {
       const diffMs = new Date(clockOutTime).getTime() - clockInTime.getTime();
       const totalHours = diffMs / (1000 * 60 * 60);
 
+      // Fetch the log to check if overtime was approved
+      const { data: logData } = await supabase
+        .from('attendance_logs')
+        .select('overtime_approved, overtime_start_time')
+        .eq('id', todayLog.id)
+        .single();
+
       // Fetch attendance rules for overtime and night shift calculation
       const { data: rules } = await supabase
         .from('attendance_rules')
@@ -207,18 +214,15 @@ export function useAttendanceLogs() {
       let isNightShift = false;
       let nightShiftHours = 0;
 
-      if (rules) {
-        // Calculate standard work hours
-        const workStart = rules.work_start_time || '08:00';
-        const workEnd = rules.work_end_time || '17:00';
-        const [startH, startM] = workStart.split(':').map(Number);
-        const [endH, endM] = workEnd.split(':').map(Number);
-        const standardHours = (endH * 60 + endM - (startH * 60 + startM)) / 60;
+      // Calculate overtime hours only if overtime was approved
+      if (logData?.overtime_approved && logData?.overtime_start_time) {
+        const overtimeStartTime = new Date(logData.overtime_start_time);
+        const clockOutTimeDate = new Date(clockOutTime);
+        const overtimeMs = clockOutTimeDate.getTime() - overtimeStartTime.getTime();
+        overtimeHours = Math.max(0, overtimeMs / (1000 * 60 * 60));
+      }
 
-        // Calculate overtime (hours beyond standard hours)
-        if (totalHours > standardHours) {
-          overtimeHours = totalHours - standardHours;
-        }
+      if (rules) {
 
         // Detect night shift (check if clock-in is within night shift window)
         const nightStart = rules.night_shift_start_time || '22:00';
