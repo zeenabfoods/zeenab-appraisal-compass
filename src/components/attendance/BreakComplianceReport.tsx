@@ -3,12 +3,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfDay, endOfDay } from 'date-fns';
-import { Coffee, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { Coffee, CheckCircle, XCircle, Clock, AlertCircle, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { CalendarIcon } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface BreakCompliance {
   employee_id: string;
@@ -26,6 +27,7 @@ export function BreakComplianceReport() {
   const [date, setDate] = useState<Date>(new Date());
   const [compliance, setCompliance] = useState<BreakCompliance[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'took_break' | 'missed_break'>('all');
 
   useEffect(() => {
     fetchBreakCompliance();
@@ -136,6 +138,12 @@ export function BreakComplianceReport() {
     onTime: compliance.filter((c) => c.was_on_time).length,
   };
 
+  const filteredCompliance = compliance.filter((item) => {
+    if (filter === 'took_break') return item.took_break;
+    if (filter === 'missed_break') return !item.took_break;
+    return true;
+  });
+
   return (
     <div className="space-y-6">
       {/* Date Selector */}
@@ -157,6 +165,18 @@ export function BreakComplianceReport() {
                 <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} />
               </PopoverContent>
             </Popover>
+            
+            <Select value={filter} onValueChange={(value: any) => setFilter(value)}>
+              <SelectTrigger className="w-[200px]">
+                <Filter className="mr-2 h-4 w-4" />
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Employees</SelectItem>
+                <SelectItem value="took_break">Took Break</SelectItem>
+                <SelectItem value="missed_break">Missed Break</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -200,13 +220,15 @@ export function BreakComplianceReport() {
         <CardContent>
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">Loading...</div>
-          ) : compliance.length === 0 ? (
+          ) : filteredCompliance.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No break schedules found for this date
+              {compliance.length === 0 
+                ? "No break schedules found for this date"
+                : "No employees match the selected filter"}
             </div>
           ) : (
             <div className="space-y-3">
-              {compliance.map((item, index) => (
+              {filteredCompliance.map((item, index) => (
                 <div
                   key={index}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
