@@ -53,12 +53,26 @@ export function ClockInOutCard() {
   };
 
   // Find which branch the employee is within (if any)
-  const currentBranch = activeBranches.find(branch => {
-    if (!latitude || !longitude) return false;
+  const branchDistances = activeBranches.map(branch => {
+    if (!latitude || !longitude) return { branch, distance: null, withinGeofence: false };
     const distance = calculateDistance(latitude, longitude, branch.latitude, branch.longitude);
-    return distance <= branch.geofence_radius;
+    const withinGeofence = distance <= branch.geofence_radius;
+    return { branch, distance, withinGeofence };
   });
 
+  // Debug log to help identify issues
+  console.log('📍 Branch Geofence Check:', {
+    userLocation: { latitude, longitude },
+    branches: branchDistances.map(bd => ({
+      name: bd.branch.name,
+      distance: bd.distance ? `${Math.round(bd.distance)}m` : 'N/A',
+      radius: `${bd.branch.geofence_radius}m`,
+      withinGeofence: bd.withinGeofence,
+      coordinates: { lat: bd.branch.latitude, lng: bd.branch.longitude }
+    }))
+  });
+
+  const currentBranch = branchDistances.find(bd => bd.withinGeofence)?.branch;
   const isWithinGeofence = !!currentBranch;
   const distanceFromOffice = currentBranch && latitude && longitude 
     ? calculateDistance(latitude, longitude, currentBranch.latitude, currentBranch.longitude)
@@ -386,6 +400,18 @@ export function ClockInOutCard() {
                 <p className="text-xs text-white/60 mt-2 font-medium">
                   Distance: ~{Math.round(distanceFromOffice)}m from {currentBranch.name}
                 </p>
+              )}
+              {!geoLoading && !currentBranch && branchDistances.length > 0 && (
+                <div className="mt-3 p-3 bg-white/5 rounded-lg border border-white/10">
+                  <p className="text-xs font-semibold text-white/80 mb-2">📏 Distance to Branches:</p>
+                  {branchDistances.map(bd => bd.distance && (
+                    <p key={bd.branch.id} className="text-xs text-white/60 mt-1">
+                      {bd.branch.name}: <span className={bd.withinGeofence ? "text-green-400" : "text-red-400"}>
+                        {Math.round(bd.distance)}m
+                      </span> (radius: {bd.branch.geofence_radius}m)
+                    </p>
+                  ))}
+                </div>
               )}
               <Button
                 variant="outline"
