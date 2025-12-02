@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { MapPin, Plus, Edit2, Trash2, Save, X } from 'lucide-react';
+import { MapPin, Plus, Edit2, Trash2, Save, X, Navigation, ExternalLink } from 'lucide-react';
 import { useBranches } from '@/hooks/attendance/useBranches';
 import { TablesInsert } from '@/integrations/supabase/types';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 
 export function BranchManagement() {
   const { branches, loading, createBranch, updateBranch, deleteBranch } = useBranches();
@@ -21,6 +22,7 @@ export function BranchManagement() {
     geofence_radius: '100',
     geofence_color: '#FF6B35',
   });
+  const [gettingLocation, setGettingLocation] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,6 +82,46 @@ export function BranchManagement() {
     }
   };
 
+  const handleGetCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error('Geolocation is not supported by your device');
+      return;
+    }
+
+    setGettingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude.toFixed(8);
+        const lng = position.coords.longitude.toFixed(8);
+        setFormData({
+          ...formData,
+          latitude: lat,
+          longitude: lng,
+        });
+        toast.success(`Location captured: ${lat}, ${lng}`);
+        setGettingLocation(false);
+      },
+      (error) => {
+        toast.error(`Failed to get location: ${error.message}`);
+        setGettingLocation(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
+  };
+
+  const openGoogleMaps = () => {
+    if (formData.latitude && formData.longitude) {
+      const url = `https://www.google.com/maps?q=${formData.latitude},${formData.longitude}`;
+      window.open(url, '_blank');
+    } else {
+      toast.error('Please enter coordinates first');
+    }
+  };
+
   if (loading) {
     return (
       <Card className="p-6">
@@ -123,31 +165,60 @@ export function BranchManagement() {
                   placeholder="Full address"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="latitude">Latitude *</Label>
-                  <Input
-                    id="latitude"
-                    type="number"
-                    step="any"
-                    value={formData.latitude}
-                    onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
-                    placeholder="6.5244"
-                    required
-                  />
+              <div>
+                <Label>Branch Coordinates *</Label>
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <div>
+                    <Input
+                      id="latitude"
+                      type="number"
+                      step="any"
+                      value={formData.latitude}
+                      onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
+                      placeholder="Latitude (e.g., 6.5244)"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Input
+                      id="longitude"
+                      type="number"
+                      step="any"
+                      value={formData.longitude}
+                      onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
+                      placeholder="Longitude (e.g., 3.3792)"
+                      required
+                    />
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="longitude">Longitude *</Label>
-                  <Input
-                    id="longitude"
-                    type="number"
-                    step="any"
-                    value={formData.longitude}
-                    onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
-                    placeholder="3.3792"
-                    required
-                  />
+                <div className="flex gap-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleGetCurrentLocation}
+                    disabled={gettingLocation}
+                    className="flex-1"
+                  >
+                    <Navigation className="w-4 h-4 mr-2" />
+                    {gettingLocation ? 'Getting Location...' : 'Use Current Location'}
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm"
+                    onClick={openGoogleMaps}
+                    disabled={!formData.latitude || !formData.longitude}
+                    className="flex-1"
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Verify on Map
+                  </Button>
                 </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  💡 <strong>Tip:</strong> Stand at the branch location and click "Use Current Location" for accurate coordinates. 
+                  Or right-click on Google Maps and copy coordinates (Lat, Lng format).
+                </p>
               </div>
               <div>
                 <Label htmlFor="geofence">Geofence Radius (meters) *</Label>
