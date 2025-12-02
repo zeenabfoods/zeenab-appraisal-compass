@@ -91,25 +91,47 @@ export function LatenessDashboard() {
     }
 
     const headers = ['Employee', 'Department', 'Branch', 'Clock In', 'Clock Out', 'Late By (mins)', 'Status'];
-    const rows = records.map((record) => [
-      record.employee_name,
-      record.department_name,
-      record.branch_name,
-      record.clock_in_time ? format(new Date(record.clock_in_time), 'yyyy-MM-dd HH:mm:ss') : 'N/A',
-      record.clock_out_time ? format(new Date(record.clock_out_time), 'yyyy-MM-dd HH:mm:ss') : 'N/A',
-      record.is_late && record.late_by_minutes > 0 ? record.late_by_minutes.toString() : '0',
-      record.status,
-    ]);
+    const rows = records.map((record) => {
+      let clockInDisplay = 'N/A';
+      let clockOutDisplay = 'N/A';
+      
+      try {
+        if (record.clock_in_time && record.clock_in_time.length > 0) {
+          clockInDisplay = format(new Date(record.clock_in_time), 'yyyy-MM-dd HH:mm:ss');
+        }
+      } catch (e) {
+        clockInDisplay = 'N/A';
+      }
+      
+      try {
+        if (record.clock_out_time && record.clock_out_time.length > 0) {
+          clockOutDisplay = format(new Date(record.clock_out_time), 'yyyy-MM-dd HH:mm:ss');
+        }
+      } catch (e) {
+        clockOutDisplay = 'N/A';
+      }
+      
+      return [
+        record.employee_name,
+        record.department_name,
+        record.branch_name,
+        clockInDisplay,
+        clockOutDisplay,
+        record.status === 'late' && record.late_by_minutes > 0 ? record.late_by_minutes.toString() : '0',
+        record.status.charAt(0).toUpperCase() + record.status.slice(1).replace('-', ' '),
+      ];
+    });
 
+    const statusLabel = statusFilter !== 'all' ? `-${statusFilter}` : '';
     const csvContent = [headers, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(',')).join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `lateness-report-${format(selectedDate, 'yyyy-MM-dd')}.csv`;
+    link.download = `lateness-report${statusLabel}-${format(selectedDate, 'yyyy-MM-dd')}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-    toast.success('Report exported successfully');
+    toast.success(`Exported ${records.length} ${statusFilter !== 'all' ? statusFilter : ''} records`);
   };
 
   const statCards = [
