@@ -142,6 +142,38 @@ export function useAttendanceLogs() {
         }
       }
 
+      // Fetch attendance rules to calculate lateness
+      const { data: rules } = await supabase
+        .from('attendance_rules')
+        .select('work_start_time, late_threshold_minutes, grace_period_minutes')
+        .eq('is_active', true)
+        .limit(1)
+        .single();
+
+      let isLate = false;
+      let lateByMinutes = 0;
+
+      if (rules && rules.work_start_time) {
+        const now = new Date();
+        const [workStartHour, workStartMin] = rules.work_start_time.split(':').map(Number);
+        
+        // Create work start time for today in local time
+        const workStartTime = new Date(now);
+        workStartTime.setHours(workStartHour, workStartMin, 0, 0);
+        
+        // Add late threshold (default 15 mins) and grace period (default 5 mins)
+        const lateThreshold = rules.late_threshold_minutes || 15;
+        const gracePeriod = rules.grace_period_minutes || 0;
+        const totalAllowedMinutes = lateThreshold + gracePeriod;
+        
+        const lateDeadline = new Date(workStartTime.getTime() + totalAllowedMinutes * 60 * 1000);
+        
+        if (now > lateDeadline) {
+          isLate = true;
+          lateByMinutes = Math.round((now.getTime() - workStartTime.getTime()) / (60 * 1000));
+        }
+      }
+
       const logData: AttendanceLogInsert = {
         employee_id: profile.id,
         location_type: params.locationType,
@@ -153,6 +185,8 @@ export function useAttendanceLogs() {
         within_geofence_at_clock_in: params.withinGeofence,
         geofence_distance_at_clock_in: params.geofenceDistance ? Math.round(params.geofenceDistance) : null,
         device_timestamp: new Date().toISOString(),
+        is_late: isLate,
+        late_by_minutes: lateByMinutes,
       };
 
       const { data, error } = await supabase
