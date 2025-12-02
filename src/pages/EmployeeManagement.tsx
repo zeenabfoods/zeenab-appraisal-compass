@@ -7,8 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Users, Trash2 } from 'lucide-react';
+import { Edit, Users, Trash2, Key } from 'lucide-react';
 import { EmployeeDialog } from '@/components/EmployeeDialog';
+import { PasswordResetDialog } from '@/components/PasswordResetDialog';
 import { ExtendedProfile, EmployeeUpdateData } from '@/services/employeeProfileService';
 import { useToast } from '@/hooks/use-toast';
 
@@ -17,6 +18,8 @@ export default function EmployeeManagement() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [deletingEmployeeId, setDeletingEmployeeId] = useState<string | null>(null);
+  const [passwordResetEmployee, setPasswordResetEmployee] = useState<ExtendedProfile | null>(null);
+  const [passwordResetDialogOpen, setPasswordResetDialogOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -128,6 +131,11 @@ export default function EmployeeManagement() {
       line_manager_id: employee.line_manager_id
     });
     setDialogOpen(true);
+  };
+
+  const handlePasswordReset = (employee: ExtendedProfile) => {
+    setPasswordResetEmployee(employee);
+    setPasswordResetDialogOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -385,8 +393,19 @@ export default function EmployeeManagement() {
                               onClick={() => handleEdit(employee)}
                               className="hover:bg-orange-100"
                               disabled={isDeleting}
+                              title="Edit Employee"
                             >
                               <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handlePasswordReset(employee)}
+                              className="hover:bg-blue-100 text-blue-600 hover:text-blue-700"
+                              disabled={isDeleting}
+                              title="Reset Password"
+                            >
+                              <Key className="h-4 w-4" />
                             </Button>
                             <Button
                               size="sm"
@@ -394,6 +413,7 @@ export default function EmployeeManagement() {
                               onClick={() => handleDeleteEmployee(employee.id)}
                               className="hover:bg-red-100 text-red-600 hover:text-red-700"
                               disabled={isDeleting}
+                              title="Delete Employee"
                             >
                               {isDeleting ? (
                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
@@ -433,6 +453,15 @@ export default function EmployeeManagement() {
           updating={updating}
           onSubmit={handleSubmit}
         />
+
+        {passwordResetEmployee && (
+          <PasswordResetDialog
+            open={passwordResetDialogOpen}
+            onOpenChange={setPasswordResetDialogOpen}
+            employeeId={passwordResetEmployee.id}
+            employeeName={`${passwordResetEmployee.first_name} ${passwordResetEmployee.last_name}`}
+          />
+        )}
       </div>
     </DashboardLayout>
   );
