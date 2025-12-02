@@ -195,26 +195,34 @@ export function useLatenessData() {
         };
       });
 
-      // Calculate absent employees (those who didn't clock in)
+      // Calculate absent employees (those who didn't clock in during the period)
+      // For day filter: employees who didn't clock in on that specific day
+      // For week/month/all: employees who didn't clock in at all during the period
       const clockedInEmployeeIds = new Set(employeeIds);
+      const totalActiveEmployees = allEmployeesData?.length || 0;
       const absentEmployees = (allEmployeesData || []).filter(emp => !clockedInEmployeeIds.has(emp.id));
       
-      // Create absent records for employees who didn't clock in
-      const absentRecords: LatenessRecord[] = absentEmployees.map(emp => {
-        const department = emp.department_id ? deptMap.get(emp.department_id) : null;
-        return {
-          id: `absent-${emp.id}-${format(selectedDate, 'yyyy-MM-dd')}`,
-          employee_id: emp.id,
-          employee_name: `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || 'Unknown',
-          department_name: department?.name || 'No Department',
-          branch_name: 'N/A',
-          clock_in_time: '',
-          clock_out_time: null,
-          is_late: false,
-          late_by_minutes: 0,
-          status: 'absent' as const,
-        };
-      });
+      // Only create absent records (for display) if filtering by day or if status filter is 'absent'
+      // This prevents inflating total record count for week/month views
+      let absentRecords: LatenessRecord[] = [];
+      
+      if (dateFilter === 'day' || statusFilter === 'absent') {
+        absentRecords = absentEmployees.map(emp => {
+          const department = emp.department_id ? deptMap.get(emp.department_id) : null;
+          return {
+            id: `absent-${emp.id}-${format(selectedDate, 'yyyy-MM-dd')}`,
+            employee_id: emp.id,
+            employee_name: `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || 'Unknown',
+            department_name: department?.name || 'No Department',
+            branch_name: 'N/A',
+            clock_in_time: '',
+            clock_out_time: null,
+            is_late: false,
+            late_by_minutes: 0,
+            status: 'absent' as const,
+          };
+        });
+      }
 
       // Combine attendance records with absent records
       processedRecords = [...processedRecords, ...absentRecords];
@@ -235,12 +243,23 @@ export function useLatenessData() {
 
       setRecords(processedRecords);
 
-      // Calculate statistics
-      const totalRecords = processedRecords.length;
+      // Calculate statistics - use unique employee counts for accuracy
+      // Total records = attendance logs count (not including absent records unless viewing day/absent filter)
+      const attendanceLogsCount = logsData?.length || 0;
+      const uniqueClockedInCount = clockedInEmployeeIds.size;
+      const totalAbsentCount = absentEmployees.length;
+      
+      // For stats display, use the original attendance log counts
       const onTimeCount = processedRecords.filter((r) => r.status === 'on-time').length;
       const lateCount = processedRecords.filter((r) => r.status === 'late').length;
-      const absentCount = processedRecords.filter((r) => r.status === 'absent').length;
       const earlyClosureCount = processedRecords.filter((r) => r.status === 'early-closure').length;
+      
+      // Total records depends on view mode:
+      // - Day view: total employees (clocked in + absent)
+      // - Week/Month view: total attendance logs only (absent shown as stat, not records)
+      const totalRecords = dateFilter === 'day' || statusFilter === 'absent' 
+        ? processedRecords.length 
+        : attendanceLogsCount;
       
       const totalLateMinutes = processedRecords
         .filter((r) => r.status === 'late')
@@ -251,7 +270,7 @@ export function useLatenessData() {
         totalRecords,
         onTimeCount,
         lateCount,
-        absentCount,
+        absentCount: totalAbsentCount,
         earlyClosureCount,
         averageLateMinutes,
       });
