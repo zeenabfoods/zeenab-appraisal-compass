@@ -217,7 +217,7 @@ export function useAttendanceLogs() {
     }
   };
 
-  const clockOut = async (latitude?: number, longitude?: number, withinGeofence?: boolean) => {
+  const clockOut = async (latitude?: number, longitude?: number, withinGeofence?: boolean, isEarlyClosure: boolean = false) => {
     if (!todayLog) {
       toast.error('No active clock-in found');
       return;
@@ -296,10 +296,33 @@ export function useAttendanceLogs() {
           overtime_hours: Number(overtimeHours.toFixed(2)),
           is_night_shift: isNightShift,
           night_shift_hours: Number(nightShiftHours.toFixed(2)),
+          early_closure: isEarlyClosure,
         })
         .eq('id', todayLog.id);
 
       if (error) throw error;
+
+      // Create early closure charge if applicable
+      if (isEarlyClosure && rules?.early_closure_charge_amount) {
+        const { error: chargeError } = await supabase
+          .from('attendance_charges')
+          .insert({
+            employee_id: profile!.id,
+            attendance_log_id: todayLog.id,
+            charge_type: 'early_closure',
+            charge_amount: rules.early_closure_charge_amount,
+            charge_date: new Date().toISOString().split('T')[0],
+            status: 'pending'
+          });
+
+        if (chargeError) {
+          console.error('Error creating early closure charge:', chargeError);
+        } else {
+          toast.warning('Early Closure Charge Applied', {
+            description: `A charge of ₦${rules.early_closure_charge_amount.toLocaleString()} has been added to your account.`,
+          });
+        }
+      }
 
       setTodayLog(null);
       setIsClocked(false);

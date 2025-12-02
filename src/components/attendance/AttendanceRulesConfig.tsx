@@ -22,6 +22,7 @@ export function AttendanceRulesConfig() {
     late_threshold_minutes: '15',
     late_charge_amount: '500',
     absence_charge_amount: '1000',
+    early_closure_charge_amount: '750',
     mandatory_break_duration_minutes: '30',
     max_break_duration_minutes: '60',
     overtime_rate: '1.5',
@@ -44,6 +45,7 @@ export function AttendanceRulesConfig() {
         late_threshold_minutes: parseInt(formData.late_threshold_minutes),
         late_charge_amount: parseFloat(formData.late_charge_amount),
         absence_charge_amount: parseFloat(formData.absence_charge_amount),
+        early_closure_charge_amount: parseFloat(formData.early_closure_charge_amount),
         mandatory_break_duration_minutes: parseInt(formData.mandatory_break_duration_minutes),
         max_break_duration_minutes: parseInt(formData.max_break_duration_minutes),
         overtime_rate: parseFloat(formData.overtime_rate),
@@ -76,6 +78,7 @@ export function AttendanceRulesConfig() {
       late_threshold_minutes: '15',
       late_charge_amount: '500',
       absence_charge_amount: '1000',
+      early_closure_charge_amount: '750',
       mandatory_break_duration_minutes: '30',
       max_break_duration_minutes: '60',
       overtime_rate: '1.5',
@@ -97,6 +100,7 @@ export function AttendanceRulesConfig() {
       late_threshold_minutes: rule.late_threshold_minutes?.toString() || '15',
       late_charge_amount: rule.late_charge_amount?.toString() || '500',
       absence_charge_amount: rule.absence_charge_amount?.toString() || '1000',
+      early_closure_charge_amount: rule.early_closure_charge_amount?.toString() || '750',
       mandatory_break_duration_minutes: rule.mandatory_break_duration_minutes?.toString() || '30',
       max_break_duration_minutes: rule.max_break_duration_minutes?.toString() || '60',
       overtime_rate: rule.overtime_rate?.toString() || '1.5',
@@ -236,6 +240,20 @@ export function AttendanceRulesConfig() {
                       min="0"
                       step="0.01"
                     />
+                  </div>
+                  <div>
+                    <Label htmlFor="early_closure_charge">Early Closure Charge</Label>
+                    <Input
+                      id="early_closure_charge"
+                      type="number"
+                      value={formData.early_closure_charge_amount}
+                      onChange={(e) => setFormData({ ...formData, early_closure_charge_amount: e.target.value })}
+                      min="0"
+                      step="0.01"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Charge if clocking out before work end time
+                    </p>
                   </div>
                 </div>
               </div>

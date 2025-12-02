@@ -7,7 +7,8 @@ import { cn } from '@/lib/utils';
 import { useGeolocation } from '@/hooks/attendance/useGeolocation';
 import { useAttendanceLogs } from '@/hooks/attendance/useAttendanceLogs';
 import { useBranches } from '@/hooks/attendance/useBranches';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useAttendanceRules } from '@/hooks/attendance/useAttendanceRules';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -24,10 +25,14 @@ export function ClockInOutCard() {
   const [fieldReason, setFieldReason] = useState('');
   const [fieldLocation, setFieldLocation] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [showEarlyClosureDialog, setShowEarlyClosureDialog] = useState(false);
+  const [earlyClosureInfo, setEarlyClosureInfo] = useState<{ hoursWorked: number; requiredHours: number; chargeAmount: number } | null>(null);
   
   const { branches } = useBranches();
   const { isClocked, todayLog, clockIn, clockOut, loading: logsLoading, refetch: refetchLogs } = useAttendanceLogs();
+  const { rules } = useAttendanceRules();
   const activeBranches = branches.filter(b => b.is_active);
+  const activeRule = rules.find(r => r.is_active);
 
   const { 
     latitude, 
@@ -169,12 +174,59 @@ export function ClockInOutCard() {
     }
   };
 
+  const checkEarlyClosureCondition = (): { isEarly: boolean; hoursWorked: number; requiredHours: number; chargeAmount: number } => {
+    if (!todayLog || !activeRule) {
+      return { isEarly: false, hoursWorked: 0, requiredHours: 9, chargeAmount: 0 };
+    }
+
+    const clockInTime = new Date(todayLog.clock_in_time);
+    const now = new Date();
+    const hoursWorked = (now.getTime() - clockInTime.getTime()) / (1000 * 60 * 60);
+    
+    // Calculate required hours from work_start_time and work_end_time
+    const workStartTime = activeRule.work_start_time || '08:00';
+    const workEndTime = activeRule.work_end_time || '17:00';
+    const [startH, startM] = workStartTime.split(':').map(Number);
+    const [endH, endM] = workEndTime.split(':').map(Number);
+    const requiredHours = (endH * 60 + endM - startH * 60 - startM) / 60;
+    
+    // Check if current time is before work end time
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentMinutes = currentHour * 60 + currentMinute;
+    const endMinutes = endH * 60 + endM;
+    
+    const isBeforeEndTime = currentMinutes < endMinutes;
+    const hasNotCompletedHours = hoursWorked < requiredHours;
+    
+    const chargeAmount = activeRule.early_closure_charge_amount || 750;
+    
+    return {
+      isEarly: isBeforeEndTime && hasNotCompletedHours,
+      hoursWorked: Math.round(hoursWorked * 100) / 100,
+      requiredHours,
+      chargeAmount
+    };
+  };
+
   const handleClockToggle = async () => {
     if (isClocked && todayLog) {
+      // Check for early closure if in office mode
+      if (todayLog.location_type === 'office') {
+        const earlyCheck = checkEarlyClosureCondition();
+        
+        if (earlyCheck.isEarly) {
+          setEarlyClosureInfo(earlyCheck);
+          setShowEarlyClosureDialog(true);
+          return;
+        }
+      }
+      
       await clockOut(
         latitude,
         longitude,
-        mode === 'office' ? isWithinGeofence : undefined
+        mode === 'office' ? isWithinGeofence : undefined,
+        false // not early closure
       );
     } else {
       const securityCheck = await performSecurityChecks();
@@ -211,6 +263,22 @@ export function ClockInOutCard() {
         });
       }
     }
+  };
+
+  const handleEarlyClosureConfirm = async () => {
+    setShowEarlyClosureDialog(false);
+    await clockOut(
+      latitude,
+      longitude,
+      mode === 'office' ? isWithinGeofence : undefined,
+      true // early closure confirmed
+    );
+  };
+
+  const handleGoToFieldTrip = () => {
+    setShowEarlyClosureDialog(false);
+    setMode('field');
+    setShowFieldDialog(true);
   };
 
   // Allow external triggers (e.g., bottom nav fingerprint button) to toggle clock
@@ -513,6 +581,77 @@ export function ClockInOutCard() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Early Closure Warning Dialog */}
+      <Dialog open={showEarlyClosureDialog} onOpenChange={setShowEarlyClosureDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-destructive flex items-center gap-2">
+              <AlertCircle className="w-6 h-6" />
+              Early Clock-Out Warning
+            </DialogTitle>
+            <DialogDescription className="text-base pt-2">
+              You are about to clock out for the day and you have not completed your required hours.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {earlyClosureInfo && (
+            <div className="space-y-4 py-4">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Hours Worked:</span>
+                  <span className="font-bold">{earlyClosureInfo.hoursWorked.toFixed(2)} hours</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Required Hours:</span>
+                  <span className="font-bold">{earlyClosureInfo.requiredHours} hours</span>
+                </div>
+                <div className="flex justify-between text-sm border-t border-destructive/20 pt-2 mt-2">
+                  <span className="text-muted-foreground">Remaining:</span>
+                  <span className="font-bold text-destructive">
+                    {(earlyClosureInfo.requiredHours - earlyClosureInfo.hoursWorked).toFixed(2)} hours
+                  </span>
+                </div>
+              </div>
+              
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+                <p className="text-sm font-semibold text-amber-600 dark:text-amber-400 mb-2">
+                  ⚠️ A charge of ₦{earlyClosureInfo.chargeAmount.toLocaleString()} will be applied to your account.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  If you are going on a field trip, click "Go to Field Trip" instead. 
+                  Otherwise, contact HR for appropriate permission before clocking out early.
+                </p>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
+            <Button 
+              variant="destructive" 
+              onClick={handleEarlyClosureConfirm}
+              className="w-full"
+            >
+              Clock Out & Accept Charge
+            </Button>
+            <Button 
+              variant="default"
+              onClick={handleGoToFieldTrip}
+              className="w-full bg-cyan-600 hover:bg-cyan-700"
+            >
+              <MapPin className="w-4 h-4 mr-2" />
+              Go to Field Trip
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowEarlyClosureDialog(false)}
+              className="w-full"
+            >
+              Cancel
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
