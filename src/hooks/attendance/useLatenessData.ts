@@ -41,7 +41,7 @@ export function useLatenessData() {
   const [employeeFilter, setEmployeeFilter] = useState<string>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [branchFilter, setBranchFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'late' | 'on-time' | 'early-closure'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'late' | 'on-time' | 'early-closure' | 'absent'>('all');
 
   const fetchLatenessData = useCallback(async () => {
     try {
@@ -105,29 +105,33 @@ export function useLatenessData() {
 
       if (logsError) throw logsError;
 
-      // Get employee details
-      const employeeIds = [...new Set(logsData?.map(log => log.employee_id) || [])];
-      const { data: employeesData } = await supabase
+      // Get ALL active employees to calculate absences
+      let allEmployeesQuery = supabase
         .from('profiles')
         .select('id, first_name, last_name, department_id')
-        .in('id', employeeIds);
+        .eq('is_active', true);
 
+      const { data: allEmployeesData } = await allEmployeesQuery;
+
+      // Get employee details for those who clocked in
+      const employeeIds = [...new Set(logsData?.map(log => log.employee_id) || [])];
+      
       // Get department details
-      const deptIds = [...new Set(employeesData?.map(emp => emp.department_id).filter(Boolean) || [])];
+      const deptIds = [...new Set(allEmployeesData?.map(emp => emp.department_id).filter(Boolean) || [])];
       const { data: departmentsData } = await supabase
         .from('departments')
         .select('id, name')
-        .in('id', deptIds);
+        .in('id', deptIds.length > 0 ? deptIds : ['00000000-0000-0000-0000-000000000000']);
 
       // Get branch details
       const branchIds = [...new Set(logsData?.map(log => log.branch_id).filter(Boolean) || [])];
       const { data: branchesData } = await supabase
         .from('attendance_branches')
         .select('id, name')
-        .in('id', branchIds);
+        .in('id', branchIds.length > 0 ? branchIds : ['00000000-0000-0000-0000-000000000000']);
 
       // Create lookup maps
-      const employeeMap = new Map(employeesData?.map(emp => [emp.id, emp]) || []);
+      const employeeMap = new Map(allEmployeesData?.map(emp => [emp.id, emp]) || []);
       const deptMap = new Map(departmentsData?.map(dept => [dept.id, dept]) || []);
       const branchMap = new Map(branchesData?.map(branch => [branch.id, branch]) || []);
 
@@ -151,7 +155,7 @@ export function useLatenessData() {
         return { isLate: false, lateByMinutes: 0 };
       };
 
-      // Process and filter data
+      // Process attendance logs
       let processedRecords: LatenessRecord[] = (logsData || []).map((log: any) => {
         const employee = employeeMap.get(log.employee_id);
         const department = employee?.department_id ? deptMap.get(employee.department_id) : null;
@@ -190,6 +194,30 @@ export function useLatenessData() {
           status,
         };
       });
+
+      // Calculate absent employees (those who didn't clock in)
+      const clockedInEmployeeIds = new Set(employeeIds);
+      const absentEmployees = (allEmployeesData || []).filter(emp => !clockedInEmployeeIds.has(emp.id));
+      
+      // Create absent records for employees who didn't clock in
+      const absentRecords: LatenessRecord[] = absentEmployees.map(emp => {
+        const department = emp.department_id ? deptMap.get(emp.department_id) : null;
+        return {
+          id: `absent-${emp.id}-${format(selectedDate, 'yyyy-MM-dd')}`,
+          employee_id: emp.id,
+          employee_name: `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || 'Unknown',
+          department_name: department?.name || 'No Department',
+          branch_name: 'N/A',
+          clock_in_time: '',
+          clock_out_time: null,
+          is_late: false,
+          late_by_minutes: 0,
+          status: 'absent' as const,
+        };
+      });
+
+      // Combine attendance records with absent records
+      processedRecords = [...processedRecords, ...absentRecords];
 
       // Filter by department
       if (departmentFilter !== 'all') {

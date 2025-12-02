@@ -264,6 +264,7 @@ export function LatenessDashboard() {
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="late">Late Only</SelectItem>
                 <SelectItem value="on-time">On Time</SelectItem>
+                <SelectItem value="absent">Absent Only</SelectItem>
                 <SelectItem value="early-closure">Early Closure</SelectItem>
               </SelectContent>
             </Select>
