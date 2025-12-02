@@ -41,6 +41,7 @@ export function useLatenessData() {
   const [employeeFilter, setEmployeeFilter] = useState<string>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [branchFilter, setBranchFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'late' | 'on-time' | 'early-closure'>('all');
 
   const fetchLatenessData = useCallback(async () => {
     try {
@@ -59,6 +60,18 @@ export function useLatenessData() {
         startDate = format(startOfMonth(selectedDate), 'yyyy-MM-dd');
         endDate = format(endOfMonth(selectedDate), 'yyyy-MM-dd');
       }
+
+      // Fetch attendance rules for lateness calculation
+      const { data: rulesData } = await supabase
+        .from('attendance_rules')
+        .select('work_start_time, late_threshold_minutes, grace_period_minutes')
+        .eq('is_active', true)
+        .limit(1)
+        .single();
+
+      const workStartTime = rulesData?.work_start_time || '08:00:00';
+      const lateThreshold = rulesData?.late_threshold_minutes || 15;
+      const gracePeriod = rulesData?.grace_period_minutes || 0;
 
       // First get attendance logs with employee and branch info
       let query = supabase
@@ -118,18 +131,42 @@ export function useLatenessData() {
       const deptMap = new Map(departmentsData?.map(dept => [dept.id, dept]) || []);
       const branchMap = new Map(branchesData?.map(branch => [branch.id, branch]) || []);
 
+      // Helper function to calculate lateness
+      const calculateLateness = (clockInTime: string) => {
+        const clockIn = new Date(clockInTime);
+        const [workHour, workMin] = workStartTime.split(':').map(Number);
+        
+        // Create work start time for the same day as clock-in
+        const workStart = new Date(clockIn);
+        workStart.setHours(workHour, workMin, 0, 0);
+        
+        // Late deadline = work start + late threshold + grace period
+        const totalAllowedMinutes = lateThreshold + gracePeriod;
+        const lateDeadline = new Date(workStart.getTime() + totalAllowedMinutes * 60 * 1000);
+        
+        if (clockIn > lateDeadline) {
+          const lateMinutes = Math.round((clockIn.getTime() - workStart.getTime()) / (60 * 1000));
+          return { isLate: true, lateByMinutes: lateMinutes };
+        }
+        return { isLate: false, lateByMinutes: 0 };
+      };
+
       // Process and filter data
       let processedRecords: LatenessRecord[] = (logsData || []).map((log: any) => {
         const employee = employeeMap.get(log.employee_id);
         const department = employee?.department_id ? deptMap.get(employee.department_id) : null;
         const branch = log.branch_id ? branchMap.get(log.branch_id) : null;
         
+        // Recalculate lateness based on clock_in_time
+        const { isLate, lateByMinutes } = log.clock_in_time 
+          ? calculateLateness(log.clock_in_time)
+          : { isLate: false, lateByMinutes: 0 };
+        
         let status: 'on-time' | 'late' | 'absent' | 'early-closure' = 'on-time';
         
         if (!log.clock_in_time) {
           status = 'absent';
-        } else if (log.is_late) {
-          // Prioritize late status over early closure
+        } else if (isLate) {
           status = 'late';
         } else if (log.clock_out_time) {
           const clockOut = new Date(log.clock_out_time);
@@ -148,8 +185,8 @@ export function useLatenessData() {
           branch_name: branch?.name || 'No Branch',
           clock_in_time: log.clock_in_time,
           clock_out_time: log.clock_out_time,
-          is_late: log.is_late || false,
-          late_by_minutes: log.late_by_minutes || 0,
+          is_late: isLate,
+          late_by_minutes: lateByMinutes,
           status,
         };
       });
@@ -158,6 +195,13 @@ export function useLatenessData() {
       if (departmentFilter !== 'all') {
         processedRecords = processedRecords.filter(
           (record) => record.department_name === departmentFilter
+        );
+      }
+
+      // Filter by status
+      if (statusFilter !== 'all') {
+        processedRecords = processedRecords.filter(
+          (record) => record.status === statusFilter
         );
       }
 
@@ -189,7 +233,7 @@ export function useLatenessData() {
     } finally {
       setLoading(false);
     }
-  }, [dateFilter, selectedDate, employeeFilter, departmentFilter, branchFilter]);
+  }, [dateFilter, selectedDate, employeeFilter, departmentFilter, branchFilter, statusFilter]);
 
   useEffect(() => {
     fetchLatenessData();
@@ -209,6 +253,8 @@ export function useLatenessData() {
     setDepartmentFilter,
     branchFilter,
     setBranchFilter,
+    statusFilter,
+    setStatusFilter,
     refetch: fetchLatenessData,
   };
 }

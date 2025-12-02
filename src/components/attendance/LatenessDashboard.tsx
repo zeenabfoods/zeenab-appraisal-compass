@@ -7,10 +7,11 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { CalendarIcon, Users, Clock, AlertCircle, XCircle, TrendingDown } from 'lucide-react';
+import { CalendarIcon, Users, Clock, AlertCircle, XCircle, TrendingDown, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export function LatenessDashboard() {
   const {
@@ -27,6 +28,8 @@ export function LatenessDashboard() {
     setDepartmentFilter,
     branchFilter,
     setBranchFilter,
+    statusFilter,
+    setStatusFilter,
   } = useLatenessData();
 
   const [employees, setEmployees] = useState<Array<{ id: string; name: string }>>([]);
@@ -79,6 +82,34 @@ export function LatenessDashboard() {
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
+  };
+
+  const exportToCSV = () => {
+    if (records.length === 0) {
+      toast.error('No records to export');
+      return;
+    }
+
+    const headers = ['Employee', 'Department', 'Branch', 'Clock In', 'Clock Out', 'Late By (mins)', 'Status'];
+    const rows = records.map((record) => [
+      record.employee_name,
+      record.department_name,
+      record.branch_name,
+      record.clock_in_time ? format(new Date(record.clock_in_time), 'yyyy-MM-dd HH:mm:ss') : 'N/A',
+      record.clock_out_time ? format(new Date(record.clock_out_time), 'yyyy-MM-dd HH:mm:ss') : 'N/A',
+      record.is_late && record.late_by_minutes > 0 ? record.late_by_minutes.toString() : '0',
+      record.status,
+    ]);
+
+    const csvContent = [headers, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `lateness-report-${format(selectedDate, 'yyyy-MM-dd')}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success('Report exported successfully');
   };
 
   const statCards = [
@@ -141,7 +172,7 @@ export function LatenessDashboard() {
 
       {/* Filters */}
       <Card className="p-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
           <div>
             <label className="text-sm font-medium mb-2 block">Time Period</label>
             <Select value={dateFilter} onValueChange={(value: any) => setDateFilter(value)}>
@@ -222,6 +253,28 @@ export function LatenessDashboard() {
               </SelectContent>
             </Select>
           </div>
+
+          <div>
+            <label className="text-sm font-medium mb-2 block">Status</label>
+            <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="late">Late Only</SelectItem>
+                <SelectItem value="on-time">On Time</SelectItem>
+                <SelectItem value="early-closure">Early Closure</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        
+        <div className="mt-4 flex justify-end">
+          <Button onClick={exportToCSV} variant="outline" className="gap-2">
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
         </div>
       </Card>
 
