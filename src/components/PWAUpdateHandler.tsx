@@ -4,7 +4,6 @@ import { toast } from 'sonner';
 export function PWAUpdateHandler() {
   useEffect(() => {
     if ('serviceWorker' in navigator) {
-      // Check for service worker updates on load and periodically
       const checkForUpdates = async () => {
         try {
           const registration = await navigator.serviceWorker.getRegistration();
@@ -16,18 +15,23 @@ export function PWAUpdateHandler() {
         }
       };
 
-      // Check immediately
       checkForUpdates();
-
-      // Check every 60 seconds
       const interval = setInterval(checkForUpdates, 60 * 1000);
 
-      // Listen for new service worker installation
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        toast.info('App updated! Refreshing...', { duration: 2000 });
+        toast.success('🎉 App Just Updated!', {
+          description: 'New features, improvements & bug fixes have been applied.',
+          duration: 5000,
+          action: {
+            label: 'Refresh',
+            onClick: () => window.location.reload(),
+          },
+        });
+        
+        // Auto-refresh after 5 seconds
         setTimeout(() => {
           window.location.reload();
-        }, 2000);
+        }, 5000);
       });
 
       return () => clearInterval(interval);
