@@ -32,6 +32,9 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
   return Math.round(R * c);
 };
 
+// Helper to get today's date key
+const getTodayKey = () => new Date().toISOString().split('T')[0];
+
 export function GeofenceMonitor() {
   const { profile } = useAuthContext();
   const { playVoiceGuide } = useVoiceGuides();
@@ -39,6 +42,18 @@ export function GeofenceMonitor() {
   const [isMonitoring, setIsMonitoring] = useState(false);
   const watchIdRef = useRef<number | null>(null);
   const previousStatusRef = useRef<Map<string, boolean>>(new Map());
+
+  // Check if voice guide already played today for a specific event type
+  const hasPlayedToday = (eventType: string): boolean => {
+    const key = `geofence_voice_${eventType}_${getTodayKey()}`;
+    return localStorage.getItem(key) === 'true';
+  };
+
+  // Mark voice guide as played for today
+  const markAsPlayedToday = (eventType: string) => {
+    const key = `geofence_voice_${eventType}_${getTodayKey()}`;
+    localStorage.setItem(key, 'true');
+  };
 
   // Request notification permission on mount
   useEffect(() => {
@@ -117,8 +132,11 @@ export function GeofenceMonitor() {
 
       // Entering geofence
       if (isInside && wasInside === false) {
-        // Play voice guide for entering geofence
-        playVoiceGuide('geofence_entry');
+        // Play voice guide for entering geofence - only once per day
+        if (!hasPlayedToday('geofence_entry')) {
+          playVoiceGuide('geofence_entry');
+          markAsPlayedToday('geofence_entry');
+        }
 
         showNotification(
           '📍 Entered Office Zone',
@@ -141,8 +159,11 @@ export function GeofenceMonitor() {
 
       // Exiting geofence
       if (!isInside && wasInside === true) {
-        // Play voice guide for exiting geofence
-        playVoiceGuide('geofence_exit');
+        // Play voice guide for exiting geofence - only once per day
+        if (!hasPlayedToday('geofence_exit')) {
+          playVoiceGuide('geofence_exit');
+          markAsPlayedToday('geofence_exit');
+        }
 
         showNotification(
           '⚠️ Left Office Zone',
