@@ -19,6 +19,7 @@ export function useBreaks(attendanceLogId: string | null) {
   const { profile } = useAuthContext();
   const [activeBreak, setActiveBreak] = useState<Break | null>(null);
   const [todayBreaks, setTodayBreaks] = useState<Break[]>([]);
+  const [breakHistory, setBreakHistory] = useState<Break[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchActiveBreak = useCallback(async () => {
@@ -59,6 +60,25 @@ export function useBreaks(attendanceLogId: string | null) {
       setTodayBreaks(data || []);
     } catch (error) {
       console.error('Error fetching today breaks:', error);
+    }
+  }, [profile?.id]);
+
+  const fetchBreakHistory = useCallback(async () => {
+    if (!profile?.id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('attendance_breaks')
+        .select('*')
+        .eq('employee_id', profile.id)
+        .not('break_end', 'is', null)
+        .order('break_start', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      setBreakHistory(data || []);
+    } catch (error) {
+      console.error('Error fetching break history:', error);
     }
   }, [profile?.id]);
 
@@ -225,18 +245,21 @@ export function useBreaks(attendanceLogId: string | null) {
     if (profile?.id && attendanceLogId) {
       fetchActiveBreak();
       fetchTodayBreaks();
+      fetchBreakHistory();
     }
-  }, [profile?.id, attendanceLogId, fetchActiveBreak, fetchTodayBreaks]);
+  }, [profile?.id, attendanceLogId, fetchActiveBreak, fetchTodayBreaks, fetchBreakHistory]);
 
   return {
     activeBreak,
     todayBreaks,
+    breakHistory,
     loading,
     startBreak,
     endBreak,
     refetch: () => {
       fetchActiveBreak();
       fetchTodayBreaks();
+      fetchBreakHistory();
     },
   };
 }
