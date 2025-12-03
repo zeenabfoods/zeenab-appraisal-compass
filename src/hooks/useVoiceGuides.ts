@@ -74,15 +74,18 @@ export function useVoiceGuides() {
     },
   });
 
-  const playVoiceGuide = async (eventType: string) => {
+  const playVoiceGuide = async (eventType: string, showError = false) => {
     try {
       const guide = voiceGuides?.find(g => g.event_type === eventType);
       if (!guide?.audio_file_url) {
-        toast({
-          title: 'No Audio File',
-          description: 'Please upload an audio file first',
-          variant: 'destructive',
-        });
+        // Only show error if explicitly requested (e.g., from admin testing)
+        if (showError) {
+          toast({
+            title: 'No Audio File',
+            description: 'Please upload an audio file first',
+            variant: 'destructive',
+          });
+        }
         return;
       }
 
