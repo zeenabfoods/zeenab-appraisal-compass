@@ -994,6 +994,7 @@ export type Database = {
           alert_volume: number | null
           created_at: string | null
           id: string
+          onesignal_app_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -1001,6 +1002,7 @@ export type Database = {
           alert_volume?: number | null
           created_at?: string | null
           id?: string
+          onesignal_app_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -1008,6 +1010,7 @@ export type Database = {
           alert_volume?: number | null
           created_at?: string | null
           id?: string
+          onesignal_app_id?: string | null
           updated_at?: string | null
         }
         Relationships: []

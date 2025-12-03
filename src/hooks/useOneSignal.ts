@@ -29,10 +29,11 @@ export function useOneSignal() {
       // Fetch app ID from settings
       const { data } = await supabase
         .from('attendance_settings')
-        .select('onesignal_app_id')
+        .select('*')
         .single();
 
-      if (!data?.onesignal_app_id) {
+      const onesignalAppId = (data as any)?.onesignal_app_id;
+      if (!onesignalAppId) {
         console.log('OneSignal App ID not configured');
         return;
       }
@@ -54,7 +55,7 @@ export function useOneSignal() {
       window.OneSignalDeferred = window.OneSignalDeferred || [];
       window.OneSignalDeferred.push(async (OneSignal: any) => {
         await OneSignal.init({
-          appId: data.onesignal_app_id,
+          appId: onesignalAppId,
           safari_web_id: undefined,
           notifyButton: {
             enable: false,
