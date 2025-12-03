@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/table';
 import { useAllAttendanceLogs } from '@/hooks/attendance/useAllAttendanceLogs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ApiDemoModeSettings } from './ApiDemoModeSettings';
 
 export function HRAttendanceView() {
   const { allLogs, loading, deleteLog } = useAllAttendanceLogs();
@@ -167,6 +168,9 @@ export function HRAttendanceView() {
 
   return (
     <div className="space-y-6">
+      {/* API Demo Mode Settings */}
+      <ApiDemoModeSettings />
+      
       {/* Statistics Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>

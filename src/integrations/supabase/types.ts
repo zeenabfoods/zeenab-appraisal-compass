@@ -992,6 +992,7 @@ export type Database = {
         Row: {
           alert_sound_url: string | null
           alert_volume: number | null
+          api_demo_mode: boolean | null
           created_at: string | null
           id: string
           onesignal_app_id: string | null
@@ -1000,6 +1001,7 @@ export type Database = {
         Insert: {
           alert_sound_url?: string | null
           alert_volume?: number | null
+          api_demo_mode?: boolean | null
           created_at?: string | null
           id?: string
           onesignal_app_id?: string | null
@@ -1008,6 +1010,7 @@ export type Database = {
         Update: {
           alert_sound_url?: string | null
           alert_volume?: number | null
+          api_demo_mode?: boolean | null
           created_at?: string | null
           id?: string
           onesignal_app_id?: string | null
