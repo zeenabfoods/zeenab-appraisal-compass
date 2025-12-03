@@ -30,9 +30,10 @@ export function useOneSignal() {
       const { data } = await supabase
         .from('attendance_settings')
         .select('*')
-        .single();
+        .maybeSingle();
 
-      const onesignalAppId = (data as any)?.onesignal_app_id;
+      const settings = data as Record<string, unknown> | null;
+      const onesignalAppId = settings?.onesignal_app_id as string | undefined;
       if (!onesignalAppId) {
         console.log('OneSignal App ID not configured');
         return;
