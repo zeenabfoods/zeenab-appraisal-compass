@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfDay, endOfDay } from 'date-fns';
-import { Coffee, CheckCircle, XCircle, Clock, AlertCircle, Filter } from 'lucide-react';
+import { Coffee, CheckCircle, XCircle, Clock, AlertCircle, Filter, Download, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -15,6 +15,8 @@ interface BreakCompliance {
   employee_id: string;
   employee_name: string;
   department: string;
+  branch_id: string | null;
+  branch_name: string;
   schedule_name: string;
   scheduled_time: string;
   actual_break_start: string | null;
@@ -23,11 +25,18 @@ interface BreakCompliance {
   minutes_late: number | null;
 }
 
+interface Branch {
+  id: string;
+  name: string;
+}
+
 export function BreakComplianceReport() {
   const [date, setDate] = useState<Date>(new Date());
   const [compliance, setCompliance] = useState<BreakCompliance[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'took_break' | 'missed_break'>('all');
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [selectedBranch, setSelectedBranch] = useState<string>('all');
   const [stats, setStats] = useState({
     total: 0,
     taken: 0,
@@ -36,8 +45,21 @@ export function BreakComplianceReport() {
   });
 
   useEffect(() => {
+    fetchBranches();
+  }, []);
+
+  useEffect(() => {
     fetchBreakCompliance();
   }, [date]);
+
+  const fetchBranches = async () => {
+    const { data } = await supabase
+      .from('attendance_branches')
+      .select('id, name')
+      .eq('is_active', true)
+      .order('name');
+    if (data) setBranches(data);
+  };
 
   const fetchBreakCompliance = async () => {
     try {
@@ -61,14 +83,22 @@ export function BreakComplianceReport() {
 
       if (employeeError) throw employeeError;
 
-      // Get all breaks taken on this date
+      // Get all breaks taken on this date with attendance log for branch info
       const { data: breaks, error: breakError } = await supabase
         .from('attendance_breaks')
-        .select('*')
+        .select('*, attendance_logs!inner(branch_id)')
         .gte('break_start', startDate.toISOString())
         .lte('break_start', endDate.toISOString());
 
       if (breakError) throw breakError;
+
+      // Get branches for lookup
+      const { data: branchData } = await supabase
+        .from('attendance_branches')
+        .select('id, name');
+      
+      const branchLookup: Record<string, string> = {};
+      branchData?.forEach(b => { branchLookup[b.id] = b.name; });
 
       // Build compliance report
       const complianceData: BreakCompliance[] = [];
@@ -93,10 +123,14 @@ export function BreakComplianceReport() {
             processedBreakIds.add(employeeBreak.id);
           }
 
+          const branchId = employeeBreak?.attendance_logs?.branch_id || null;
+
           complianceData.push({
             employee_id: employee.id,
             employee_name: `${employee.first_name} ${employee.last_name}`,
             department: employee.department || 'N/A',
+            branch_id: branchId,
+            branch_name: branchId ? (branchLookup[branchId] || 'Unknown') : 'N/A',
             schedule_name: schedule.break_name,
             scheduled_time: schedule.scheduled_start_time,
             actual_break_start: employeeBreak?.break_start || null,
@@ -112,10 +146,13 @@ export function BreakComplianceReport() {
         if (!processedBreakIds.has(breakRecord.id)) {
           const employee = employees?.find((e) => e.id === breakRecord.employee_id);
           if (employee) {
+            const branchId = breakRecord.attendance_logs?.branch_id || null;
             complianceData.push({
               employee_id: employee.id,
               employee_name: `${employee.first_name} ${employee.last_name}`,
               department: employee.department || 'N/A',
+              branch_id: branchId,
+              branch_name: branchId ? (branchLookup[branchId] || 'Unknown') : 'N/A',
               schedule_name: breakRecord.break_type + ' (Not Scheduled)',
               scheduled_time: 'N/A',
               actual_break_start: breakRecord.break_start,
@@ -180,12 +217,54 @@ export function BreakComplianceReport() {
     );
   };
 
+  const getStatusText = (item: BreakCompliance): string => {
+    if (!item.took_break) return 'Not Taken';
+    if (item.scheduled_time === 'N/A' || item.was_on_time === null) return 'Unscheduled';
+    if (item.was_on_time) return 'On Time';
+    return `Late (${item.minutes_late} min)`;
+  };
 
   const filteredCompliance = compliance.filter((item) => {
-    if (filter === 'took_break') return item.took_break;
-    if (filter === 'missed_break') return !item.took_break;
+    // Apply status filter
+    if (filter === 'took_break' && !item.took_break) return false;
+    if (filter === 'missed_break' && item.took_break) return false;
+    
+    // Apply branch filter
+    if (selectedBranch !== 'all' && item.branch_id !== selectedBranch) return false;
+    
     return true;
   });
+
+  const exportToCSV = () => {
+    if (filteredCompliance.length === 0) {
+      toast.error('No data to export');
+      return;
+    }
+
+    const headers = ['Employee Name', 'Department', 'Branch', 'Break Type', 'Scheduled Time', 'Actual Time', 'Status'];
+    const rows = filteredCompliance.map(item => [
+      item.employee_name,
+      item.department,
+      item.branch_name,
+      item.schedule_name,
+      item.scheduled_time === 'N/A' ? 'N/A' : item.scheduled_time.slice(0, 5),
+      item.actual_break_start ? format(new Date(item.actual_break_start), 'h:mm a') : 'N/A',
+      getStatusText(item),
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `break_compliance_${format(date, 'yyyy-MM-dd')}.csv`;
+    link.click();
+    
+    toast.success('CSV exported successfully');
+  };
 
   return (
     <div className="space-y-6">
@@ -196,7 +275,7 @@ export function BreakComplianceReport() {
           <CardDescription>Track which employees took scheduled breaks</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="w-[240px] justify-start text-left font-normal">
@@ -220,6 +299,24 @@ export function BreakComplianceReport() {
                 <SelectItem value="missed_break">Missed Break</SelectItem>
               </SelectContent>
             </Select>
+
+            <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+              <SelectTrigger className="w-[200px]">
+                <Building2 className="mr-2 h-4 w-4" />
+                <SelectValue placeholder="Filter by branch" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Branches</SelectItem>
+                {branches.map(branch => (
+                  <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button variant="outline" onClick={exportToCSV} className="gap-2">
+              <Download className="h-4 w-4" />
+              Export CSV
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -281,12 +378,16 @@ export function BreakComplianceReport() {
                     <div className="text-sm text-muted-foreground">
                       {item.department} • {item.schedule_name}
                     </div>
+                    <div className="text-xs text-muted-foreground">
+                      <Building2 className="inline h-3 w-3 mr-1" />
+                      {item.branch_name}
+                    </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        Scheduled: {item.scheduled_time.slice(0, 5)}
+                        Scheduled: {item.scheduled_time === 'N/A' ? 'N/A' : item.scheduled_time.slice(0, 5)}
                       </div>
                       {item.actual_break_start && (
                         <div className="text-xs">
