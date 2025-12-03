@@ -1,4 +1,4 @@
-import { Coffee, Clock, Play, Square, Bell, Trash2 } from 'lucide-react';
+import { Coffee, Clock, Play, Square, Bell, Trash2, History } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,7 +6,7 @@ import { useBreaks } from '@/hooks/attendance/useBreaks';
 import { useAttendanceLogs } from '@/hooks/attendance/useAttendanceLogs';
 import { useBreakSchedules } from '@/hooks/attendance/useBreakSchedules';
 import { useAuthContext } from '@/components/AuthProvider';
-import { format } from 'date-fns';
+import { format, isToday } from 'date-fns';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,7 +23,7 @@ import {
 
 export function BreakManagement() {
   const { todayLog, isClocked } = useAttendanceLogs();
-  const { activeBreak, todayBreaks, loading, startBreak, endBreak, refetch } = useBreaks(todayLog?.id || null);
+  const { activeBreak, todayBreaks, breakHistory, loading, startBreak, endBreak, refetch } = useBreaks(todayLog?.id || null);
   const { schedules } = useBreakSchedules();
   const { profile } = useAuthContext();
   const isHRorAdmin = profile?.role === 'hr' || profile?.role === 'admin';
@@ -359,6 +359,68 @@ export function BreakManagement() {
                         Active
                       </Badge>
                     )}
+                    {isHRorAdmin && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setDeleteBreakId(breakItem.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Break History */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <History className="h-5 w-5" />
+            Break History
+          </CardTitle>
+          <CardDescription>
+            Your past break records
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {breakHistory.filter(b => !isToday(new Date(b.break_start))).length === 0 ? (
+            <div className="text-center py-6 text-muted-foreground">
+              <History className="h-10 w-10 mx-auto mb-2 opacity-50" />
+              <p>No break history yet</p>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-[400px] overflow-y-auto">
+              {breakHistory
+                .filter(b => !isToday(new Date(b.break_start)))
+                .map((breakItem) => (
+                <div
+                  key={breakItem.id}
+                  className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full ${getBreakTypeColor(breakItem.break_type)}`} />
+                    <div>
+                      <div className="font-medium text-sm">
+                        {getBreakTypeLabel(breakItem.break_type)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {format(new Date(breakItem.break_start), 'MMM d, yyyy')} • {format(new Date(breakItem.break_start), 'h:mm a')}
+                        {breakItem.break_end && (
+                          <> - {format(new Date(breakItem.break_end), 'h:mm a')}</>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">
+                      {breakItem.break_duration_minutes} min
+                    </Badge>
                     {isHRorAdmin && (
                       <Button
                         variant="ghost"
