@@ -20,6 +20,8 @@ interface BreakCompliance {
   schedule_name: string;
   scheduled_time: string;
   actual_break_start: string | null;
+  actual_break_end: string | null;
+  break_duration_minutes: number | null;
   took_break: boolean;
   was_on_time: boolean | null;
   minutes_late: number | null;
@@ -134,6 +136,8 @@ export function BreakComplianceReport() {
             schedule_name: schedule.break_name,
             scheduled_time: schedule.scheduled_start_time,
             actual_break_start: employeeBreak?.break_start || null,
+            actual_break_end: employeeBreak?.break_end || null,
+            break_duration_minutes: employeeBreak?.break_duration_minutes || null,
             took_break: !!employeeBreak,
             was_on_time: employeeBreak?.was_on_time || null,
             minutes_late: employeeBreak?.minutes_late || null,
@@ -156,6 +160,8 @@ export function BreakComplianceReport() {
               schedule_name: breakRecord.break_type + ' (Not Scheduled)',
               scheduled_time: 'N/A',
               actual_break_start: breakRecord.break_start,
+              actual_break_end: breakRecord.break_end || null,
+              break_duration_minutes: breakRecord.break_duration_minutes || null,
               took_break: true,
               was_on_time: null,
               minutes_late: null,
@@ -241,7 +247,7 @@ export function BreakComplianceReport() {
       return;
     }
 
-    const headers = ['Employee Name', 'Department', 'Branch', 'Break Type', 'Scheduled Time', 'Actual Time', 'Status'];
+    const headers = ['Employee Name', 'Department', 'Branch', 'Break Type', 'Scheduled Time', 'Break Start', 'Break End', 'Duration (mins)', 'Status'];
     const rows = filteredCompliance.map(item => [
       item.employee_name,
       item.department,
@@ -249,6 +255,8 @@ export function BreakComplianceReport() {
       item.schedule_name,
       item.scheduled_time === 'N/A' ? 'N/A' : item.scheduled_time.slice(0, 5),
       item.actual_break_start ? format(new Date(item.actual_break_start), 'h:mm a') : 'N/A',
+      item.actual_break_end ? format(new Date(item.actual_break_end), 'h:mm a') : 'N/A',
+      item.break_duration_minutes !== null ? item.break_duration_minutes.toString() : 'N/A',
       getStatusText(item),
     ]);
 
@@ -384,14 +392,20 @@ export function BreakComplianceReport() {
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-sm text-muted-foreground text-right">
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
                         Scheduled: {item.scheduled_time === 'N/A' ? 'N/A' : item.scheduled_time.slice(0, 5)}
                       </div>
                       {item.actual_break_start && (
                         <div className="text-xs">
-                          Actual: {format(new Date(item.actual_break_start), 'h:mm a')}
+                          Start: {format(new Date(item.actual_break_start), 'h:mm a')}
+                          {item.actual_break_end && ` → End: ${format(new Date(item.actual_break_end), 'h:mm a')}`}
+                        </div>
+                      )}
+                      {item.break_duration_minutes !== null && (
+                        <div className="text-xs font-medium text-primary">
+                          Duration: {item.break_duration_minutes} mins
                         </div>
                       )}
                     </div>
