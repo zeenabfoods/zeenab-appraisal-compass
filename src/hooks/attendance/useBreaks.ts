@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuthContext } from '@/components/AuthProvider';
+import { playAttendanceNotification } from '@/utils/attendanceNotifications';
 
 interface Break {
   id: string;
@@ -145,6 +146,8 @@ export function useBreaks(attendanceLogId: string | null) {
           toast.error('Break Not Available', {
             description: `${schedule.break_name} is only available between ${schedule.scheduled_start_time.slice(0, 5)} - ${schedule.scheduled_end_time.slice(0, 5)}`,
           });
+          // Play voice guide for break not allowed
+          playAttendanceNotification('break_not_allowed');
           setLoading(false);
           return;
         }
@@ -186,6 +189,9 @@ export function useBreaks(attendanceLogId: string | null) {
       setActiveBreak(data);
       toast.success(`${breakType === 'lunch' ? 'Lunch' : 'Short'} break started`);
 
+      // Play voice guide for break started
+      playAttendanceNotification('break_started');
+
       // Haptic feedback
       if ('vibrate' in navigator) {
         navigator.vibrate(50);
@@ -226,6 +232,9 @@ export function useBreaks(attendanceLogId: string | null) {
 
       setActiveBreak(null);
       toast.success(`Break ended (${durationMinutes} minutes)`);
+
+      // Play voice guide for break ended
+      playAttendanceNotification('break_ended');
 
       // Haptic feedback
       if ('vibrate' in navigator) {
