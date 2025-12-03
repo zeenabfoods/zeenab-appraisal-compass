@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Clock, MapPin, Wifi, WifiOff, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Clock, MapPin, Wifi, WifiOff, AlertCircle, CheckCircle2, CloudOff } from 'lucide-react';
 import { GeofenceMapView } from './GeofenceMapView';
 import { cn } from '@/lib/utils';
 import { useGeolocation } from '@/hooks/attendance/useGeolocation';
 import { useAttendanceLogs } from '@/hooks/attendance/useAttendanceLogs';
 import { useBranches } from '@/hooks/attendance/useBranches';
 import { useAttendanceRules } from '@/hooks/attendance/useAttendanceRules';
+import { useApiDemoMode } from '@/hooks/attendance/useApiDemoMode';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -27,12 +28,14 @@ export function ClockInOutCard() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showEarlyClosureDialog, setShowEarlyClosureDialog] = useState(false);
   const [earlyClosureInfo, setEarlyClosureInfo] = useState<{ hoursWorked: number; requiredHours: number; chargeAmount: number } | null>(null);
+  const [showApiDemoDialog, setShowApiDemoDialog] = useState(false);
   
   const { branches } = useBranches();
   const { isClocked, todayLog, clockIn, clockOut, loading: logsLoading, refetch: refetchLogs } = useAttendanceLogs();
   const { rules } = useAttendanceRules();
   const activeBranches = branches.filter(b => b.is_active);
   const activeRule = rules.find(r => r.is_active);
+  const { apiDemoMode } = useApiDemoMode();
 
   const { 
     latitude, 
@@ -210,6 +213,11 @@ export function ClockInOutCard() {
   };
 
   const handleClockToggle = async () => {
+    // Block clock action if API Demo Mode is enabled
+    if (apiDemoMode) {
+      setShowApiDemoDialog(true);
+      return;
+    }
     if (isClocked && todayLog) {
       // Check for early closure if in office mode
       if (todayLog.location_type === 'office') {
@@ -450,7 +458,12 @@ export function ClockInOutCard() {
             <div className="mb-4 sm:mb-6 p-4 sm:p-5 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 shadow-xl">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm font-bold text-white uppercase tracking-wider">Location Status</span>
-                {geoLoading ? (
+                {apiDemoMode ? (
+                  <Badge className="bg-gradient-to-r from-amber-500 to-orange-600 text-white border-0 shadow-lg shadow-amber-500/30 font-bold">
+                    <CloudOff className="w-3 h-3 mr-1" />
+                    Connect to API
+                  </Badge>
+                ) : geoLoading ? (
                   <Badge variant="secondary" className="animate-pulse bg-white/10 text-white border-white/20">Detecting...</Badge>
                 ) : isWithinGeofence && currentBranch ? (
                   <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 text-white border-0 shadow-lg shadow-green-500/30 font-bold">✓ Inside {currentBranch.name}</Badge>
@@ -458,18 +471,34 @@ export function ClockInOutCard() {
                   <Badge className="bg-gradient-to-r from-red-500 to-rose-600 text-white border-0 shadow-lg shadow-red-500/30 font-bold">⚠ Outside Office</Badge>
                 )}
               </div>
-              {geoError && (
+              {apiDemoMode && (
+                <p className="text-xs text-amber-400 mt-2 flex items-center gap-1 font-semibold">
+                  <CloudOff className="w-3 h-3" />
+                  Please connect to API for location services
+                </p>
+              )}
+              {!apiDemoMode && geoError && (
                 <p className="text-xs text-red-400 mt-2 flex items-center gap-1 font-semibold">
                   <AlertCircle className="w-3 h-3" />
                   {geoError}
                 </p>
               )}
-              {!geoLoading && currentBranch && distanceFromOffice !== null && (
+              {!apiDemoMode && !geoLoading && currentBranch && distanceFromOffice !== null && (
                 <p className="text-xs text-white/60 mt-2 font-medium">
                   Distance: ~{Math.round(distanceFromOffice)}m from {currentBranch.name}
                 </p>
               )}
-              {!geoLoading && !currentBranch && branchDistances.length > 0 && (
+              {apiDemoMode && branchDistances.length > 0 && (
+                <div className="mt-3 p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                  <p className="text-xs font-semibold text-amber-400 mb-2">📏 Distance to Branches:</p>
+                  {branchDistances.map(bd => (
+                    <p key={bd.branch.id} className="text-xs text-amber-400/80 mt-1">
+                      {bd.branch.name}: <span className="text-amber-300">Connect to API for distance matrix calculation</span>
+                    </p>
+                  ))}
+                </div>
+              )}
+              {!apiDemoMode && !geoLoading && !currentBranch && branchDistances.length > 0 && (
                 <div className="mt-3 p-3 bg-white/5 rounded-lg border border-white/10">
                   <p className="text-xs font-semibold text-white/80 mb-2">📏 Distance to Branches:</p>
                   {branchDistances.map(bd => bd.distance && (
@@ -485,10 +514,16 @@ export function ClockInOutCard() {
                 variant="outline"
                 onClick={() => setShowMap(true)}
                 size="sm"
-                className="w-full mt-3 border-2 border-white/20 bg-white/5 text-white hover:bg-white/10 hover:border-white/40 font-bold tracking-wide transition-all duration-300"
+                disabled={apiDemoMode}
+                className={cn(
+                  "w-full mt-3 border-2 font-bold tracking-wide transition-all duration-300",
+                  apiDemoMode 
+                    ? "border-amber-500/30 bg-amber-500/10 text-amber-400 cursor-not-allowed opacity-60"
+                    : "border-white/20 bg-white/5 text-white hover:bg-white/10 hover:border-white/40"
+                )}
               >
                 <MapPin className="h-4 w-4 mr-2" />
-                View Map
+                {apiDemoMode ? 'Connect to API to View Map' : 'View Map'}
               </Button>
             </div>
           )}
@@ -650,6 +685,28 @@ export function ClockInOutCard() {
               className="w-full"
             >
               Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* API Demo Mode Dialog */}
+      <Dialog open={showApiDemoDialog} onOpenChange={setShowApiDemoDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <CloudOff className="h-5 w-5" />
+              API Connection Required
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              This feature requires Google Maps API and OneSignal Push Notification services to be connected.
+              <br /><br />
+              <strong>Please contact HR/Admin to enable API connectivity.</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setShowApiDemoDialog(false)} className="w-full">
+              Understood
             </Button>
           </DialogFooter>
         </DialogContent>
