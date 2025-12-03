@@ -23,11 +23,11 @@ export function OneSignalConfig() {
     try {
       const { data, error } = await supabase
         .from('attendance_settings')
-        .select('onesignal_app_id')
+        .select('*')
         .single();
 
-      if (data?.onesignal_app_id) {
-        setAppId(data.onesignal_app_id);
+      if (data && (data as any).onesignal_app_id) {
+        setAppId((data as any).onesignal_app_id);
       }
     } catch (error) {
       console.error('Error loading OneSignal settings:', error);
