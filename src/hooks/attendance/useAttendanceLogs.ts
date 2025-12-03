@@ -201,8 +201,12 @@ export function useAttendanceLogs() {
       setIsClocked(true);
       toast.success('Clocked in successfully');
 
-      // Play sound notification
-      playAttendanceNotification('clock_in_success');
+      // Play sound notification - different for late vs on-time
+      if (isLate) {
+        playAttendanceNotification('clock_in_late');
+      } else {
+        playAttendanceNotification('clock_in_success');
+      }
 
       // Trigger haptic feedback if available
       if ('vibrate' in navigator) {

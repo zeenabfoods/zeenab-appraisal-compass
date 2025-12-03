@@ -118,7 +118,7 @@ export function GeofenceMonitor() {
       // Entering geofence
       if (isInside && wasInside === false) {
         // Play voice guide for entering geofence
-        playVoiceGuide('geofence_enter');
+        playVoiceGuide('geofence_entry');
 
         showNotification(
           '📍 Entered Office Zone',

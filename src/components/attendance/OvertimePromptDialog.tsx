@@ -31,7 +31,7 @@ export function OvertimePromptDialog({ attendanceLogId, onResponse }: OvertimePr
 
       if (currentMinutes === fivePM) {
         setOpen(true);
-        playNotification('overtime_prompt');
+        playNotification('auto_clockout_warning');
       }
     };
 

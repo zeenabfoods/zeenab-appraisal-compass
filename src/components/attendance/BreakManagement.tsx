@@ -10,6 +10,7 @@ import { format, isToday } from 'date-fns';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { playAttendanceNotification } from '@/utils/attendanceNotifications';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,6 +55,9 @@ export function BreakManagement() {
 
         // Check if it's time to notify (within 1 minute window)
         if (Math.abs(currentTime - notifyTime) <= 1) {
+          // Play voice guide for break reminder
+          playAttendanceNotification('break_reminder');
+          
           // Send notification
           if ('Notification' in window && Notification.permission === 'granted') {
             new Notification('Break Time Reminder! ☕', {
