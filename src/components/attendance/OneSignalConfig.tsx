@@ -75,7 +75,6 @@ export function OneSignalConfig() {
       }
 
       toast.success('OneSignal App ID saved successfully');
-      toast.info('REST API Key needs to be added as a Supabase secret named ONESIGNAL_REST_API_KEY');
     } catch (error: any) {
       console.error('Error saving OneSignal settings:', error);
       toast.error('Failed to save settings');
