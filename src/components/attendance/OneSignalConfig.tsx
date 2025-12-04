@@ -196,23 +196,34 @@ export function OneSignalConfig() {
           </div>
         </div>
 
-        {/* Subscription Status */}
-        <div className="bg-muted/50 rounded-lg p-4">
+        {/* Subscription Status - IMPORTANT: Subscribe first before testing */}
+        <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 space-y-3">
+          <div className="flex items-center gap-2 text-primary">
+            <BellRing className="h-5 w-5" />
+            <span className="font-semibold">Step 1: Subscribe to Notifications</span>
+          </div>
+          
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {isSubscribed ? (
                 <CheckCircle className="h-5 w-5 text-green-500" />
               ) : (
-                <BellRing className="h-5 w-5 text-yellow-500" />
+                <Bell className="h-5 w-5 text-yellow-500" />
               )}
               <div>
                 <p className="font-medium text-sm">
-                  {isSubscribed ? 'Subscribed to Notifications' : 'Not Subscribed'}
+                  {!isInitialized 
+                    ? 'Initializing OneSignal...' 
+                    : isSubscribed 
+                      ? 'Subscribed to Notifications' 
+                      : 'Not Subscribed Yet'}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {isSubscribed 
-                    ? 'You will receive push notifications on this device' 
-                    : 'Subscribe to receive push notifications on this device'}
+                  {!isInitialized 
+                    ? 'Please wait while OneSignal loads...'
+                    : isSubscribed 
+                      ? 'You will receive push notifications on this device' 
+                      : 'Click Subscribe and allow notifications when prompted'}
                 </p>
               </div>
             </div>
@@ -221,15 +232,25 @@ export function OneSignalConfig() {
                 variant="default" 
                 onClick={handleSubscribe} 
                 disabled={isSubscribing || !isInitialized}
+                className="bg-primary hover:bg-primary/90"
               >
                 {isSubscribing ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
                   <BellRing className="h-4 w-4 mr-2" />
                 )}
-                Subscribe
+                {isSubscribing ? 'Requesting...' : 'Subscribe Now'}
               </Button>
             )}
+          </div>
+          
+          {/* Mobile guidance */}
+          <div className="text-xs text-muted-foreground bg-background/50 rounded p-2 space-y-1">
+            <p className="font-medium">📱 Mobile Users:</p>
+            <ul className="list-disc list-inside space-y-0.5 ml-2">
+              <li><strong>iPhone/iPad:</strong> Install the app first (Add to Home Screen), then subscribe</li>
+              <li><strong>Android:</strong> Click Subscribe and tap "Allow" when prompted</li>
+            </ul>
           </div>
         </div>
 
