@@ -45,16 +45,34 @@ export function OneSignalConfig() {
 
     setIsSaving(true);
     try {
-      // Save App ID to attendance_settings
-      const { error: settingsError } = await supabase
+      // Check if settings record exists
+      const { data: existing } = await supabase
         .from('attendance_settings')
-        .upsert({
-          id: 'default',
-          onesignal_app_id: appId.trim(),
-          updated_at: new Date().toISOString(),
-        });
+        .select('id')
+        .limit(1)
+        .maybeSingle();
 
-      if (settingsError) throw settingsError;
+      if (existing) {
+        // Update existing record
+        const { error: updateError } = await supabase
+          .from('attendance_settings')
+          .update({
+            onesignal_app_id: appId.trim(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existing.id);
+
+        if (updateError) throw updateError;
+      } else {
+        // Insert new record
+        const { error: insertError } = await supabase
+          .from('attendance_settings')
+          .insert({
+            onesignal_app_id: appId.trim(),
+          });
+
+        if (insertError) throw insertError;
+      }
 
       toast.success('OneSignal App ID saved successfully');
       toast.info('REST API Key needs to be added as a Supabase secret named ONESIGNAL_REST_API_KEY');
