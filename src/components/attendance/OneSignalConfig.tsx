@@ -3,10 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Bell, Eye, EyeOff, Save, TestTube, Loader2, ExternalLink } from 'lucide-react';
+import { Bell, Eye, EyeOff, Save, TestTube, Loader2, ExternalLink, BellRing, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-
+import { useOneSignal } from '@/hooks/useOneSignal';
 export function OneSignalConfig() {
   const [appId, setAppId] = useState('');
   const [restApiKey, setRestApiKey] = useState('');
@@ -14,6 +14,9 @@ export function OneSignalConfig() {
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubscribing, setIsSubscribing] = useState(false);
+  
+  const { isInitialized, isSubscribed, requestPermission } = useOneSignal();
 
   useEffect(() => {
     loadSettings();
@@ -105,6 +108,23 @@ export function OneSignalConfig() {
     }
   };
 
+  const handleSubscribe = async () => {
+    setIsSubscribing(true);
+    try {
+      const granted = await requestPermission();
+      if (granted) {
+        toast.success('Successfully subscribed to push notifications!');
+      } else {
+        toast.error('Notification permission denied. Please enable notifications in your browser settings.');
+      }
+    } catch (error: any) {
+      console.error('Error subscribing to notifications:', error);
+      toast.error('Failed to subscribe to notifications');
+    } finally {
+      setIsSubscribing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -173,6 +193,43 @@ export function OneSignalConfig() {
             <p className="text-xs text-muted-foreground">
               This key must be added as a Supabase secret, not stored in the database
             </p>
+          </div>
+        </div>
+
+        {/* Subscription Status */}
+        <div className="bg-muted/50 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {isSubscribed ? (
+                <CheckCircle className="h-5 w-5 text-green-500" />
+              ) : (
+                <BellRing className="h-5 w-5 text-yellow-500" />
+              )}
+              <div>
+                <p className="font-medium text-sm">
+                  {isSubscribed ? 'Subscribed to Notifications' : 'Not Subscribed'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {isSubscribed 
+                    ? 'You will receive push notifications on this device' 
+                    : 'Subscribe to receive push notifications on this device'}
+                </p>
+              </div>
+            </div>
+            {!isSubscribed && (
+              <Button 
+                variant="default" 
+                onClick={handleSubscribe} 
+                disabled={isSubscribing || !isInitialized}
+              >
+                {isSubscribing ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <BellRing className="h-4 w-4 mr-2" />
+                )}
+                Subscribe
+              </Button>
+            )}
           </div>
         </div>
 
