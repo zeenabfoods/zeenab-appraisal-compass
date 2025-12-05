@@ -219,8 +219,17 @@ export function ClockInOutCard() {
       return;
     }
     if (isClocked && todayLog) {
-      // Check for early closure if in office mode
+      // For office mode, validate geofence before allowing clock-out
       if (todayLog.location_type === 'office') {
+        // Check if employee is within geofence for office clock-out
+        if (!isWithinGeofence) {
+          toast.error('Cannot Clock Out', {
+            description: 'You must be within an office geofence to clock out. Please return to the office location.',
+          });
+          return;
+        }
+        
+        // Check for early closure
         const earlyCheck = checkEarlyClosureCondition();
         
         if (earlyCheck.isEarly) {
@@ -229,11 +238,12 @@ export function ClockInOutCard() {
           return;
         }
       }
+      // Field mode can clock out from anywhere - no geofence validation
       
       await clockOut(
         latitude,
         longitude,
-        mode === 'office' ? isWithinGeofence : undefined,
+        todayLog.location_type === 'office' ? isWithinGeofence : undefined,
         false // not early closure
       );
     } else {
