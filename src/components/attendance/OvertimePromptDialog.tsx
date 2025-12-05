@@ -26,13 +26,13 @@ export function OvertimePromptDialog({ attendanceLogId, onResponse, onAutoClockO
   const hasRespondedRef = useRef(false);
 
   useEffect(() => {
-    // Check if it's time to show the prompt (at 5pm exactly)
+    // Check if it's time to show the prompt (5 minutes BEFORE 5pm - at 4:55pm)
     const checkTime = () => {
       const now = new Date();
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
-      const fivePM = 17 * 60; // 5pm in minutes
+      const promptTime = 16 * 60 + 55; // 4:55pm in minutes (5 min before 5pm)
 
-      if (currentMinutes === fivePM && !hasRespondedRef.current) {
+      if (currentMinutes === promptTime && !hasRespondedRef.current) {
         setOpen(true);
         // Only play voice once
         if (!voicePlayedRef.current) {
@@ -130,10 +130,10 @@ export function OvertimePromptDialog({ attendanceLogId, onResponse, onAutoClockO
             <DialogTitle>Overtime Work</DialogTitle>
           </div>
           <DialogDescription>
-            It's 5:00 PM. Will you be working overtime today?
+            It's almost closing time. Will you be working overtime today?
             <br />
             <span className="text-xs text-muted-foreground mt-2 block">
-              If you don't respond within 5 minutes, we'll record it as "No" and clock you out.
+              If you don't respond by 5:00 PM, we'll record it as "No" and clock you out.
             </span>
           </DialogDescription>
         </DialogHeader>
