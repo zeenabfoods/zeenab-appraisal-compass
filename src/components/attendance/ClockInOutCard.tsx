@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Clock, MapPin, Wifi, WifiOff, AlertCircle, CheckCircle2, CloudOff } from 'lucide-react';
+import { Clock, MapPin, Wifi, WifiOff, AlertCircle, CheckCircle2, CloudOff, Moon } from 'lucide-react';
 import { GeofenceMapView } from './GeofenceMapView';
 import { cn } from '@/lib/utils';
 import { useGeolocation } from '@/hooks/attendance/useGeolocation';
@@ -20,7 +20,7 @@ import { OvertimePromptDialog } from './OvertimePromptDialog';
 
 export function ClockInOutCard() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [mode, setMode] = useState<'office' | 'field'>('office');
+  const [mode, setMode] = useState<'office' | 'field' | 'night_shift'>('office');
   const [showFieldDialog, setShowFieldDialog] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [fieldReason, setFieldReason] = useState('');
@@ -279,6 +279,32 @@ export function ClockInOutCard() {
           withinGeofence: isWithinGeofence,
           geofenceDistance: distanceFromOffice,
         });
+      } else if (mode === 'night_shift') {
+        // Night shift mode - requires geofence like office
+        if (activeBranches.length === 0) {
+          toast.error('No Active Branch', {
+            description: 'No active branch configured. Contact HR.',
+          });
+          return;
+        }
+        
+        // Validate geofence status before allowing night shift clock-in
+        if (!isWithinGeofence) {
+          toast.error('Cannot Clock In', {
+            description: 'You are outside any office geofence. Please move closer to an office branch to clock in for night shift.',
+          });
+          return;
+        }
+        
+        await clockIn({
+          locationType: 'night_shift',
+          latitude,
+          longitude,
+          branchId: currentBranch!.id,
+          withinGeofence: isWithinGeofence,
+          geofenceDistance: distanceFromOffice,
+          isNightShift: true,
+        });
       }
     }
   };
@@ -461,10 +487,24 @@ export function ClockInOutCard() {
               <MapPin className="w-4 h-4 mr-2" />
               On Field
             </Button>
+            <Button
+              variant={mode === 'night_shift' ? 'default' : 'outline'}
+              size="lg"
+              className={cn(
+                "flex-1 h-14 font-bold tracking-wide transition-all duration-300",
+                mode === 'night_shift' 
+                  ? "bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-indigo-700 hover:to-purple-600 text-white shadow-lg shadow-purple-500/30 border-0" 
+                  : "border-2 border-white/20 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white hover:border-white/30 backdrop-blur-sm"
+              )}
+              onClick={() => setMode('night_shift')}
+            >
+              <Moon className="w-4 h-4 mr-2" />
+              Night Shift
+            </Button>
           </div>
 
           {/* Geofence Status */}
-          {mode === 'office' && activeBranches.length > 0 && (
+          {(mode === 'office' || mode === 'night_shift') && activeBranches.length > 0 && (
             <div className="mb-4 sm:mb-6 p-4 sm:p-5 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 shadow-xl">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm font-bold text-white uppercase tracking-wider">Location Status</span>
@@ -538,7 +578,7 @@ export function ClockInOutCard() {
             </div>
           )}
 
-          {mode === 'office' && activeBranches.length === 0 && (
+          {(mode === 'office' || mode === 'night_shift') && activeBranches.length === 0 && (
             <div className="mb-6 p-4 bg-amber-500/10 backdrop-blur-sm rounded-2xl border border-amber-500/30">
               <p className="text-sm text-amber-400 flex items-center gap-2 font-semibold">
                 <AlertCircle className="w-4 h-4" />

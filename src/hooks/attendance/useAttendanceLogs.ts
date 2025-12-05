@@ -9,7 +9,7 @@ type AttendanceLog = Tables<'attendance_logs'>;
 type AttendanceLogInsert = TablesInsert<'attendance_logs'>;
 
 interface ClockInParams {
-  locationType: 'office' | 'field';
+  locationType: 'office' | 'field' | 'night_shift';
   latitude?: number;
   longitude?: number;
   branchId?: string;
@@ -17,6 +17,7 @@ interface ClockInParams {
   fieldWorkLocation?: string;
   withinGeofence?: boolean;
   geofenceDistance?: number;
+  isNightShift?: boolean;
 }
 
 export function useAttendanceLogs() {
@@ -205,9 +206,13 @@ export function useAttendanceLogs() {
         }
       }
 
+      // For night shift mode, use 'office' as location_type but set is_night_shift flag
+      const actualLocationType = params.locationType === 'night_shift' ? 'office' : params.locationType;
+      const isNightShiftMode = params.locationType === 'night_shift' || params.isNightShift;
+
       const logData: AttendanceLogInsert = {
         employee_id: profile.id,
-        location_type: params.locationType,
+        location_type: actualLocationType,
         clock_in_latitude: params.latitude,
         clock_in_longitude: params.longitude,
         branch_id: params.branchId,
@@ -218,6 +223,7 @@ export function useAttendanceLogs() {
         device_timestamp: new Date().toISOString(),
         is_late: isLate,
         late_by_minutes: lateByMinutes,
+        is_night_shift: isNightShiftMode,
       };
 
       const { data, error } = await supabase
