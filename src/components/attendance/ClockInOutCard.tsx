@@ -458,48 +458,48 @@ export function ClockInOutCard() {
           </div>
 
           {/* Mode Toggles */}
-          <div className="flex gap-2 sm:gap-3 mb-4 sm:mb-6 w-full max-w-full">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6 w-full">
             <Button
               variant={mode === 'office' ? 'default' : 'outline'}
               size="lg"
               className={cn(
-                "flex-1 h-14 font-bold tracking-wide transition-all duration-300",
+                "h-12 sm:h-14 font-bold tracking-wide transition-all duration-300 px-2 sm:px-4",
                 mode === 'office' 
                   ? "bg-gradient-to-r from-attendance-primary to-orange-600 hover:from-orange-600 hover:to-attendance-primary text-white shadow-lg shadow-attendance-primary/30 border-0" 
                   : "border-2 border-white/20 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white hover:border-white/30 backdrop-blur-sm"
               )}
               onClick={() => setMode('office')}
             >
-              <MapPin className="w-4 h-4 mr-2" />
-              In Office
+              <MapPin className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="text-xs sm:text-sm">Office</span>
             </Button>
             <Button
               variant={mode === 'field' ? 'default' : 'outline'}
               size="lg"
               className={cn(
-                "flex-1 h-14 font-bold tracking-wide transition-all duration-300",
+                "h-12 sm:h-14 font-bold tracking-wide transition-all duration-300 px-2 sm:px-4",
                 mode === 'field' 
                   ? "bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-blue-600 hover:to-cyan-500 text-white shadow-lg shadow-cyan-500/30 border-0" 
                   : "border-2 border-white/20 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white hover:border-white/30 backdrop-blur-sm"
               )}
               onClick={() => setMode('field')}
             >
-              <MapPin className="w-4 h-4 mr-2" />
-              On Field
+              <MapPin className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="text-xs sm:text-sm">Field</span>
             </Button>
             <Button
               variant={mode === 'night_shift' ? 'default' : 'outline'}
               size="lg"
               className={cn(
-                "flex-1 h-14 font-bold tracking-wide transition-all duration-300",
+                "h-12 sm:h-14 font-bold tracking-wide transition-all duration-300 px-2 sm:px-4",
                 mode === 'night_shift' 
                   ? "bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-indigo-700 hover:to-purple-600 text-white shadow-lg shadow-purple-500/30 border-0" 
                   : "border-2 border-white/20 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white hover:border-white/30 backdrop-blur-sm"
               )}
               onClick={() => setMode('night_shift')}
             >
-              <Moon className="w-4 h-4 mr-2" />
-              Night Shift
+              <Moon className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="text-xs sm:text-sm">Night</span>
             </Button>
           </div>
 
