@@ -25,6 +25,7 @@ export function useAttendanceLogs() {
   const [recentLogs, setRecentLogs] = useState<AttendanceLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [isClocked, setIsClocked] = useState(false);
+  const [isClockingIn, setIsClockingIn] = useState(false); // Prevent duplicate clicks
 
   const fetchTodayLog = useCallback(async () => {
     if (!profile?.id) return;
@@ -88,7 +89,38 @@ export function useAttendanceLogs() {
       return;
     }
 
+    // Prevent duplicate clicks
+    if (isClockingIn) {
+      toast.warning('Clock-in in progress', {
+        description: 'Please wait, your clock-in is being processed.',
+      });
+      return;
+    }
+
+    setIsClockingIn(true);
+
     try {
+      // Check if already clocked in today (prevents duplicate records)
+      const today = new Date().toISOString().split('T')[0];
+      const { data: existingActiveLog } = await supabase
+        .from('attendance_logs')
+        .select('id')
+        .eq('employee_id', profile.id)
+        .gte('clock_in_time', `${today}T00:00:00`)
+        .lte('clock_in_time', `${today}T23:59:59`)
+        .is('clock_out_time', null)
+        .maybeSingle();
+
+      if (existingActiveLog) {
+        toast.warning('Already Clocked In', {
+          description: 'You already have an active clock-in session. Please clock out first.',
+        });
+        setIsClockingIn(false);
+        // Refresh to show current state
+        await fetchTodayLog();
+        return;
+      }
+
       // Check today's sessions for one-transition-only rule
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
@@ -161,12 +193,11 @@ export function useAttendanceLogs() {
         const workStartTime = new Date(now);
         workStartTime.setHours(workStartHour, workStartMin, 0, 0);
         
-        // Add late threshold (default 15 mins) and grace period (default 5 mins)
-        const lateThreshold = rules.late_threshold_minutes || 15;
-        const gracePeriod = rules.grace_period_minutes || 0;
-        const totalAllowedMinutes = lateThreshold + gracePeriod;
+        // Only grace period is used - anyone clocking in after work_start_time + grace_period is LATE
+        // e.g., work starts 8:00 + 5 min grace = 8:05 deadline, 8:06 is late
+        const gracePeriod = rules.grace_period_minutes || 5;
         
-        const lateDeadline = new Date(workStartTime.getTime() + totalAllowedMinutes * 60 * 1000);
+        const lateDeadline = new Date(workStartTime.getTime() + gracePeriod * 60 * 1000);
         
         if (now > lateDeadline) {
           isLate = true;
@@ -218,6 +249,8 @@ export function useAttendanceLogs() {
       console.error('Error clocking in:', error);
       toast.error('Failed to clock in');
       throw error;
+    } finally {
+      setIsClockingIn(false);
     }
   };
 
@@ -369,6 +402,7 @@ export function useAttendanceLogs() {
     recentLogs,
     loading,
     isClocked,
+    isClockingIn,
     clockIn,
     clockOut,
     refetch: fetchTodayLog,
