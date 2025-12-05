@@ -49,11 +49,11 @@ export function OvertimePromptDialog({ attendanceLogId, onResponse, onAutoClockO
   }, [playNotification]);
 
   useEffect(() => {
-    // Auto-respond "no" after 15 minutes if no response
+    // Auto-respond "no" after 5 minutes if no response
     if (open && !hasRespondedRef.current) {
       const timeout = setTimeout(() => {
         handleResponse(false);
-      }, 15 * 60 * 1000); // 15 minutes
+      }, 5 * 60 * 1000); // 5 minutes
 
       return () => clearTimeout(timeout);
     }
@@ -133,7 +133,7 @@ export function OvertimePromptDialog({ attendanceLogId, onResponse, onAutoClockO
             It's 5:00 PM. Will you be working overtime today?
             <br />
             <span className="text-xs text-muted-foreground mt-2 block">
-              If you don't respond within 15 minutes, we'll record it as "No" and clock you out.
+              If you don't respond within 5 minutes, we'll record it as "No" and clock you out.
             </span>
           </DialogDescription>
         </DialogHeader>
