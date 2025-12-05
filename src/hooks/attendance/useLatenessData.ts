@@ -136,6 +136,7 @@ export function useLatenessData() {
       const branchMap = new Map(branchesData?.map(branch => [branch.id, branch]) || []);
 
       // Helper function to calculate lateness
+      // Only grace period is used - anyone clocking in after work_start_time + grace_period is LATE
       const calculateLateness = (clockInTime: string) => {
         const clockIn = new Date(clockInTime);
         const [workHour, workMin] = workStartTime.split(':').map(Number);
@@ -144,9 +145,9 @@ export function useLatenessData() {
         const workStart = new Date(clockIn);
         workStart.setHours(workHour, workMin, 0, 0);
         
-        // Late deadline = work start + late threshold + grace period
-        const totalAllowedMinutes = lateThreshold + gracePeriod;
-        const lateDeadline = new Date(workStart.getTime() + totalAllowedMinutes * 60 * 1000);
+        // Late deadline = work start + grace period ONLY
+        // e.g., work starts 8:00 + 5 min grace = 8:05 deadline, 8:06 is late
+        const lateDeadline = new Date(workStart.getTime() + gracePeriod * 60 * 1000);
         
         if (clockIn > lateDeadline) {
           const lateMinutes = Math.round((clockIn.getTime() - workStart.getTime()) / (60 * 1000));

@@ -31,7 +31,7 @@ export function ClockInOutCard() {
   const [showApiDemoDialog, setShowApiDemoDialog] = useState(false);
   
   const { branches } = useBranches();
-  const { isClocked, todayLog, clockIn, clockOut, loading: logsLoading, refetch: refetchLogs } = useAttendanceLogs();
+  const { isClocked, todayLog, clockIn, clockOut, loading: logsLoading, isClockingIn, refetch: refetchLogs } = useAttendanceLogs();
   const { rules } = useAttendanceRules();
   const activeBranches = branches.filter(b => b.is_active);
   const activeRule = rules.find(r => r.is_active);
@@ -541,7 +541,7 @@ export function ClockInOutCard() {
           <Button
             size="lg"
             onClick={handleClockToggle}
-            disabled={!isClocked && !canClockIn}
+            disabled={(!isClocked && !canClockIn) || isClockingIn}
             className={cn(
               "w-full h-16 text-xl font-black uppercase tracking-wider transition-all duration-300 disabled:opacity-30",
               isClocked
@@ -549,7 +549,12 @@ export function ClockInOutCard() {
                 : "bg-gradient-to-r from-attendance-primary via-orange-600 to-attendance-primary hover:from-orange-600 hover:via-attendance-primary hover:to-orange-600 text-white shadow-2xl shadow-attendance-primary/40 border-0"
             )}
           >
-            {isClocked ? (
+            {isClockingIn ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-3" />
+                Processing...
+              </>
+            ) : isClocked ? (
               <>
                 <Clock className="w-6 h-6 mr-3" />
                 Clock Out
