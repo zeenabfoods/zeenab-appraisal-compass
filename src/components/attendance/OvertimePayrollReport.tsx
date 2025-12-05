@@ -8,13 +8,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Download, Search, Clock, DollarSign, Calendar, TrendingUp, CalendarIcon } from 'lucide-react';
+import { Download, Search, Clock, DollarSign, Calendar, TrendingUp, CalendarIcon, Trash2, AlertTriangle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { DateRange } from 'react-day-picker';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface OvertimeReportData {
   employee_id: string;
@@ -43,6 +54,8 @@ export function OvertimePayrollReport() {
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [baseHourlyRate] = useState(2000); // Base rate in Naira per hour
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeletingEmployee, setIsDeletingEmployee] = useState<string | null>(null);
 
   const { data: overtimeData, isLoading, refetch } = useQuery({
     queryKey: ['overtime-report', filterMode, selectedMonth, selectedYear, dateRange],
@@ -155,6 +168,69 @@ export function OvertimePayrollReport() {
   const totalOvertimeHours = filteredData?.reduce((sum, item) => sum + item.total_overtime_hours, 0) || 0;
   const totalPayment = filteredData?.reduce((sum, item) => sum + item.total_payment, 0) || 0;
   const employeesWithOvertime = filteredData?.filter(item => item.total_overtime_hours > 0).length || 0;
+
+  // Delete all overtime records (reset overtime_hours and night_shift_hours to 0)
+  const deleteAllOvertimeRecords = async () => {
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('attendance_logs')
+        .update({ 
+          overtime_hours: 0, 
+          night_shift_hours: 0,
+          overtime_approved: false,
+          overtime_start_time: null,
+          overtime_approved_at: null,
+          is_night_shift: false
+        })
+        .gt('overtime_hours', 0);
+
+      if (error) throw error;
+
+      // Also reset any logs with night_shift_hours
+      await supabase
+        .from('attendance_logs')
+        .update({ 
+          night_shift_hours: 0,
+          is_night_shift: false
+        })
+        .gt('night_shift_hours', 0);
+
+      toast.success('All overtime records cleared');
+      refetch();
+    } catch (error: any) {
+      toast.error('Failed to delete records', { description: error.message });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Delete overtime records for a specific employee
+  const deleteEmployeeOvertimeRecords = async (employeeId: string, employeeName: string) => {
+    setIsDeletingEmployee(employeeId);
+    try {
+      const { error } = await supabase
+        .from('attendance_logs')
+        .update({ 
+          overtime_hours: 0, 
+          night_shift_hours: 0,
+          overtime_approved: false,
+          overtime_start_time: null,
+          overtime_approved_at: null,
+          is_night_shift: false
+        })
+        .eq('employee_id', employeeId);
+
+      if (error) throw error;
+
+      toast.success(`Overtime records cleared for ${employeeName}`);
+      refetch();
+    } catch (error: any) {
+      toast.error('Failed to delete records', { description: error.message });
+    } finally {
+      setIsDeletingEmployee(null);
+    }
+  };
 
   const setQuickFilter = (preset: string) => {
     const today = new Date();
@@ -281,10 +357,41 @@ export function OvertimePayrollReport() {
               <Clock className="w-5 h-5" />
               Monthly Overtime & Payroll Report
             </CardTitle>
-            <Button onClick={exportToCSV} disabled={!filteredData || filteredData.length === 0}>
-              <Download className="w-4 h-4 mr-2" />
-              Export CSV
-            </Button>
+            <div className="flex items-center gap-2">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="destructive" 
+                    disabled={!filteredData || filteredData.length === 0 || isDeleting}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    {isDeleting ? 'Deleting...' : 'Delete All'}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2">
+                      <AlertTriangle className="w-5 h-5 text-destructive" />
+                      Delete All Overtime Records?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will reset overtime_hours and night_shift_hours to 0 for all attendance records. 
+                      This action cannot be undone. Use this for a clean start.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={deleteAllOvertimeRecords} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Delete All
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <Button onClick={exportToCSV} disabled={!filteredData || filteredData.length === 0}>
+                <Download className="w-4 h-4 mr-2" />
+                Export CSV
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -501,6 +608,7 @@ export function OvertimePayrollReport() {
                     <TableHead className="text-right">Overtime Pay</TableHead>
                     <TableHead className="text-right">Night Shift Pay</TableHead>
                     <TableHead className="text-right">Total Payment</TableHead>
+                    <TableHead className="text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -549,6 +657,37 @@ export function OvertimePayrollReport() {
                         <span className="font-bold text-green-600">
                           ₦{item.total_payment.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                         </span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              disabled={isDeletingEmployee === item.employee_id}
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Overtime Records?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will reset overtime records for {item.employee_name}. 
+                                This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => deleteEmployeeOvertimeRecords(item.employee_id, item.employee_name)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </TableCell>
                     </TableRow>
                   ))}
