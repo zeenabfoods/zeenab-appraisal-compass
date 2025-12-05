@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -7,7 +7,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Clock } from 'lucide-react';
+import { Clock, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAttendanceNotifications } from '@/hooks/useAttendanceNotifications';
@@ -15,12 +15,15 @@ import { useAttendanceNotifications } from '@/hooks/useAttendanceNotifications';
 interface OvertimePromptDialogProps {
   attendanceLogId: string;
   onResponse: (approved: boolean) => void;
+  onAutoClockOut?: () => Promise<void>;
 }
 
-export function OvertimePromptDialog({ attendanceLogId, onResponse }: OvertimePromptDialogProps) {
+export function OvertimePromptDialog({ attendanceLogId, onResponse, onAutoClockOut }: OvertimePromptDialogProps) {
   const [open, setOpen] = useState(false);
   const [responding, setResponding] = useState(false);
   const { playNotification } = useAttendanceNotifications();
+  const voicePlayedRef = useRef(false);
+  const hasRespondedRef = useRef(false);
 
   useEffect(() => {
     // Check if it's time to show the prompt (at 5pm exactly)
@@ -29,9 +32,13 @@ export function OvertimePromptDialog({ attendanceLogId, onResponse }: OvertimePr
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
       const fivePM = 17 * 60; // 5pm in minutes
 
-      if (currentMinutes === fivePM) {
+      if (currentMinutes === fivePM && !hasRespondedRef.current) {
         setOpen(true);
-        playNotification('auto_clockout_warning');
+        // Only play voice once
+        if (!voicePlayedRef.current) {
+          voicePlayedRef.current = true;
+          playNotification('auto_clockout_warning');
+        }
       }
     };
 
@@ -43,7 +50,7 @@ export function OvertimePromptDialog({ attendanceLogId, onResponse }: OvertimePr
 
   useEffect(() => {
     // Auto-respond "no" after 15 minutes if no response
-    if (open) {
+    if (open && !hasRespondedRef.current) {
       const timeout = setTimeout(() => {
         handleResponse(false);
       }, 15 * 60 * 1000); // 15 minutes
@@ -53,7 +60,14 @@ export function OvertimePromptDialog({ attendanceLogId, onResponse }: OvertimePr
   }, [open]);
 
   const handleResponse = async (approved: boolean) => {
+    // Prevent double-responses
+    if (hasRespondedRef.current || responding) return;
+    
+    hasRespondedRef.current = true;
     setResponding(true);
+    
+    // Close dialog immediately for better UX
+    setOpen(false);
 
     try {
       const { error } = await supabase
@@ -68,14 +82,23 @@ export function OvertimePromptDialog({ attendanceLogId, onResponse }: OvertimePr
 
       if (error) throw error;
 
-      toast({
-        title: approved ? 'Overtime Approved' : 'Overtime Declined',
-        description: approved
-          ? 'Your overtime hours will now be tracked.'
-          : 'You will not be tracked for overtime.',
-      });
+      // If user declined overtime, auto clock-out
+      if (!approved && onAutoClockOut) {
+        toast({
+          title: 'Overtime Declined',
+          description: 'Clocking you out now...',
+        });
+        
+        await onAutoClockOut();
+      } else {
+        toast({
+          title: approved ? 'Overtime Approved' : 'Overtime Declined',
+          description: approved
+            ? 'Your overtime hours will now be tracked.'
+            : 'You will not be tracked for overtime.',
+        });
+      }
 
-      setOpen(false);
       onResponse(approved);
     } catch (error) {
       console.error('Error recording overtime response:', error);
@@ -84,14 +107,23 @@ export function OvertimePromptDialog({ attendanceLogId, onResponse }: OvertimePr
         title: 'Error',
         description: 'Failed to record your overtime response.',
       });
+      // Reset so user can try again
+      hasRespondedRef.current = false;
+      setOpen(true);
     } finally {
       setResponding(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      // Prevent closing via backdrop/escape without responding
+      if (!isOpen && !hasRespondedRef.current) {
+        return; // Keep dialog open
+      }
+      setOpen(isOpen);
+    }}>
+      <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <div className="flex items-center gap-2 mb-2">
             <Clock className="h-5 w-5 text-primary" />
@@ -101,7 +133,7 @@ export function OvertimePromptDialog({ attendanceLogId, onResponse }: OvertimePr
             It's 5:00 PM. Will you be working overtime today?
             <br />
             <span className="text-xs text-muted-foreground mt-2 block">
-              If you don't respond within 15 minutes, we'll record it as "No".
+              If you don't respond within 15 minutes, we'll record it as "No" and clock you out.
             </span>
           </DialogDescription>
         </DialogHeader>
@@ -111,6 +143,7 @@ export function OvertimePromptDialog({ attendanceLogId, onResponse }: OvertimePr
             disabled={responding}
             className="w-full"
           >
+            {responding ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
             Yes, I'll work overtime
           </Button>
           <Button
@@ -119,7 +152,8 @@ export function OvertimePromptDialog({ attendanceLogId, onResponse }: OvertimePr
             variant="outline"
             className="w-full"
           >
-            No, I'm finishing on time
+            {responding ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+            No, clock me out now
           </Button>
         </div>
       </DialogContent>

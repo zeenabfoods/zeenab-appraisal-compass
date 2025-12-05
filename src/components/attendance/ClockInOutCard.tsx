@@ -573,6 +573,13 @@ export function ClockInOutCard() {
                 description: 'Your overtime hours are now being tracked.',
               });
             }
+            refetchLogs();
+          }}
+          onAutoClockOut={async () => {
+            if (latitude && longitude) {
+              await clockOut(latitude, longitude);
+              refetchLogs();
+            }
           }}
         />
       )}
