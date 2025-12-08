@@ -149,7 +149,7 @@ export function useOneSignal() {
     }
   };
 
-  const requestPermission = async () => {
+  const requestPermission = async (): Promise<boolean> => {
     if (!window.OneSignal) {
       console.log('[OneSignal] SDK not loaded, cannot request permission');
       return false;
@@ -157,13 +157,30 @@ export function useOneSignal() {
 
     try {
       console.log('[OneSignal] Requesting notification permission...');
-      const permission = await window.OneSignal.Notifications.requestPermission();
+      
+      // Add timeout to prevent infinite waiting
+      const timeoutPromise = new Promise<boolean>((_, reject) => {
+        setTimeout(() => reject(new Error('Permission request timed out')), 30000);
+      });
+      
+      const permissionPromise = window.OneSignal.Notifications.requestPermission();
+      
+      const permission = await Promise.race([permissionPromise, timeoutPromise]);
       console.log('[OneSignal] Permission request result:', permission);
-      setIsSubscribed(permission);
-      return permission;
+      setIsSubscribed(permission === true);
+      return permission === true;
     } catch (error) {
       console.error('[OneSignal] Error requesting notification permission:', error);
-      return false;
+      
+      // Check current permission state as fallback
+      try {
+        const currentPermission = await window.OneSignal.Notifications.permission;
+        console.log('[OneSignal] Current permission state:', currentPermission);
+        setIsSubscribed(currentPermission === true);
+        return currentPermission === true;
+      } catch {
+        return false;
+      }
     }
   };
 
