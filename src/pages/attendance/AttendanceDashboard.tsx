@@ -29,6 +29,7 @@ import { VoiceGuideManager } from '@/components/attendance/VoiceGuideManager';
 import { LatenessDashboard } from '@/components/attendance/LatenessDashboard';
 import { OneSignalConfig } from '@/components/attendance/OneSignalConfig';
 import { PushNotificationPrompt } from '@/components/attendance/PushNotificationPrompt';
+import { EmployeeNotificationSubscribe } from '@/components/attendance/EmployeeNotificationSubscribe';
 import FieldWorkDashboard from '@/pages/attendance/FieldWorkDashboard';
 import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText, Volume2, ClockAlert, Mic, Bell } from 'lucide-react';
 import { Card } from '@/components/ui/card';
@@ -233,7 +234,7 @@ export default function AttendanceDashboard() {
         case 'push-notifications':
           return <OneSignalConfig />;
         case 'notifications':
-          return <OneSignalConfig />;
+          return <EmployeeNotificationSubscribe />;
         default:
           return renderOverviewContent();
       }
