@@ -28,6 +28,7 @@ import { AlertSoundManager } from '@/components/attendance/AlertSoundManager';
 import { VoiceGuideManager } from '@/components/attendance/VoiceGuideManager';
 import { LatenessDashboard } from '@/components/attendance/LatenessDashboard';
 import { OneSignalConfig } from '@/components/attendance/OneSignalConfig';
+import { PushNotificationPrompt } from '@/components/attendance/PushNotificationPrompt';
 import FieldWorkDashboard from '@/pages/attendance/FieldWorkDashboard';
 import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText, Volume2, ClockAlert, Mic, Bell } from 'lucide-react';
 import { Card } from '@/components/ui/card';
@@ -85,6 +86,7 @@ export default function AttendanceDashboard() {
     { id: 'field-work', label: 'Field Work', icon: MapPin },
     { id: 'history', label: 'History', icon: Clock },
     { id: 'stats', label: 'Statistics', icon: TrendingUp },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
   ];
 
   const menuItems = isHRorAdmin ? hrMenuItems : staffMenuItems;
@@ -230,6 +232,8 @@ export default function AttendanceDashboard() {
           return <VoiceGuideManager />;
         case 'push-notifications':
           return <OneSignalConfig />;
+        case 'notifications':
+          return <OneSignalConfig />;
         default:
           return renderOverviewContent();
       }
@@ -250,6 +254,9 @@ export default function AttendanceDashboard() {
         
         {/* Offline queue indicator */}
         <OfflineQueueIndicator />
+        
+        {/* Push notification subscription prompt */}
+        <PushNotificationPrompt />
         
         {/* Sidebar */}
         <Sidebar className="border-r border-orange-100 dark:border-gray-800">
