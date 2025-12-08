@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Bell, BellRing, Loader2, Check, AlertCircle, XCircle } from 'lucide-react';
+import { useState } from 'react';
+import { Bell, BellRing, Loader2, Check, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useOneSignal } from '@/hooks/useOneSignal';
@@ -7,26 +7,13 @@ import { toast } from 'sonner';
 
 export function EmployeeNotificationSubscribe() {
   const [isSubscribing, setIsSubscribing] = useState(false);
-  const [initTimeout, setInitTimeout] = useState(false);
-  const { isInitialized, isSubscribed, requestPermission } = useOneSignal();
+  const { isInitialized, isSubscribed, hasAppId, requestPermission } = useOneSignal();
 
-  // Add timeout to show error if initialization takes too long
-  // OneSignal SDK load + init can take 10-15 seconds on slow connections
-  useEffect(() => {
-    // If already initialized, no need for timeout
-    if (isInitialized) {
-      setInitTimeout(false);
-      return;
-    }
-    
-    const timer = setTimeout(() => {
-      if (!isInitialized) {
-        setInitTimeout(true);
-      }
-    }, 15000); // 15 second timeout - SDK loading can be slow
-
-    return () => clearTimeout(timer);
-  }, [isInitialized]);
+  // Determine if we're still loading
+  const isLoading = hasAppId === null || (hasAppId === true && !isInitialized);
+  
+  // Not configured = hasAppId is explicitly false
+  const notConfigured = hasAppId === false;
 
   const handleSubscribe = async () => {
     setIsSubscribing(true);
@@ -70,30 +57,28 @@ export function EmployeeNotificationSubscribe() {
               You will receive push notifications for attendance events even when the app is closed.
             </p>
           </div>
-        ) : !isInitialized ? (
-          initTimeout ? (
-            <div className="text-center space-y-4 py-4">
-              <div className="inline-flex p-3 bg-orange-100 dark:bg-orange-900/30 rounded-full">
-                <AlertCircle className="w-8 h-8 text-orange-600 dark:text-orange-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-orange-600 dark:text-orange-400">
-                Notifications Not Configured
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Push notifications have not been set up by your HR administrator yet.
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Please contact HR to enable push notifications for your organization.
-              </p>
+        ) : notConfigured ? (
+          <div className="text-center space-y-4 py-4">
+            <div className="inline-flex p-3 bg-orange-100 dark:bg-orange-900/30 rounded-full">
+              <AlertCircle className="w-8 h-8 text-orange-600 dark:text-orange-400" />
             </div>
-          ) : (
-            <div className="text-center space-y-4 py-4">
-              <Loader2 className="w-8 h-8 animate-spin mx-auto text-orange-500" />
-              <p className="text-sm text-muted-foreground">
-                Initializing notification service...
-              </p>
-            </div>
-          )
+            <h3 className="text-lg font-semibold text-orange-600 dark:text-orange-400">
+              Notifications Not Configured
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Push notifications have not been set up by your HR administrator yet.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Please contact HR to enable push notifications for your organization.
+            </p>
+          </div>
+        ) : isLoading ? (
+          <div className="text-center space-y-4 py-4">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto text-orange-500" />
+            <p className="text-sm text-muted-foreground">
+              Connecting to notification service...
+            </p>
+          </div>
         ) : (
           <div className="space-y-4">
             <div className="bg-orange-50 dark:bg-orange-950/30 rounded-lg p-4 space-y-2">
