@@ -137,6 +137,7 @@ export function useLatenessData() {
 
       // Helper function to calculate lateness
       // Only grace period is used - anyone clocking in after work_start_time + grace_period is LATE
+      // Late minutes = time after grace period ends, NOT from work start time
       const calculateLateness = (clockInTime: string) => {
         const clockIn = new Date(clockInTime);
         const [workHour, workMin] = workStartTime.split(':').map(Number);
@@ -145,12 +146,14 @@ export function useLatenessData() {
         const workStart = new Date(clockIn);
         workStart.setHours(workHour, workMin, 0, 0);
         
-        // Late deadline = work start + grace period ONLY
+        // Late deadline = work start + grace period
         // e.g., work starts 8:00 + 5 min grace = 8:05 deadline, 8:06 is late
         const lateDeadline = new Date(workStart.getTime() + gracePeriod * 60 * 1000);
         
         if (clockIn > lateDeadline) {
-          const lateMinutes = Math.round((clockIn.getTime() - workStart.getTime()) / (60 * 1000));
+          // Calculate late minutes from the END of grace period, not from work start
+          // e.g., grace ends at 8:05, clock in at 8:06 = 1 min late
+          const lateMinutes = Math.round((clockIn.getTime() - lateDeadline.getTime()) / (60 * 1000));
           return { isLate: true, lateByMinutes: lateMinutes };
         }
         return { isLate: false, lateByMinutes: 0 };
