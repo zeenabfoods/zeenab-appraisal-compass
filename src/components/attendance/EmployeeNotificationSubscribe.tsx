@@ -11,12 +11,19 @@ export function EmployeeNotificationSubscribe() {
   const { isInitialized, isSubscribed, requestPermission } = useOneSignal();
 
   // Add timeout to show error if initialization takes too long
+  // OneSignal SDK load + init can take 10-15 seconds on slow connections
   useEffect(() => {
+    // If already initialized, no need for timeout
+    if (isInitialized) {
+      setInitTimeout(false);
+      return;
+    }
+    
     const timer = setTimeout(() => {
       if (!isInitialized) {
         setInitTimeout(true);
       }
-    }, 5000); // 5 second timeout
+    }, 15000); // 15 second timeout - SDK loading can be slow
 
     return () => clearTimeout(timer);
   }, [isInitialized]);
