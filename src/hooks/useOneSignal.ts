@@ -150,25 +150,17 @@ export function useOneSignal() {
   };
 
   const requestPermission = async () => {
-    if (!window.OneSignal || !isInitialized) {
-      console.log('[OneSignal] Not initialized, cannot request permission');
+    if (!window.OneSignal) {
+      console.log('[OneSignal] SDK not loaded, cannot request permission');
       return false;
     }
 
     try {
-      return new Promise<boolean>((resolve) => {
-        window.OneSignalDeferred?.push(async (OneSignal: any) => {
-          try {
-            const permission = await OneSignal.Notifications.requestPermission();
-            console.log('[OneSignal] Permission request result:', permission);
-            setIsSubscribed(permission);
-            resolve(permission);
-          } catch (error) {
-            console.error('[OneSignal] Error in permission request:', error);
-            resolve(false);
-          }
-        });
-      });
+      console.log('[OneSignal] Requesting notification permission...');
+      const permission = await window.OneSignal.Notifications.requestPermission();
+      console.log('[OneSignal] Permission request result:', permission);
+      setIsSubscribed(permission);
+      return permission;
     } catch (error) {
       console.error('[OneSignal] Error requesting notification permission:', error);
       return false;
