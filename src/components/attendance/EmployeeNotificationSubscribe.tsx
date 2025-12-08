@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Bell, BellRing, Loader2, Check, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Bell, BellRing, Loader2, Check, AlertCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useOneSignal } from '@/hooks/useOneSignal';
@@ -7,7 +7,19 @@ import { toast } from 'sonner';
 
 export function EmployeeNotificationSubscribe() {
   const [isSubscribing, setIsSubscribing] = useState(false);
+  const [initTimeout, setInitTimeout] = useState(false);
   const { isInitialized, isSubscribed, requestPermission } = useOneSignal();
+
+  // Add timeout to show error if initialization takes too long
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!isInitialized) {
+        setInitTimeout(true);
+      }
+    }, 5000); // 5 second timeout
+
+    return () => clearTimeout(timer);
+  }, [isInitialized]);
 
   const handleSubscribe = async () => {
     setIsSubscribing(true);
@@ -52,15 +64,29 @@ export function EmployeeNotificationSubscribe() {
             </p>
           </div>
         ) : !isInitialized ? (
-          <div className="text-center space-y-4 py-4">
-            <Loader2 className="w-8 h-8 animate-spin mx-auto text-orange-500" />
-            <p className="text-sm text-muted-foreground">
-              Initializing notification service...
-            </p>
-            <p className="text-xs text-muted-foreground">
-              If this takes too long, notifications may not be configured yet. Please contact HR.
-            </p>
-          </div>
+          initTimeout ? (
+            <div className="text-center space-y-4 py-4">
+              <div className="inline-flex p-3 bg-orange-100 dark:bg-orange-900/30 rounded-full">
+                <AlertCircle className="w-8 h-8 text-orange-600 dark:text-orange-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-orange-600 dark:text-orange-400">
+                Notifications Not Configured
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Push notifications have not been set up by your HR administrator yet.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Please contact HR to enable push notifications for your organization.
+              </p>
+            </div>
+          ) : (
+            <div className="text-center space-y-4 py-4">
+              <Loader2 className="w-8 h-8 animate-spin mx-auto text-orange-500" />
+              <p className="text-sm text-muted-foreground">
+                Initializing notification service...
+              </p>
+            </div>
+          )
         ) : (
           <div className="space-y-4">
             <div className="bg-orange-50 dark:bg-orange-950/30 rounded-lg p-4 space-y-2">
