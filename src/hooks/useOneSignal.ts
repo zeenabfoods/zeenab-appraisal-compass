@@ -10,9 +10,10 @@ declare global {
 }
 
 export function useOneSignal() {
-  const { user, profile } = useAuthContext();
+  const { user } = useAuthContext();
   const [isInitialized, setIsInitialized] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [hasAppId, setHasAppId] = useState<boolean | null>(null);
 
   useEffect(() => {
     initOneSignal();
@@ -26,57 +27,112 @@ export function useOneSignal() {
 
   const initOneSignal = async () => {
     try {
+      console.log('[OneSignal] Starting initialization...');
+      
       // Fetch app ID from settings
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('attendance_settings')
-        .select('*')
+        .select('onesignal_app_id')
         .maybeSingle();
 
-      const settings = data as Record<string, unknown> | null;
-      const onesignalAppId = settings?.onesignal_app_id as string | undefined;
-      if (!onesignalAppId) {
-        console.log('OneSignal App ID not configured');
+      if (error) {
+        console.error('[OneSignal] Error fetching settings:', error);
+        setHasAppId(false);
         return;
       }
 
-      // Load OneSignal SDK
-      if (!window.OneSignal) {
-        window.OneSignalDeferred = window.OneSignalDeferred || [];
-        
-        const script = document.createElement('script');
-        script.src = 'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
-        script.defer = true;
-        document.head.appendChild(script);
-
-        await new Promise<void>((resolve) => {
-          script.onload = () => resolve();
-        });
+      const onesignalAppId = data?.onesignal_app_id;
+      
+      if (!onesignalAppId) {
+        console.log('[OneSignal] App ID not configured in settings');
+        setHasAppId(false);
+        return;
       }
 
+      console.log('[OneSignal] App ID found:', onesignalAppId.substring(0, 8) + '...');
+      setHasAppId(true);
+
+      // Check if OneSignal is already initialized
+      if (window.OneSignal?.Notifications) {
+        console.log('[OneSignal] SDK already initialized, checking status...');
+        try {
+          const permission = await window.OneSignal.Notifications.permission;
+          setIsSubscribed(permission);
+          setIsInitialized(true);
+          console.log('[OneSignal] Already initialized, permission:', permission);
+          return;
+        } catch (e) {
+          console.log('[OneSignal] SDK exists but not fully ready, continuing init...');
+        }
+      }
+
+      // Load OneSignal SDK if not present
+      if (!window.OneSignal) {
+        console.log('[OneSignal] Loading SDK script...');
+        window.OneSignalDeferred = window.OneSignalDeferred || [];
+        
+        const existingScript = document.querySelector('script[src*="OneSignalSDK"]');
+        if (!existingScript) {
+          const script = document.createElement('script');
+          script.src = 'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
+          script.defer = true;
+          document.head.appendChild(script);
+
+          await new Promise<void>((resolve, reject) => {
+            script.onload = () => {
+              console.log('[OneSignal] SDK script loaded');
+              resolve();
+            };
+            script.onerror = () => {
+              console.error('[OneSignal] Failed to load SDK script');
+              reject(new Error('Failed to load OneSignal SDK'));
+            };
+          });
+        } else {
+          console.log('[OneSignal] SDK script already in DOM');
+        }
+      }
+
+      // Initialize OneSignal
+      console.log('[OneSignal] Initializing SDK...');
       window.OneSignalDeferred = window.OneSignalDeferred || [];
+      
       window.OneSignalDeferred.push(async (OneSignal: any) => {
-        await OneSignal.init({
-          appId: onesignalAppId,
-          safari_web_id: undefined,
-          notifyButton: {
-            enable: false,
-          },
-          allowLocalhostAsSecureOrigin: true,
-        });
+        try {
+          console.log('[OneSignal] Running init callback...');
+          
+          await OneSignal.init({
+            appId: onesignalAppId,
+            safari_web_id: undefined,
+            notifyButton: {
+              enable: false,
+            },
+            allowLocalhostAsSecureOrigin: true,
+          });
 
-        setIsInitialized(true);
+          console.log('[OneSignal] SDK initialized successfully');
+          setIsInitialized(true);
 
-        // Check subscription status
-        const permission = await OneSignal.Notifications.permission;
-        setIsSubscribed(permission);
+          // Check subscription status
+          const permission = await OneSignal.Notifications.permission;
+          console.log('[OneSignal] Permission status:', permission);
+          setIsSubscribed(permission);
 
-        // Listen for subscription changes
-        OneSignal.Notifications.addEventListener('permissionChange', (granted: boolean) => {
-          setIsSubscribed(granted);
-        });
+          // Listen for subscription changes
+          OneSignal.Notifications.addEventListener('permissionChange', (granted: boolean) => {
+            console.log('[OneSignal] Permission changed:', granted);
+            setIsSubscribed(granted);
+          });
+        } catch (initError) {
+          console.error('[OneSignal] Error in init callback:', initError);
+          // Still mark as initialized if there's a partial failure
+          setIsInitialized(true);
+        }
       });
+      
     } catch (error) {
-      console.error('Error initializing OneSignal:', error);
+      console.error('[OneSignal] Error initializing:', error);
+      setHasAppId(false);
     }
   };
 
@@ -86,29 +142,35 @@ export function useOneSignal() {
     try {
       window.OneSignalDeferred?.push(async (OneSignal: any) => {
         await OneSignal.login(userId);
-        console.log('OneSignal external user ID set:', userId);
+        console.log('[OneSignal] External user ID set:', userId);
       });
     } catch (error) {
-      console.error('Error setting OneSignal external user ID:', error);
+      console.error('[OneSignal] Error setting external user ID:', error);
     }
   };
 
   const requestPermission = async () => {
     if (!window.OneSignal || !isInitialized) {
-      console.log('OneSignal not initialized');
+      console.log('[OneSignal] Not initialized, cannot request permission');
       return false;
     }
 
     try {
       return new Promise<boolean>((resolve) => {
         window.OneSignalDeferred?.push(async (OneSignal: any) => {
-          const permission = await OneSignal.Notifications.requestPermission();
-          setIsSubscribed(permission);
-          resolve(permission);
+          try {
+            const permission = await OneSignal.Notifications.requestPermission();
+            console.log('[OneSignal] Permission request result:', permission);
+            setIsSubscribed(permission);
+            resolve(permission);
+          } catch (error) {
+            console.error('[OneSignal] Error in permission request:', error);
+            resolve(false);
+          }
         });
       });
     } catch (error) {
-      console.error('Error requesting notification permission:', error);
+      console.error('[OneSignal] Error requesting notification permission:', error);
       return false;
     }
   };
@@ -127,7 +189,7 @@ export function useOneSignal() {
       if (error) throw error;
       return true;
     } catch (error) {
-      console.error('Error sending notification:', error);
+      console.error('[OneSignal] Error sending notification:', error);
       return false;
     }
   };
@@ -146,7 +208,7 @@ export function useOneSignal() {
       if (error) throw error;
       return true;
     } catch (error) {
-      console.error('Error sending notification:', error);
+      console.error('[OneSignal] Error sending notification:', error);
       return false;
     }
   };
@@ -154,6 +216,7 @@ export function useOneSignal() {
   return {
     isInitialized,
     isSubscribed,
+    hasAppId,
     requestPermission,
     sendNotificationToUser,
     sendNotificationToAll,
