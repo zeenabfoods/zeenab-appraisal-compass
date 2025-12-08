@@ -150,37 +150,66 @@ export function useOneSignal() {
   };
 
   const requestPermission = async (): Promise<boolean> => {
+    console.log('[OneSignal] requestPermission called');
+    
+    // First check native browser permission
+    if ('Notification' in window) {
+      const nativePermission = Notification.permission;
+      console.log('[OneSignal] Native browser permission:', nativePermission);
+      
+      if (nativePermission === 'denied') {
+        console.log('[OneSignal] Browser notifications are blocked');
+        throw new Error('Notifications are blocked in your browser. Please enable them in your browser settings.');
+      }
+      
+      // If not determined yet, request native permission first
+      if (nativePermission === 'default') {
+        console.log('[OneSignal] Requesting native browser permission...');
+        const result = await Notification.requestPermission();
+        console.log('[OneSignal] Native permission result:', result);
+        
+        if (result === 'denied') {
+          throw new Error('Notification permission was denied. Please enable in browser settings.');
+        }
+        
+        if (result === 'granted') {
+          setIsSubscribed(true);
+          
+          // Now register with OneSignal if available
+          if (window.OneSignal?.Notifications) {
+            try {
+              await window.OneSignal.Notifications.requestPermission();
+            } catch (e) {
+              console.log('[OneSignal] OneSignal registration error (non-fatal):', e);
+            }
+          }
+          
+          return true;
+        }
+      }
+      
+      // Already granted
+      if (nativePermission === 'granted') {
+        setIsSubscribed(true);
+        return true;
+      }
+    }
+
+    // Fallback to OneSignal SDK
     if (!window.OneSignal) {
       console.log('[OneSignal] SDK not loaded, cannot request permission');
-      return false;
+      throw new Error('Notification service not available');
     }
 
     try {
-      console.log('[OneSignal] Requesting notification permission...');
-      
-      // Add timeout to prevent infinite waiting
-      const timeoutPromise = new Promise<boolean>((_, reject) => {
-        setTimeout(() => reject(new Error('Permission request timed out')), 30000);
-      });
-      
-      const permissionPromise = window.OneSignal.Notifications.requestPermission();
-      
-      const permission = await Promise.race([permissionPromise, timeoutPromise]);
+      console.log('[OneSignal] Requesting via OneSignal SDK...');
+      const permission = await window.OneSignal.Notifications.requestPermission();
       console.log('[OneSignal] Permission request result:', permission);
       setIsSubscribed(permission === true);
       return permission === true;
     } catch (error) {
       console.error('[OneSignal] Error requesting notification permission:', error);
-      
-      // Check current permission state as fallback
-      try {
-        const currentPermission = await window.OneSignal.Notifications.permission;
-        console.log('[OneSignal] Current permission state:', currentPermission);
-        setIsSubscribed(currentPermission === true);
-        return currentPermission === true;
-      } catch {
-        return false;
-      }
+      throw error;
     }
   };
 

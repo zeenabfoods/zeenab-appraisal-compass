@@ -22,11 +22,12 @@ export function EmployeeNotificationSubscribe() {
       if (granted) {
         toast.success('Successfully subscribed to push notifications!');
       } else {
-        toast.error('Notification permission denied. Please enable in your browser settings.');
+        toast.error('Notification permission was not granted. Please try again or enable in browser settings.');
       }
     } catch (error: any) {
       console.error('Error subscribing:', error);
-      toast.error('Failed to subscribe to notifications');
+      const message = error?.message || 'Failed to subscribe to notifications';
+      toast.error(message);
     } finally {
       setIsSubscribing(false);
     }
