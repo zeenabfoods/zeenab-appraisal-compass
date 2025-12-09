@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthContext } from '@/components/AuthProvider';
 
@@ -14,9 +14,13 @@ export function useOneSignal() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [hasAppId, setHasAppId] = useState<boolean | null>(null);
+  const initAttempted = useRef(false);
 
   useEffect(() => {
-    initOneSignal();
+    if (!initAttempted.current) {
+      initAttempted.current = true;
+      initOneSignal();
+    }
   }, []);
 
   useEffect(() => {
@@ -38,6 +42,7 @@ export function useOneSignal() {
       if (error) {
         console.error('[OneSignal] Error fetching settings:', error);
         setHasAppId(false);
+        setIsInitialized(true); // Mark as initialized even on error
         return;
       }
 
@@ -46,11 +51,33 @@ export function useOneSignal() {
       if (!onesignalAppId) {
         console.log('[OneSignal] App ID not configured in settings');
         setHasAppId(false);
+        setIsInitialized(true); // Mark as initialized even without app ID
         return;
       }
 
       console.log('[OneSignal] App ID found:', onesignalAppId.substring(0, 8) + '...');
       setHasAppId(true);
+
+      // Check if native browser notifications are supported
+      if (!('Notification' in window)) {
+        console.log('[OneSignal] Browser does not support notifications');
+        setIsInitialized(true);
+        return;
+      }
+
+      // Check current permission status
+      const currentPermission = Notification.permission;
+      console.log('[OneSignal] Current browser permission:', currentPermission);
+      
+      if (currentPermission === 'granted') {
+        setIsSubscribed(true);
+      }
+
+      // Set a timeout to ensure we don't stay in loading state forever
+      const initTimeout = setTimeout(() => {
+        console.log('[OneSignal] Init timeout reached, marking as initialized');
+        setIsInitialized(true);
+      }, 5000);
 
       // Check if OneSignal is already initialized
       if (window.OneSignal?.Notifications) {
@@ -59,6 +86,7 @@ export function useOneSignal() {
           const permission = await window.OneSignal.Notifications.permission;
           setIsSubscribed(permission);
           setIsInitialized(true);
+          clearTimeout(initTimeout);
           console.log('[OneSignal] Already initialized, permission:', permission);
           return;
         } catch (e) {
@@ -85,6 +113,8 @@ export function useOneSignal() {
             };
             script.onerror = () => {
               console.error('[OneSignal] Failed to load SDK script');
+              setIsInitialized(true);
+              clearTimeout(initTimeout);
               reject(new Error('Failed to load OneSignal SDK'));
             };
           });
@@ -112,6 +142,7 @@ export function useOneSignal() {
 
           console.log('[OneSignal] SDK initialized successfully');
           setIsInitialized(true);
+          clearTimeout(initTimeout);
 
           // Check subscription status
           const permission = await OneSignal.Notifications.permission;
@@ -125,14 +156,15 @@ export function useOneSignal() {
           });
         } catch (initError) {
           console.error('[OneSignal] Error in init callback:', initError);
-          // Still mark as initialized if there's a partial failure
           setIsInitialized(true);
+          clearTimeout(initTimeout);
         }
       });
       
     } catch (error) {
       console.error('[OneSignal] Error initializing:', error);
       setHasAppId(false);
+      setIsInitialized(true); // Always mark as initialized even on error
     }
   };
 

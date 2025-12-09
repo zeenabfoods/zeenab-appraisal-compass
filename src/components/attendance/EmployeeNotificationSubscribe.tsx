@@ -9,11 +9,12 @@ export function EmployeeNotificationSubscribe() {
   const [isSubscribing, setIsSubscribing] = useState(false);
   const { isInitialized, isSubscribed, hasAppId, requestPermission } = useOneSignal();
 
-  // Determine if we're still loading
-  const isLoading = hasAppId === null || (hasAppId === true && !isInitialized);
+  // Determine loading state - loading only when hasAppId is still null (initial check)
+  // Once hasAppId is determined (true or false), we're done loading
+  const isLoading = hasAppId === null;
   
-  // Not configured = hasAppId is explicitly false
-  const notConfigured = hasAppId === false;
+  // Not configured = hasAppId is explicitly false AND we're initialized
+  const notConfigured = hasAppId === false && isInitialized;
 
   const handleSubscribe = async () => {
     setIsSubscribing(true);
