@@ -770,6 +770,7 @@ export type Database = {
           late_by_minutes: number | null
           location_type: string
           night_shift_hours: number | null
+          overtime_amount: number | null
           overtime_approved: boolean | null
           overtime_approved_at: string | null
           overtime_hours: number | null
@@ -803,6 +804,7 @@ export type Database = {
           late_by_minutes?: number | null
           location_type: string
           night_shift_hours?: number | null
+          overtime_amount?: number | null
           overtime_approved?: boolean | null
           overtime_approved_at?: string | null
           overtime_hours?: number | null
@@ -836,6 +838,7 @@ export type Database = {
           late_by_minutes?: number | null
           location_type?: string
           night_shift_hours?: number | null
+          overtime_amount?: number | null
           overtime_approved?: boolean | null
           overtime_approved_at?: string | null
           overtime_hours?: number | null
@@ -1669,6 +1672,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      overtime_rates: {
+        Row: {
+          created_at: string
+          day_type: string
+          id: string
+          position_name: string
+          rate_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          day_type: string
+          id?: string
+          position_name: string
+          rate_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          day_type?: string
+          id?: string
+          position_name?: string
+          rate_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       performance_analytics: {
         Row: {

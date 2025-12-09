@@ -30,8 +30,10 @@ import { LatenessDashboard } from '@/components/attendance/LatenessDashboard';
 import { OneSignalConfig } from '@/components/attendance/OneSignalConfig';
 import { PushNotificationPrompt } from '@/components/attendance/PushNotificationPrompt';
 import { EmployeeNotificationSubscribe } from '@/components/attendance/EmployeeNotificationSubscribe';
+import { OvertimeRatesConfig } from '@/components/attendance/OvertimeRatesConfig';
+import { OvertimeHistory } from '@/components/attendance/OvertimeHistory';
 import FieldWorkDashboard from '@/pages/attendance/FieldWorkDashboard';
-import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText, Volume2, ClockAlert, Mic, Bell } from 'lucide-react';
+import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText, Volume2, ClockAlert, Mic, Bell, Timer } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import {
   Sidebar,
@@ -68,6 +70,7 @@ export default function AttendanceDashboard() {
     { id: 'escalation', label: 'Escalation Rules', icon: ArrowUpCircle },
     { id: 'auto-charges', label: 'Auto Charge Engine', icon: Calculator },
     { id: 'overtime-report', label: 'Overtime Payroll', icon: FileText },
+    { id: 'overtime-rates', label: 'Overtime Rates', icon: Timer },
     { id: 'overrides', label: 'Manual Overrides', icon: Edit3 },
     { id: 'break-config', label: 'Break Config', icon: Settings },
     { id: 'break-compliance', label: 'Compliance', icon: AlertCircle },
@@ -85,6 +88,7 @@ export default function AttendanceDashboard() {
     { id: 'overview', label: 'Overview', icon: Clock },
     { id: 'breaks', label: 'Breaks', icon: Coffee },
     { id: 'field-work', label: 'Field Work', icon: MapPin },
+    { id: 'overtime-history', label: 'Overtime History', icon: Timer },
     { id: 'history', label: 'History', icon: Clock },
     { id: 'stats', label: 'Statistics', icon: TrendingUp },
     { id: 'notifications', label: 'Notifications', icon: Bell },
@@ -225,6 +229,10 @@ export default function AttendanceDashboard() {
           return <AutomaticChargeCalculation />;
         case 'overtime-report':
           return <OvertimePayrollReport />;
+        case 'overtime-rates':
+          return <OvertimeRatesConfig />;
+        case 'overtime-history':
+          return <OvertimeHistory />;
         case 'overrides':
           return <ManualOverrides />;
         case 'alert-sound':
