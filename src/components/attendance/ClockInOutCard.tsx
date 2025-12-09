@@ -356,7 +356,18 @@ export function ClockInOutCard() {
     setFieldLocation('');
   };
 
-  const canClockIn = mode === 'field' || (mode === 'office' && activeBranches.length > 0 && !geoLoading);
+  const canClockIn = mode === 'field' || ((mode === 'office' || mode === 'night_shift') && activeBranches.length > 0 && !geoLoading);
+
+  // Calculate overtime hours from overtime_start_time to now
+  const calculateOvertimeHours = (overtimeStartTime: string): string => {
+    const startTime = new Date(overtimeStartTime);
+    const now = new Date();
+    const diffMs = now.getTime() - startTime.getTime();
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${minutes}m`;
+  };
+
   const clockInTime = todayLog ? new Date(todayLog.clock_in_time) : null;
   const elapsedMs = clockInTime ? Date.now() - clockInTime.getTime() : 0;
   const elapsedHours = Math.floor(elapsedMs / (1000 * 60 * 60));
@@ -436,8 +447,17 @@ export function ClockInOutCard() {
           {/* Hero Time Display */}
           <div className="text-center mb-4 sm:mb-6 w-full">
             <div className="text-xs uppercase tracking-widest text-white/60 mb-3 font-bold">
-              {isClocked ? 'Currently Active' : 'Ready to Start'}
+              {isClocked ? (todayLog?.overtime_approved ? 'Overtime Active' : 'Currently Active') : 'Ready to Start'}
             </div>
+            {/* Show overtime hours if approved */}
+            {isClocked && todayLog?.overtime_approved && todayLog?.overtime_start_time && (
+              <div className="mb-4 px-4 py-2 bg-green-500/20 rounded-xl border border-green-500/30">
+                <div className="text-sm text-green-400 font-semibold flex items-center justify-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  <span>Overtime: {calculateOvertimeHours(todayLog.overtime_start_time)}</span>
+                </div>
+              </div>
+            )}
             <div className="text-6xl sm:text-7xl md:text-8xl font-black text-white tracking-tighter mb-2 break-all relative">
               <span className="relative inline-block" style={{
                 textShadow: '0 0 40px hsl(var(--attendance-primary)), 0 0 80px hsl(var(--attendance-primary) / 0.5), 0 0 120px hsl(var(--attendance-primary) / 0.3)'
