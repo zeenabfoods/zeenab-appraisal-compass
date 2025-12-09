@@ -275,7 +275,7 @@ export function useAttendanceLogs() {
       // Fetch the log to check if overtime was approved
       const { data: logData } = await supabase
         .from('attendance_logs')
-        .select('overtime_approved, overtime_start_time')
+        .select('overtime_approved, overtime_start_time, is_night_shift')
         .eq('id', todayLog.id)
         .single();
 
@@ -287,20 +287,69 @@ export function useAttendanceLogs() {
         .limit(1)
         .single();
 
+      // Fetch employee position for overtime rate calculation
+      const { data: employeeProfile } = await supabase
+        .from('profiles')
+        .select('position')
+        .eq('id', profile!.id)
+        .single();
+
       let overtimeHours = 0;
-      let isNightShift = false;
+      let overtimeAmount = 0;
+      let isNightShift = logData?.is_night_shift || false;
       let nightShiftHours = 0;
 
-      // Calculate overtime hours only if overtime was approved
+      // Calculate overtime hours
       if (logData?.overtime_approved && logData?.overtime_start_time) {
+        // For approved overtime, calculate from overtime_start_time
         const overtimeStartTime = new Date(logData.overtime_start_time);
         const clockOutTimeDate = new Date(clockOutTime);
         const overtimeMs = clockOutTimeDate.getTime() - overtimeStartTime.getTime();
         overtimeHours = Math.max(0, overtimeMs / (1000 * 60 * 60));
+      } else if (isNightShift && rules?.work_start_time) {
+        // For night shift employees, overtime starts when they cross into day shift hours
+        const clockOutTimeDate = new Date(clockOutTime);
+        const [workStartH, workStartM] = rules.work_start_time.split(':').map(Number);
+        
+        // Create day shift start time for clock-out day
+        const dayShiftStart = new Date(clockOutTimeDate);
+        dayShiftStart.setHours(workStartH, workStartM, 0, 0);
+        
+        // Check if clock-out is after day shift start time
+        if (clockOutTimeDate > dayShiftStart) {
+          const overtimeMs = clockOutTimeDate.getTime() - dayShiftStart.getTime();
+          overtimeHours = Math.max(0, overtimeMs / (1000 * 60 * 60));
+        }
+      }
+
+      // Calculate overtime amount based on position and day type
+      if (overtimeHours > 0 && employeeProfile?.position) {
+        const clockOutDate = new Date(clockOutTime);
+        const dayOfWeek = clockOutDate.getDay();
+        let dayType: string;
+        
+        if (dayOfWeek === 0) {
+          dayType = 'sunday';
+        } else if (dayOfWeek === 6) {
+          dayType = 'saturday';
+        } else {
+          dayType = 'weekday';
+        }
+
+        // Fetch overtime rate for this position and day type
+        const { data: overtimeRate } = await supabase
+          .from('overtime_rates')
+          .select('rate_amount')
+          .eq('position_name', employeeProfile.position)
+          .eq('day_type', dayType)
+          .maybeSingle();
+
+        if (overtimeRate) {
+          overtimeAmount = overtimeHours * overtimeRate.rate_amount;
+        }
       }
 
       if (rules) {
-
         // Detect night shift (check if clock-in is within night shift window)
         const nightStart = rules.night_shift_start_time || '22:00';
         const nightEnd = rules.night_shift_end_time || '06:00';
@@ -316,10 +365,10 @@ export function useAttendanceLogs() {
         // Handle night shift window that spans midnight
         if (nightStartMinutes > nightEndMinutes) {
           // e.g., 22:00 to 06:00
-          isNightShift = clockInMinutes >= nightStartMinutes || clockInMinutes <= nightEndMinutes;
+          isNightShift = isNightShift || clockInMinutes >= nightStartMinutes || clockInMinutes <= nightEndMinutes;
         } else {
           // e.g., 00:00 to 08:00
-          isNightShift = clockInMinutes >= nightStartMinutes && clockInMinutes <= nightEndMinutes;
+          isNightShift = isNightShift || (clockInMinutes >= nightStartMinutes && clockInMinutes <= nightEndMinutes);
         }
 
         // Calculate night shift hours (simplified: if night shift, count hours within window)
@@ -337,6 +386,7 @@ export function useAttendanceLogs() {
           within_geofence_at_clock_out: withinGeofence,
           total_hours: Number(totalHours.toFixed(2)),
           overtime_hours: Number(overtimeHours.toFixed(2)),
+          overtime_amount: Number(overtimeAmount.toFixed(2)),
           is_night_shift: isNightShift,
           night_shift_hours: Number(nightShiftHours.toFixed(2)),
           early_closure: isEarlyClosure,
@@ -372,7 +422,7 @@ export function useAttendanceLogs() {
       
       let message = 'Clocked out successfully';
       if (overtimeHours > 0) {
-        message += ` • +${overtimeHours.toFixed(1)}h overtime`;
+        message += ` • +${overtimeHours.toFixed(1)}h overtime (₦${overtimeAmount.toLocaleString()})`;
       }
       if (isNightShift) {
         message += ` • Night shift`;
