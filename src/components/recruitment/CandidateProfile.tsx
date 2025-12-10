@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Candidate } from "./mockData";
 import { RadarChartComparison } from "./RadarChartComparison";
 import { MatchScoreCircle } from "./MatchScoreCircle";
-import { DocumentPreview } from "./DocumentPreview";
+import { ResumePreview } from "./ResumePreview";
+import { CandidateInfoCard } from "./CandidateInfoCard";
 import { BoardEvaluationPanel } from "./BoardEvaluationPanel";
-import { FileText, Mail, Phone, Briefcase } from "lucide-react";
+import { HireDecisionScreen } from "./HireDecisionScreen";
+import { FileText, Mail, Phone, Briefcase, ClipboardCheck, Award } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DbEvaluation } from "@/hooks/useRecruitmentData";
 
@@ -41,58 +44,30 @@ export function CandidateProfile({
   onReject,
   onSubmitEvaluation
 }: CandidateProfileProps) {
+  // Calculate years of experience from skills
+  const yearsOfExperience = candidate.skills?.experience 
+    ? Math.round(candidate.skills.experience / 10) 
+    : undefined;
+
+  // Check if evaluations exist
+  const hasEvaluations = evaluations.filter(e => e.submitted_at).length > 0;
 
   return (
     <div className="p-6">
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Left Column - Document & Extraction (60%) */}
         <div className="lg:col-span-3 space-y-6">
-          {/* Extracted Header Data */}
-          <Card className="shadow-sm">
-            <CardContent className="p-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-orange-50 shrink-0">
-                    <FileText className="h-4 w-4 text-recruitment-primary" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">Name</p>
-                    <p className="font-medium text-sm truncate">{candidate.name}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-orange-50 shrink-0">
-                    <Mail className="h-4 w-4 text-recruitment-primary" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">Email</p>
-                    <p className="font-medium text-sm truncate">{candidate.email}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-orange-50 shrink-0">
-                    <Phone className="h-4 w-4 text-recruitment-primary" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">Phone</p>
-                    <p className="font-medium text-sm whitespace-nowrap">{candidate.phone}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-orange-50 shrink-0">
-                    <Briefcase className="h-4 w-4 text-recruitment-primary" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">Current Role</p>
-                    <p className="font-medium text-sm truncate">{candidate.currentRole}</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Enhanced Info Card with hover animations */}
+          <CandidateInfoCard
+            name={candidate.name}
+            email={candidate.email}
+            phone={candidate.phone}
+            currentRole={candidate.currentRole}
+            yearsOfExperience={yearsOfExperience}
+          />
 
-          {/* Document Preview */}
-          <DocumentPreview candidateName={candidate.name} />
+          {/* Resume Preview with actual candidate data */}
+          <ResumePreview candidate={candidate} />
         </div>
 
         {/* Right Column - Evaluation Dashboard (40%) */}
@@ -152,19 +127,49 @@ export function CandidateProfile({
             </CardContent>
           </Card>
 
-          {/* Board Evaluation Panel */}
-          <BoardEvaluationPanel
-            candidateId={candidate.id}
-            candidateName={candidate.name}
-            candidateStatus={candidate.status}
-            evaluations={evaluations}
-            currentUserId={currentUserId}
-            isHROrAdmin={isHROrAdmin}
-            passingThreshold={passingThreshold}
-            onSubmitEvaluation={onSubmitEvaluation}
-            onHire={() => onHire(candidate.id)}
-            onReject={() => onReject(candidate.id)}
-          />
+          {/* Tabbed Evaluation & Decision Area */}
+          <Tabs defaultValue={hasEvaluations ? "decision" : "evaluate"} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="evaluate" className="gap-2">
+                <ClipboardCheck className="h-4 w-4" />
+                Evaluate
+              </TabsTrigger>
+              <TabsTrigger value="decision" className="gap-2">
+                <Award className="h-4 w-4" />
+                Hire Decision
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="evaluate" className="mt-4">
+              <BoardEvaluationPanel
+                candidateId={candidate.id}
+                candidateName={candidate.name}
+                candidateStatus={candidate.status}
+                evaluations={evaluations}
+                currentUserId={currentUserId}
+                isHROrAdmin={isHROrAdmin}
+                passingThreshold={passingThreshold}
+                onSubmitEvaluation={onSubmitEvaluation}
+                onHire={() => onHire(candidate.id)}
+                onReject={() => onReject(candidate.id)}
+              />
+            </TabsContent>
+            
+            <TabsContent value="decision" className="mt-4">
+              <HireDecisionScreen
+                candidateId={candidate.id}
+                candidateName={candidate.name}
+                candidateRole={candidate.currentRole}
+                candidateStatus={candidate.status}
+                matchScore={candidate.matchScore}
+                evaluations={evaluations}
+                passingThreshold={passingThreshold}
+                isHROrAdmin={isHROrAdmin}
+                onHire={() => onHire(candidate.id)}
+                onReject={() => onReject(candidate.id)}
+              />
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>
