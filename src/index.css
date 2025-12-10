@@ -25,6 +25,10 @@
     --attendance-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
     --attendance-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
     --attendance-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+    
+    /* Recruitment Module - Vibrant Orange */
+    --recruitment-primary: 14 100% 57%; /* #FF5722 */
+    --recruitment-primary-hover: 14 100% 50%;
 
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
