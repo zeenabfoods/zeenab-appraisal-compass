@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, getDay, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { DateRange } from 'react-day-picker';
-import { useOvertimeRates } from '@/hooks/attendance/useOvertimeRates';
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,38 +59,6 @@ export function OvertimePayrollReport() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeletingEmployee, setIsDeletingEmployee] = useState<string | null>(null);
 
-  const { rates } = useOvertimeRates();
-
-  // Helper to get overtime rate based on position and day
-  const getOvertimeRate = (position: string, date: Date): number => {
-    const dayOfWeek = getDay(date);
-    let dayType: 'weekday' | 'saturday' | 'sunday';
-    
-    if (dayOfWeek === 0) {
-      dayType = 'sunday';
-    } else if (dayOfWeek === 6) {
-      dayType = 'saturday';
-    } else {
-      dayType = 'weekday';
-    }
-
-    // Try to match position
-    const normalizedPosition = position?.toLowerCase() || '';
-    let matchedPosition = 'Helper'; // Default
-
-    if (normalizedPosition.includes('operator')) {
-      matchedPosition = 'Operator';
-    } else if (normalizedPosition.includes('helper') || normalizedPosition.includes('cleaner')) {
-      matchedPosition = 'Helper';
-    }
-
-    const rate = rates.find(
-      r => r.position_name === matchedPosition && r.day_type === dayType
-    );
-
-    return rate?.rate_amount || 800; // Default ₦800/hour
-  };
-
   // Calculate date range based on filter mode
   const getDateRange = (): { startDate: string; endDate: string } => {
     switch (filterMode) {
@@ -129,9 +97,42 @@ export function OvertimePayrollReport() {
   };
 
   const { data: overtimeData, isLoading, refetch } = useQuery({
-    queryKey: ['overtime-report', filterMode, selectedDate, selectedMonth, selectedYear, dateRange, rates],
+    queryKey: ['overtime-report', filterMode, selectedDate, selectedMonth, selectedYear, dateRange],
     queryFn: async () => {
       const { startDate, endDate } = getDateRange();
+
+      // Fetch overtime rates from database
+      const { data: overtimeRates } = await supabase
+        .from('overtime_rates')
+        .select('*');
+
+      // Helper to get rate based on position and day
+      const getRateForLog = (position: string, clockInTime: Date): number => {
+        const dayOfWeek = getDay(clockInTime);
+        let dayType: 'weekday' | 'saturday' | 'sunday';
+        
+        if (dayOfWeek === 0) {
+          dayType = 'sunday';
+        } else if (dayOfWeek === 6) {
+          dayType = 'saturday';
+        } else {
+          dayType = 'weekday';
+        }
+
+        const normalizedPosition = position?.toLowerCase() || '';
+        let matchedPosition = 'Helper';
+
+        if (normalizedPosition.includes('operator')) {
+          matchedPosition = 'Operator';
+        }
+
+        const rate = overtimeRates?.find(
+          r => r.position_name === matchedPosition && r.day_type === dayType
+        );
+
+        // Use configured rates: Operator weekday=1000, Helper weekday=800, etc.
+        return rate?.rate_amount || (matchedPosition === 'Operator' ? 1000 : 800);
+      };
 
       // Fetch attendance logs with all relevant data
       const { data: logs, error } = await supabase
@@ -218,8 +219,8 @@ export function OvertimePayrollReport() {
           employee.total_overtime_hours += actualOvertimeHours;
           employee.days_with_overtime += 1;
           
-          // Calculate overtime payment based on position and day
-          const hourlyRate = getOvertimeRate(log.employee.position, clockInTime);
+          // Calculate overtime payment based on position and day using configured rates
+          const hourlyRate = getRateForLog(log.employee.position, clockInTime);
           employee.overtime_amount += actualOvertimeHours * hourlyRate;
         }
 
@@ -826,7 +827,7 @@ export function OvertimePayrollReport() {
 
           <div className="flex items-center justify-between pt-4 border-t flex-wrap gap-4">
             <div className="text-sm text-muted-foreground">
-              Rates: Operator (₦1000/800/1500/2000) | Helper (₦800/1200/1500) per hour by day type
+              <span className="font-medium">Configured Rates:</span> Weekday: Operator ₦1,000 | Helper ₦800 • Saturday: Operator ₦1,500 | Helper ₦1,200 • Sunday: Operator ₦2,000 | Helper ₦1,500
             </div>
             <div className="text-right">
               <div className="text-sm text-muted-foreground">Grand Total</div>
