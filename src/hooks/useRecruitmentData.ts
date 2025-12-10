@@ -250,20 +250,52 @@ export function useRecruitmentData() {
     return data?.[0] || null;
   };
 
-  // Delete all candidates (for HR to clear mock data)
-  const deleteAllCandidates = async () => {
+  // Delete a single candidate
+  const deleteCandidate = async (candidateId: string) => {
     if (!isHROrAdmin) return;
 
+    // First delete evaluations for this candidate
+    await supabase
+      .from('candidate_evaluations')
+      .delete()
+      .eq('candidate_id', candidateId);
+
+    // Then delete the candidate
     const { error } = await supabase
       .from('candidates')
       .delete()
-      .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+      .eq('id', candidateId);
 
     if (error) throw error;
     await fetchCandidates();
     toast({
-      title: "All Candidates Deleted",
-      description: "All candidate data has been cleared."
+      title: "Candidate Deleted",
+      description: "Candidate record has been removed."
+    });
+  };
+
+  // Delete all candidates (for HR to clear mock data)
+  const deleteAllCandidates = async () => {
+    if (!isHROrAdmin) return;
+
+    // First delete all evaluations
+    await supabase
+      .from('candidate_evaluations')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000');
+
+    // Then delete all candidates
+    const { error } = await supabase
+      .from('candidates')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000');
+
+    if (error) throw error;
+    await fetchCandidates();
+    setEvaluations([]);
+    toast({
+      title: "All Data Cleared",
+      description: "All candidates and evaluations have been deleted."
     });
   };
 
@@ -298,6 +330,7 @@ export function useRecruitmentData() {
     updateCandidateStatus,
     submitEvaluation,
     getAggregatedScore,
+    deleteCandidate,
     deleteAllCandidates
   };
 }
