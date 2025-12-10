@@ -31,9 +31,77 @@ export function UploadResumeDialog({
   const [extractedData, setExtractedData] = useState<Candidate | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Enhanced email extraction patterns
+  const extractEmail = (text: string): string | null => {
+    // Multiple patterns for email extraction
+    const emailPatterns = [
+      /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/gi,
+      /(?:email|e-mail|mail|contact)[:\s]*([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,})/gi,
+    ];
+    
+    for (const pattern of emailPatterns) {
+      const matches = text.match(pattern);
+      if (matches && matches.length > 0) {
+        // Clean the email
+        const email = matches[0].replace(/^(?:email|e-mail|mail|contact)[:\s]*/i, '').trim();
+        if (email.includes('@')) {
+          return email.toLowerCase();
+        }
+      }
+    }
+    return null;
+  };
+
+  // Enhanced phone number extraction patterns
+  const extractPhone = (text: string): string | null => {
+    // Multiple patterns for phone extraction - handles various formats
+    const phonePatterns = [
+      // Nigerian format: +234, 0803, etc.
+      /(?:\+?234|0)[789][01]\d{8}/g,
+      // International format with country code
+      /\+?\d{1,3}[-.\s]?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/g,
+      // General patterns
+      /(?:phone|tel|mobile|cell|contact)[:\s]*([+\d\s\-().]{10,})/gi,
+      // Simple numeric patterns (10+ digits)
+      /\b\d{10,14}\b/g,
+    ];
+    
+    for (const pattern of phonePatterns) {
+      const matches = text.match(pattern);
+      if (matches && matches.length > 0) {
+        // Clean the phone number
+        let phone = matches[0].replace(/^(?:phone|tel|mobile|cell|contact)[:\s]*/i, '').trim();
+        // Remove non-phone characters but keep + for country code
+        phone = phone.replace(/[^\d+]/g, '');
+        if (phone.length >= 10) {
+          return phone;
+        }
+      }
+    }
+    return null;
+  };
+
+  // Read file content for text extraction
+  const readFileContent = async (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string || '';
+        resolve(content);
+      };
+      reader.onerror = () => resolve('');
+      
+      // Try to read as text (works for some doc formats)
+      reader.readAsText(file);
+    });
+  };
+
   const simulateUpload = async (file: File) => {
     setState('uploading');
     setFileName(file.name);
+    
+    // Read file content for extraction
+    const fileContent = await readFileContent(file);
     
     // Simulate upload progress
     for (let i = 0; i <= 100; i += 10) {
@@ -59,9 +127,25 @@ export function UploadResumeDialog({
       setProgress(i);
     }
 
-    // Generate mock candidate data
+    // Generate candidate data with extracted info
     const candidateName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
     const newCandidate = generateNewCandidate(candidateName);
+    
+    // Try to extract email and phone from file content
+    const extractedEmail = extractEmail(fileContent);
+    const extractedPhone = extractPhone(fileContent);
+    
+    // Override with extracted data if found
+    if (extractedEmail) {
+      newCandidate.email = extractedEmail;
+    }
+    if (extractedPhone) {
+      newCandidate.phone = extractedPhone;
+    }
+    
+    // Store the file content as resume text for reference
+    newCandidate.resumeText = fileContent.substring(0, 5000); // Limit size
+    
     setExtractedData(newCandidate);
     setState('complete');
   };

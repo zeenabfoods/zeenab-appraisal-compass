@@ -71,6 +71,7 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
       case 'admin': return 'bg-gradient-to-r from-red-100 to-red-200 text-red-800 border-red-300';
       case 'hr': return 'bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border-purple-300';
       case 'manager': return 'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 border-blue-300';
+      case 'recruiter': return 'bg-gradient-to-r from-orange-100 to-orange-200 text-orange-800 border-orange-300';
       default: return 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 border-gray-300';
     }
   };

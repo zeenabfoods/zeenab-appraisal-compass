@@ -15,6 +15,7 @@ import {
   BookOpen,
   CheckSquare,
   Clock,
+  UserPlus,
 } from "lucide-react"
 
 import { useAuthContext } from "@/components/AuthProvider"
@@ -113,6 +114,20 @@ export function SimpleSidebar() {
         url: "/company-reports",
         icon: BarChart3,
       },
+      {
+        title: "Recruitment",
+        url: "/recruitment",
+        icon: UserPlus,
+      },
+    ]
+
+    // Recruiter-only items (board members)
+    const recruiterItems = [
+      {
+        title: "Recruitment",
+        url: "/recruitment",
+        icon: UserPlus,
+      },
     ]
 
     let items = [...baseItems]
@@ -125,6 +140,11 @@ export function SimpleSidebar() {
     // Add HR/Admin items for hr and admin users
     if (profile?.role === 'hr' || profile?.role === 'admin') {
       items = [...items, ...managerItems, ...hrAdminItems]
+    }
+
+    // Recruiters only see recruitment (no appraisal/attendance access)
+    if (profile?.role === 'recruiter') {
+      items = recruiterItems
     }
 
     return items
