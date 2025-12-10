@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { FileText, MapPin, Link as LinkIcon, GraduationCap, Briefcase, Award } from "lucide-react";
+import { FileText, MapPin, Link as LinkIcon, GraduationCap, Briefcase, Award, Mail, Phone } from "lucide-react";
 import { Candidate } from "./mockData";
 
 interface ResumePreviewProps {
@@ -8,43 +8,14 @@ interface ResumePreviewProps {
 }
 
 export function ResumePreview({ candidate, resumeText }: ResumePreviewProps) {
-  // Parse resume text to extract sections if available
-  const parseResumeContent = (text?: string) => {
-    if (!text) return null;
-    
-    // Simple parsing - in production you'd use AI extraction
-    const sections = {
-      summary: "",
-      experience: [] as { title: string; company: string; period: string; bullets: string[] }[],
-      skills: [] as string[],
-      education: [] as { degree: string; school: string; period: string }[],
-      certifications: [] as string[]
-    };
-    
-    // Try to extract info from resume text
-    const lines = text.split('\n').filter(l => l.trim());
-    let currentSection = 'summary';
-    
-    for (const line of lines) {
-      const lowerLine = line.toLowerCase();
-      if (lowerLine.includes('experience') || lowerLine.includes('employment')) {
-        currentSection = 'experience';
-      } else if (lowerLine.includes('skill')) {
-        currentSection = 'skills';
-      } else if (lowerLine.includes('education')) {
-        currentSection = 'education';
-      } else if (lowerLine.includes('certification') || lowerLine.includes('certificate')) {
-        currentSection = 'certifications';
-      }
-    }
-    
-    return sections;
-  };
+  // Get actual email and phone from candidate data
+  const candidateEmail = candidate.email || "Not provided";
+  const candidatePhone = candidate.phone || "Not provided";
 
-  // Calculate years of experience from skills or generate reasonable estimate
+  // Calculate years of experience from skills or use a reasonable estimate
   const yearsOfExperience = candidate.skills?.experience 
     ? Math.round(candidate.skills.experience / 10) 
-    : Math.floor(Math.random() * 8) + 2;
+    : 5;
 
   return (
     <Card className="shadow-sm overflow-hidden">
@@ -70,18 +41,16 @@ export function ResumePreview({ candidate, resumeText }: ResumePreviewProps) {
         {/* Header */}
         <div className="border-b pb-4">
           <h1 className="text-2xl font-bold text-foreground">{candidate.name}</h1>
-          <p className="text-recruitment-primary font-medium">{candidate.currentRole}</p>
-          <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
-            {candidate.email && (
-              <span className="flex items-center gap-1">
-                <span>📧</span> {candidate.email}
-              </span>
-            )}
-            {candidate.phone && (
-              <span className="flex items-center gap-1">
-                <span>📞</span> {candidate.phone}
-              </span>
-            )}
+          <p className="text-recruitment-primary font-medium">{candidate.currentRole || "Candidate"}</p>
+          <div className="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">
+            <span className="flex items-center gap-2">
+              <Mail className="h-4 w-4 text-recruitment-primary" />
+              {candidateEmail}
+            </span>
+            <span className="flex items-center gap-2">
+              <Phone className="h-4 w-4 text-recruitment-primary" />
+              {candidatePhone}
+            </span>
           </div>
         </div>
 

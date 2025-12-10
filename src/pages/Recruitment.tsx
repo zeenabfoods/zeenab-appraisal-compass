@@ -48,6 +48,7 @@ export default function Recruitment() {
     addCandidate,
     updateCandidateStatus,
     saveSettings,
+    deleteCandidate,
     deleteAllCandidates,
     fetchEvaluations,
     evaluations,
@@ -145,6 +146,21 @@ export default function Recruitment() {
       toast({
         title: "Error",
         description: "Failed to update candidate status",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteCandidate = async (candidateId: string) => {
+    try {
+      await deleteCandidate(candidateId);
+      if (selectedCandidate?.id === candidateId) {
+        setSelectedCandidate(null);
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete candidate",
         variant: "destructive"
       });
     }
@@ -270,6 +286,8 @@ export default function Recruitment() {
               candidates={filteredCandidates}
               selectedCandidate={selectedCandidate}
               onSelect={handleCandidateSelect}
+              onDelete={handleDeleteCandidate}
+              isHROrAdmin={isHROrAdmin}
             />
           </div>
 

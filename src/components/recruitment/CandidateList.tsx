@@ -2,18 +2,38 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Search, UserCheck, UserX } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Search, UserCheck, UserX, Trash2 } from "lucide-react";
 import { Candidate } from "./mockData";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface CandidateListProps {
   candidates: Candidate[];
   selectedCandidate: Candidate | null;
   onSelect: (candidate: Candidate) => void;
+  onDelete?: (candidateId: string) => void;
+  isHROrAdmin?: boolean;
 }
 
-export function CandidateList({ candidates, selectedCandidate, onSelect }: CandidateListProps) {
+export function CandidateList({ 
+  candidates, 
+  selectedCandidate, 
+  onSelect, 
+  onDelete,
+  isHROrAdmin = false 
+}: CandidateListProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const filteredCandidates = candidates.filter(candidate =>
     candidate.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -30,6 +50,18 @@ export function CandidateList({ candidates, selectedCandidate, onSelect }: Candi
     if (status === 'hired' || status === 'selected') return <UserCheck className="h-4 w-4 text-green-600" />;
     if (status === 'rejected') return <UserX className="h-4 w-4 text-red-500" />;
     return null;
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent, candidateId: string) => {
+    e.stopPropagation();
+    setDeleteConfirm(candidateId);
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteConfirm && onDelete) {
+      onDelete(deleteConfirm);
+      setDeleteConfirm(null);
+    }
   };
 
   return (
@@ -60,7 +92,7 @@ export function CandidateList({ candidates, selectedCandidate, onSelect }: Candi
                 key={candidate.id}
                 onClick={() => onSelect(candidate)}
                 className={cn(
-                  "p-3 rounded-lg cursor-pointer transition-all duration-200 hover:bg-white hover:shadow-md",
+                  "p-3 rounded-lg cursor-pointer transition-all duration-200 hover:bg-white hover:shadow-md group",
                   selectedCandidate?.id === candidate.id
                     ? "bg-white shadow-md border-2 border-recruitment-primary"
                     : "bg-transparent border-2 border-transparent"
@@ -83,9 +115,21 @@ export function CandidateList({ candidates, selectedCandidate, onSelect }: Candi
                       {candidate.currentRole}
                     </p>
                   </div>
-                  <Badge className={cn("text-white text-xs", getScoreBadgeColor(candidate.matchScore))}>
-                    {candidate.matchScore}%
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge className={cn("text-white text-xs", getScoreBadgeColor(candidate.matchScore))}>
+                      {candidate.matchScore}%
+                    </Badge>
+                    {isHROrAdmin && onDelete && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                        onClick={(e) => handleDeleteClick(e, candidate.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -100,6 +144,31 @@ export function CandidateList({ candidates, selectedCandidate, onSelect }: Candi
           <span>Hired: {candidates.filter(c => c.status === 'hired').length}</span>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Delete Candidate?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this candidate and all their evaluations. 
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
