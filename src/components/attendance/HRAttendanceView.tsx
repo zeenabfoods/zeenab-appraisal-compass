@@ -147,7 +147,7 @@ export function HRAttendanceView() {
 
   const handleExport = () => {
     // Prepare CSV data
-    const headers = ['Employee', 'Email', 'Department', 'Date', 'Clock In', 'Clock Out', 'Hours', 'Branch', 'Location', 'Geofence Status', 'Distance (m)'];
+    const headers = ['Employee', 'Email', 'Department', 'Date', 'Clock In', 'Clock Out', 'Hours', 'Branch', 'Location', 'Geofence Status', 'Distance (m)', 'Field Location', 'Field Reason', 'GPS Coordinates'];
     const rows = filteredLogs.map((log: any) => [
       `${log.employee?.first_name} ${log.employee?.last_name}`,
       log.employee?.email || '',
@@ -160,9 +160,14 @@ export function HRAttendanceView() {
       log.location_type,
       log.within_geofence_at_clock_in ? 'Inside' : 'Outside',
       log.geofence_distance_at_clock_in || '',
+      log.field_work_location || '',
+      log.field_work_reason || '',
+      log.clock_in_latitude && log.clock_in_longitude 
+        ? `${log.clock_in_latitude.toFixed(6)}, ${log.clock_in_longitude.toFixed(6)}` 
+        : '',
     ]);
 
-    const csvContent = [headers, ...rows].map(row => row.map(cell => `\"${cell}\"`).join(',')).join('\n');
+    const csvContent = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -423,6 +428,8 @@ export function HRAttendanceView() {
                     <TableHead>Hours</TableHead>
                     <TableHead>Branch</TableHead>
                     <TableHead>Location</TableHead>
+                    <TableHead>Field Details</TableHead>
+                    <TableHead>GPS Coordinates</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Action</TableHead>
                   </TableRow>
@@ -504,6 +511,47 @@ export function HRAttendanceView() {
                             </>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {log.location_type === 'field' ? (
+                          <div className="max-w-[150px]">
+                            {log.field_work_location && (
+                              <div className="text-sm font-medium truncate" title={log.field_work_location}>
+                                📍 {log.field_work_location}
+                              </div>
+                            )}
+                            {log.field_work_reason && (
+                              <div className="text-xs text-muted-foreground truncate" title={log.field_work_reason}>
+                                Reason: {log.field_work_reason}
+                              </div>
+                            )}
+                            {!log.field_work_location && !log.field_work_reason && (
+                              <span className="text-xs text-muted-foreground">No details</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {log.clock_in_latitude && log.clock_in_longitude ? (
+                          <div className="text-xs">
+                            <a 
+                              href={`https://www.google.com/maps?q=${log.clock_in_latitude},${log.clock_in_longitude}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline flex items-center gap-1"
+                            >
+                              <MapPin className="h-3 w-3" />
+                              View Map
+                            </a>
+                            <div className="text-muted-foreground mt-0.5">
+                              {log.clock_in_latitude.toFixed(4)}, {log.clock_in_longitude.toFixed(4)}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">No GPS</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         {log.within_geofence_at_clock_in ? (

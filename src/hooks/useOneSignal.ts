@@ -199,7 +199,21 @@ export function useOneSignal() {
     }
     
     try {
-      // Request native browser permission
+      // Try OneSignal SDK first if available
+      if (window.OneSignal?.Notifications) {
+        console.log('[OneSignal] Using OneSignal SDK for permission...');
+        try {
+          await window.OneSignal.Notifications.requestPermission();
+          const permission = await window.OneSignal.Notifications.permission;
+          console.log('[OneSignal] OneSignal permission result:', permission);
+          setIsSubscribed(permission);
+          return permission;
+        } catch (sdkError) {
+          console.log('[OneSignal] SDK permission failed, falling back to native:', sdkError);
+        }
+      }
+      
+      // Fall back to native browser permission
       if (nativePermission === 'default') {
         console.log('[OneSignal] Requesting native browser permission...');
         const result = await Notification.requestPermission();
@@ -211,6 +225,15 @@ export function useOneSignal() {
         
         if (result === 'granted') {
           setIsSubscribed(true);
+          
+          // Try to register with OneSignal after native grant
+          if (window.OneSignal?.Notifications) {
+            try {
+              await window.OneSignal.Notifications.requestPermission();
+            } catch (e) {
+              console.log('[OneSignal] Post-native SDK registration failed (non-critical):', e);
+            }
+          }
           return true;
         }
         
