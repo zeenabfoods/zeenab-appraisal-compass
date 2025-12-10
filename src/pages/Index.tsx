@@ -9,7 +9,7 @@ import { DashboardLayout } from '@/components/DashboardLayout';
 import { RecentActivityCard } from '@/components/RecentActivityCard';
 
 export default function Index() {
-  const { user, loading } = useAuthContext();
+  const { user, profile, loading } = useAuthContext();
 
   if (loading) {
     return (
@@ -20,6 +20,11 @@ export default function Index() {
         </div>
       </div>
     );
+  }
+
+  // Redirect recruiters to recruitment page
+  if (user && profile?.role === 'recruiter') {
+    return <Navigate to="/recruitment" replace />;
   }
 
   // If user is authenticated, show the dashboard content INSIDE DashboardLayout
