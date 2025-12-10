@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { CandidateList } from "@/components/recruitment/CandidateList";
 import { CandidateProfile } from "@/components/recruitment/CandidateProfile";
@@ -9,13 +9,36 @@ import { DeleteAllCandidatesDialog } from "@/components/recruitment/DeleteAllCan
 import { CandidateStatusTabs } from "@/components/recruitment/CandidateStatusTabs";
 import { Button } from "@/components/ui/button";
 import { Settings2, Upload, Trash2, Loader2 } from "lucide-react";
-import { Candidate, mockCandidates, generateNewCandidate } from "@/components/recruitment/mockData";
-import { useRecruitmentData } from "@/hooks/useRecruitmentData";
+import { Candidate, generateNewCandidate } from "@/components/recruitment/mockData";
+import { useRecruitmentData, DbCandidate } from "@/hooks/useRecruitmentData";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
+// Convert DB candidate to UI Candidate format
+function dbToUiCandidate(db: DbCandidate): Candidate {
+  return {
+    id: db.id,
+    name: db.name,
+    email: db.email || '',
+    phone: db.phone || '',
+    currentRole: db.applied_role || 'Applicant',
+    matchScore: db.match_score || 0,
+    skills: {
+      technical: 70,
+      experience: 70,
+      education: 70,
+      softSkills: 70,
+      tools: 70
+    },
+    foundKeywords: db.skills || [],
+    missingKeywords: [],
+    status: db.status as Candidate['status'],
+    resumeUrl: db.resume_url || undefined
+  };
+}
+
 export default function Recruitment() {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
   const {
     candidates: dbCandidates,
@@ -28,11 +51,16 @@ export default function Recruitment() {
     deleteAllCandidates,
     fetchEvaluations,
     evaluations,
-    submitEvaluation
+    submitEvaluation,
+    fetchCandidates
   } = useRecruitmentData();
 
-  // Use mock data for now, will transition to DB later
-  const [candidates, setCandidates] = useState<Candidate[]>(mockCandidates);
+  // Convert DB candidates to UI format
+  const candidates = useMemo(() => 
+    dbCandidates.map(dbToUiCandidate), 
+    [dbCandidates]
+  );
+
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [keywords, setKeywords] = useState<string[]>(settings?.required_keywords || ["React", "TypeScript", "Node.js", "SQL", "Leadership"]);
   const [keywordDialogOpen, setKeywordDialogOpen] = useState(false);
@@ -55,46 +83,85 @@ export default function Recruitment() {
     }
   }, [selectedCandidate?.id]);
 
+  // Update selected candidate when candidates list changes
+  useEffect(() => {
+    if (selectedCandidate) {
+      const updated = candidates.find(c => c.id === selectedCandidate.id);
+      if (updated) {
+        setSelectedCandidate(updated);
+      }
+    }
+  }, [candidates]);
+
   const handleCandidateSelect = (candidate: Candidate) => {
     setSelectedCandidate(candidate);
   };
 
-  const handleUploadComplete = (newCandidate: Candidate) => {
-    setCandidates(prev => [newCandidate, ...prev]);
-    setSelectedCandidate(newCandidate);
-    setUploadDialogOpen(false);
-  };
-
-  const handleHireCandidate = (candidateId: string) => {
-    setCandidates(prev => 
-      prev.map(c => c.id === candidateId ? { ...c, status: 'hired' as const } : c)
-    );
-    if (selectedCandidate?.id === candidateId) {
-      setSelectedCandidate(prev => prev ? { ...prev, status: 'hired' as const } : null);
+  const handleUploadComplete = async (newCandidate: Candidate) => {
+    try {
+      await addCandidate({
+        name: newCandidate.name,
+        email: newCandidate.email,
+        phone: newCandidate.phone,
+        applied_role: newCandidate.currentRole,
+        skills: newCandidate.foundKeywords,
+        match_score: newCandidate.matchScore
+      });
+      await fetchCandidates();
+      setUploadDialogOpen(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add candidate",
+        variant: "destructive"
+      });
     }
   };
 
-  const handleRejectCandidate = (candidateId: string) => {
-    setCandidates(prev => 
-      prev.map(c => c.id === candidateId ? { ...c, status: 'rejected' as const } : c)
-    );
-    if (selectedCandidate?.id === candidateId) {
-      setSelectedCandidate(prev => prev ? { ...prev, status: 'rejected' as const } : null);
+  const handleHireCandidate = async (candidateId: string) => {
+    try {
+      await updateCandidateStatus(candidateId, 'hired');
+      toast({
+        title: "Candidate Hired!",
+        description: "Candidate has been successfully hired."
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update candidate status",
+        variant: "destructive"
+      });
     }
-    toast({
-      title: "Candidate Rejected",
-      description: "Candidate has been moved to the rejected bank for future consideration.",
-    });
   };
 
-  const handleDeleteAllCandidates = () => {
-    setCandidates([]);
-    setSelectedCandidate(null);
-    setDeleteDialogOpen(false);
-    toast({
-      title: "All Candidates Deleted",
-      description: "All mock data has been cleared. You're ready to go live!",
-    });
+  const handleRejectCandidate = async (candidateId: string) => {
+    try {
+      await updateCandidateStatus(candidateId, 'rejected');
+      toast({
+        title: "Candidate Rejected",
+        description: "Candidate has been moved to the rejected bank."
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update candidate status",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteAllCandidates = async () => {
+    try {
+      await deleteAllCandidates();
+      setSelectedCandidate(null);
+      setDeleteDialogOpen(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete candidates",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleSaveSettings = async (newSettings: any) => {
@@ -120,7 +187,7 @@ export default function Recruitment() {
     all: candidates.length,
     pending: candidates.filter(c => c.status === 'pending').length,
     under_review: candidates.filter(c => c.status === 'under_review').length,
-    selected: candidates.filter(c => c.status === 'selected').length,
+    selected: candidates.filter(c => c.status === 'selected' || c.status === 'hired').length,
     rejected: candidates.filter(c => c.status === 'rejected').length,
     hired: candidates.filter(c => c.status === 'hired').length
   };
