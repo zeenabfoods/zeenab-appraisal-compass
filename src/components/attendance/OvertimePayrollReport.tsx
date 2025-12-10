@@ -8,13 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Download, Search, Clock, DollarSign, Calendar, TrendingUp, CalendarIcon, Trash2, AlertTriangle } from 'lucide-react';
+import { Download, Search, Clock, DollarSign, Calendar, TrendingUp, CalendarIcon, Trash2, AlertTriangle, Sun, Moon } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, getDay, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { DateRange } from 'react-day-picker';
+import { useOvertimeRates } from '@/hooks/attendance/useOvertimeRates';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,13 +40,15 @@ interface OvertimeReportData {
   overtime_amount: number;
   night_shift_amount: number;
   total_payment: number;
+  shift_type: 'day' | 'night' | 'mixed';
 }
 
-type FilterMode = 'quick' | 'date-range';
+type FilterMode = 'day' | 'week' | 'month' | 'custom';
 
 export function OvertimePayrollReport() {
   const currentDate = new Date();
-  const [filterMode, setFilterMode] = useState<FilterMode>('quick');
+  const [filterMode, setFilterMode] = useState<FilterMode>('month');
+  const [selectedDate, setSelectedDate] = useState<Date>(currentDate);
   const [selectedMonth, setSelectedMonth] = useState((currentDate.getMonth() + 1).toString());
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear().toString());
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
@@ -53,50 +56,95 @@ export function OvertimePayrollReport() {
     to: endOfMonth(currentDate),
   });
   const [searchTerm, setSearchTerm] = useState('');
-  const [baseHourlyRate] = useState(2000); // Base rate in Naira per hour
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeletingEmployee, setIsDeletingEmployee] = useState<string | null>(null);
 
+  const { rates } = useOvertimeRates();
+
+  // Helper to get overtime rate based on position and day
+  const getOvertimeRate = (position: string, date: Date): number => {
+    const dayOfWeek = getDay(date);
+    let dayType: 'weekday' | 'saturday' | 'sunday';
+    
+    if (dayOfWeek === 0) {
+      dayType = 'sunday';
+    } else if (dayOfWeek === 6) {
+      dayType = 'saturday';
+    } else {
+      dayType = 'weekday';
+    }
+
+    // Try to match position
+    const normalizedPosition = position?.toLowerCase() || '';
+    let matchedPosition = 'Helper'; // Default
+
+    if (normalizedPosition.includes('operator')) {
+      matchedPosition = 'Operator';
+    } else if (normalizedPosition.includes('helper') || normalizedPosition.includes('cleaner')) {
+      matchedPosition = 'Helper';
+    }
+
+    const rate = rates.find(
+      r => r.position_name === matchedPosition && r.day_type === dayType
+    );
+
+    return rate?.rate_amount || 800; // Default ₦800/hour
+  };
+
+  // Calculate date range based on filter mode
+  const getDateRange = (): { startDate: string; endDate: string } => {
+    switch (filterMode) {
+      case 'day':
+        const dayStr = format(selectedDate, 'yyyy-MM-dd');
+        return { startDate: dayStr, endDate: dayStr };
+      
+      case 'week':
+        const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
+        const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 1 });
+        return { 
+          startDate: format(weekStart, 'yyyy-MM-dd'), 
+          endDate: format(weekEnd, 'yyyy-MM-dd') 
+        };
+      
+      case 'month':
+        const monthStart = `${selectedYear}-${selectedMonth.padStart(2, '0')}-01`;
+        const monthEnd = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0)
+          .toISOString().split('T')[0];
+        return { startDate: monthStart, endDate: monthEnd };
+      
+      case 'custom':
+        if (dateRange?.from) {
+          return {
+            startDate: format(dateRange.from, 'yyyy-MM-dd'),
+            endDate: dateRange.to 
+              ? format(dateRange.to, 'yyyy-MM-dd')
+              : format(dateRange.from, 'yyyy-MM-dd')
+          };
+        }
+        return { startDate: format(currentDate, 'yyyy-MM-dd'), endDate: format(currentDate, 'yyyy-MM-dd') };
+      
+      default:
+        return { startDate: format(currentDate, 'yyyy-MM-dd'), endDate: format(currentDate, 'yyyy-MM-dd') };
+    }
+  };
+
   const { data: overtimeData, isLoading, refetch } = useQuery({
-    queryKey: ['overtime-report', filterMode, selectedMonth, selectedYear, dateRange],
+    queryKey: ['overtime-report', filterMode, selectedDate, selectedMonth, selectedYear, dateRange, rates],
     queryFn: async () => {
-      let startDate: string;
-      let endDate: string;
+      const { startDate, endDate } = getDateRange();
 
-      if (filterMode === 'date-range' && dateRange?.from) {
-        startDate = format(dateRange.from, 'yyyy-MM-dd');
-        endDate = dateRange.to 
-          ? format(dateRange.to, 'yyyy-MM-dd')
-          : format(dateRange.from, 'yyyy-MM-dd');
-      } else {
-        // Quick filter (month-based)
-        startDate = `${selectedYear}-${selectedMonth.padStart(2, '0')}-01`;
-        endDate = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0)
-          .toISOString()
-          .split('T')[0];
-      }
-
-      // Fetch attendance rules for rates
-      const { data: rules } = await supabase
-        .from('attendance_rules')
-        .select('overtime_rate, night_shift_rate')
-        .eq('is_active', true)
-        .limit(1)
-        .single();
-
-      const overtimeRate = rules?.overtime_rate || 1.5;
-      const nightShiftRate = rules?.night_shift_rate || 1.2;
-
-      // Fetch attendance logs with overtime
+      // Fetch attendance logs with all relevant data
       const { data: logs, error } = await supabase
         .from('attendance_logs')
         .select(`
           employee_id,
           total_hours,
           overtime_hours,
+          overtime_approved,
           is_night_shift,
           night_shift_hours,
           clock_in_time,
+          clock_out_time,
           employee:profiles!attendance_logs_employee_id_fkey(
             first_name,
             last_name,
@@ -107,21 +155,42 @@ export function OvertimePayrollReport() {
         .gte('clock_in_time', `${startDate}T00:00:00`)
         .lte('clock_in_time', `${endDate}T23:59:59`)
         .not('employee_id', 'is', null)
+        .not('clock_out_time', 'is', null) // Only count completed sessions
         .order('employee_id');
 
       if (error) throw error;
 
-      // Group by employee and calculate totals
+      // Group by employee and calculate totals correctly
       const employeeMap = new Map<string, OvertimeReportData>();
 
       logs?.forEach((log: any) => {
         if (!log.employee) return;
 
         const employeeId = log.employee_id;
-        const overtimeHours = log.overtime_hours || 0;
-        const nightShiftHours = log.night_shift_hours || 0;
         const totalHours = log.total_hours || 0;
-        const regularHours = totalHours - overtimeHours;
+        const clockInTime = new Date(log.clock_in_time);
+        const clockInHour = clockInTime.getHours();
+        
+        // Determine if this is actually a night shift based on clock-in time (8pm-7am)
+        const isActualNightShift = clockInHour >= 20 || clockInHour < 7;
+        
+        // Standard shift hours: Day = 9 hours, Night = 11 hours
+        const standardHours = isActualNightShift ? 11 : 9;
+        
+        // Calculate actual overtime (hours beyond standard shift)
+        // Only count if employee was approved for overtime OR worked beyond standard hours
+        let actualOvertimeHours = 0;
+        if (log.overtime_approved && log.overtime_hours > 0) {
+          actualOvertimeHours = log.overtime_hours;
+        } else if (totalHours > standardHours) {
+          actualOvertimeHours = totalHours - standardHours;
+        }
+
+        // Regular hours (capped at standard shift hours)
+        const regularHours = Math.min(totalHours, standardHours);
+
+        // Night shift hours = total hours if night shift, 0 otherwise
+        const nightShiftHours = isActualNightShift ? totalHours : 0;
 
         if (!employeeMap.has(employeeId)) {
           employeeMap.set(employeeId, {
@@ -136,27 +205,37 @@ export function OvertimePayrollReport() {
             overtime_amount: 0,
             night_shift_amount: 0,
             total_payment: 0,
+            shift_type: isActualNightShift ? 'night' : 'day',
           });
         }
 
         const employee = employeeMap.get(employeeId)!;
-        employee.total_overtime_hours += overtimeHours;
         employee.regular_hours += regularHours;
         employee.night_shift_hours += nightShiftHours;
         
-        if (overtimeHours > 0) {
+        // Only count overtime if there are actual overtime hours
+        if (actualOvertimeHours > 0) {
+          employee.total_overtime_hours += actualOvertimeHours;
           employee.days_with_overtime += 1;
+          
+          // Calculate overtime payment based on position and day
+          const hourlyRate = getOvertimeRate(log.employee.position, clockInTime);
+          employee.overtime_amount += actualOvertimeHours * hourlyRate;
         }
 
-        // Calculate payments
-        employee.overtime_amount += overtimeHours * baseHourlyRate * overtimeRate;
-        employee.night_shift_amount += nightShiftHours * baseHourlyRate * (nightShiftRate - 1);
+        // Update shift type
+        if (employee.shift_type === 'day' && isActualNightShift) {
+          employee.shift_type = 'mixed';
+        } else if (employee.shift_type === 'night' && !isActualNightShift) {
+          employee.shift_type = 'mixed';
+        }
+
         employee.total_payment = employee.overtime_amount + employee.night_shift_amount;
       });
 
-      return Array.from(employeeMap.values()).sort((a, b) => 
-        b.total_payment - a.total_payment
-      );
+      return Array.from(employeeMap.values())
+        .filter(item => item.total_overtime_hours > 0 || item.night_shift_hours > 0)
+        .sort((a, b) => b.total_payment - a.total_payment);
     },
   });
 
@@ -169,7 +248,7 @@ export function OvertimePayrollReport() {
   const totalPayment = filteredData?.reduce((sum, item) => sum + item.total_payment, 0) || 0;
   const employeesWithOvertime = filteredData?.filter(item => item.total_overtime_hours > 0).length || 0;
 
-  // Delete all overtime records (reset overtime_hours and night_shift_hours to 0)
+  // Delete all overtime records
   const deleteAllOvertimeRecords = async () => {
     setIsDeleting(true);
     try {
@@ -187,7 +266,6 @@ export function OvertimePayrollReport() {
 
       if (error) throw error;
 
-      // Also reset any logs with night_shift_hours
       await supabase
         .from('attendance_logs')
         .update({ 
@@ -239,32 +317,29 @@ export function OvertimePayrollReport() {
 
     switch (preset) {
       case 'today':
-        from = today;
-        to = today;
-        break;
+        setSelectedDate(today);
+        setFilterMode('day');
+        return;
       case 'yesterday':
-        from = subDays(today, 1);
-        to = subDays(today, 1);
-        break;
+        setSelectedDate(subDays(today, 1));
+        setFilterMode('day');
+        return;
       case 'this-week':
-        from = startOfWeek(today, { weekStartsOn: 1 }); // Monday
-        to = endOfWeek(today, { weekStartsOn: 1 });
-        break;
+        setSelectedDate(today);
+        setFilterMode('week');
+        return;
       case 'last-week':
-        const lastWeek = subDays(today, 7);
-        from = startOfWeek(lastWeek, { weekStartsOn: 1 });
-        to = endOfWeek(lastWeek, { weekStartsOn: 1 });
-        break;
+        setSelectedDate(subDays(today, 7));
+        setFilterMode('week');
+        return;
       case 'this-month':
-        from = startOfMonth(today);
-        to = endOfMonth(today);
-        break;
+        setSelectedMonth((today.getMonth() + 1).toString());
+        setSelectedYear(today.getFullYear().toString());
+        setFilterMode('month');
+        return;
       default:
         return;
     }
-
-    setDateRange({ from, to });
-    setFilterMode('date-range');
   };
 
   const exportToCSV = () => {
@@ -273,26 +348,20 @@ export function OvertimePayrollReport() {
       return;
     }
 
-    let filename: string;
-    if (filterMode === 'date-range' && dateRange?.from) {
-      const fromStr = format(dateRange.from, 'yyyy-MM-dd');
-      const toStr = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : fromStr;
-      filename = `overtime-report-${fromStr}-to-${toStr}.csv`;
-    } else {
-      filename = `overtime-report-${selectedYear}-${selectedMonth}.csv`;
-    }
+    const { startDate, endDate } = getDateRange();
+    const filename = `overtime-report-${startDate}-to-${endDate}.csv`;
 
     const headers = [
       'Employee ID',
       'Employee Name',
       'Department',
       'Position',
+      'Shift Type',
       'Regular Hours',
       'Overtime Hours',
       'Night Shift Hours',
       'Days with Overtime',
       'Overtime Payment (₦)',
-      'Night Shift Payment (₦)',
       'Total Payment (₦)',
     ];
 
@@ -304,12 +373,12 @@ export function OvertimePayrollReport() {
           `"${item.employee_name}"`,
           `"${item.department}"`,
           `"${item.position}"`,
+          item.shift_type,
           item.regular_hours.toFixed(2),
           item.total_overtime_hours.toFixed(2),
           item.night_shift_hours.toFixed(2),
           item.days_with_overtime,
           item.overtime_amount.toFixed(2),
-          item.night_shift_amount.toFixed(2),
           item.total_payment.toFixed(2),
         ].join(',')
       ),
@@ -348,24 +417,33 @@ export function OvertimePayrollReport() {
 
   const years = Array.from({ length: 5 }, (_, i) => (currentDate.getFullYear() - i).toString());
 
+  const getFilterDescription = () => {
+    const { startDate, endDate } = getDateRange();
+    if (startDate === endDate) {
+      return format(parseISO(startDate), 'EEEE, MMMM d, yyyy');
+    }
+    return `${format(parseISO(startDate), 'MMM d')} - ${format(parseISO(endDate), 'MMM d, yyyy')}`;
+  };
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <CardTitle className="flex items-center gap-2">
               <Clock className="w-5 h-5" />
-              Monthly Overtime & Payroll Report
+              Overtime & Payroll Report
             </CardTitle>
             <div className="flex items-center gap-2">
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button 
                     variant="destructive" 
+                    size="sm"
                     disabled={!filteredData || filteredData.length === 0 || isDeleting}
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
-                    {isDeleting ? 'Deleting...' : 'Delete All'}
+                    {isDeleting ? 'Deleting...' : 'Clear All'}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -375,19 +453,18 @@ export function OvertimePayrollReport() {
                       Delete All Overtime Records?
                     </AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will reset overtime_hours and night_shift_hours to 0 for all attendance records. 
-                      This action cannot be undone. Use this for a clean start.
+                      This will reset overtime_hours and night_shift_hours to 0 for all attendance records.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={deleteAllOvertimeRecords} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    <AlertDialogAction onClick={deleteAllOvertimeRecords} className="bg-destructive text-destructive-foreground">
                       Delete All
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-              <Button onClick={exportToCSV} disabled={!filteredData || filteredData.length === 0}>
+              <Button onClick={exportToCSV} size="sm" disabled={!filteredData || filteredData.length === 0}>
                 <Download className="w-4 h-4 mr-2" />
                 Export CSV
               </Button>
@@ -395,157 +472,205 @@ export function OvertimePayrollReport() {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Filter Mode Toggle */}
-          <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
+          {/* Filter Mode Tabs */}
+          <div className="flex flex-wrap items-center gap-2 p-2 bg-muted rounded-lg">
             <Button
-              variant={filterMode === 'quick' ? 'default' : 'ghost'}
+              variant={filterMode === 'day' ? 'default' : 'ghost'}
               size="sm"
-              onClick={() => setFilterMode('quick')}
+              onClick={() => setFilterMode('day')}
             >
-              Monthly View
+              Day
             </Button>
             <Button
-              variant={filterMode === 'date-range' ? 'default' : 'ghost'}
+              variant={filterMode === 'week' ? 'default' : 'ghost'}
               size="sm"
-              onClick={() => setFilterMode('date-range')}
+              onClick={() => setFilterMode('week')}
             >
-              Date Range
+              Week
+            </Button>
+            <Button
+              variant={filterMode === 'month' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setFilterMode('month')}
+            >
+              Month
+            </Button>
+            <Button
+              variant={filterMode === 'custom' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setFilterMode('custom')}
+            >
+              Custom Range
             </Button>
           </div>
 
-          {/* Filters */}
-          {filterMode === 'quick' ? (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <Label htmlFor="month">Month</Label>
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                  <SelectTrigger id="month">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {months.map((month) => (
-                      <SelectItem key={month.value} value={month.value}>
-                        {month.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="year">Year</Label>
-                <Select value={selectedYear} onValueChange={setSelectedYear}>
-                  <SelectTrigger id="year">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {years.map((year) => (
-                      <SelectItem key={year} value={year}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="search">Search</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="search"
-                    placeholder="Employee or department..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
-              </div>
-              <div className="flex items-end">
-                <Button onClick={() => refetch()} variant="outline" className="w-full">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Refresh
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
-                <Button variant="outline" size="sm" onClick={() => setQuickFilter('today')}>
-                  Today
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setQuickFilter('yesterday')}>
-                  Yesterday
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setQuickFilter('this-week')}>
-                  This Week
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setQuickFilter('last-week')}>
-                  Last Week
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setQuickFilter('this-month')}>
-                  This Month
-                </Button>
-                <Button onClick={() => refetch()} variant="outline" size="sm">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Refresh
-                </Button>
-              </div>
+          {/* Quick Filters */}
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => setQuickFilter('today')}>
+              Today
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setQuickFilter('yesterday')}>
+              Yesterday
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setQuickFilter('this-week')}>
+              This Week
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setQuickFilter('last-week')}>
+              Last Week
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setQuickFilter('this-month')}>
+              This Month
+            </Button>
+          </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="md:col-span-2">
-                  <Label>Date Range</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !dateRange && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateRange?.from ? (
-                          dateRange.to ? (
-                            <>
-                              {format(dateRange.from, "LLL dd, y")} -{" "}
-                              {format(dateRange.to, "LLL dd, y")}
-                            </>
-                          ) : (
-                            format(dateRange.from, "LLL dd, y")
-                          )
-                        ) : (
-                          <span>Pick a date range</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <CalendarComponent
-                        initialFocus
-                        mode="range"
-                        defaultMonth={dateRange?.from}
-                        selected={dateRange}
-                        onSelect={setDateRange}
-                        numberOfMonths={2}
-                        className={cn("p-3 pointer-events-auto")}
-                      />
-                    </PopoverContent>
-                  </Popover>
+          {/* Filter Controls based on mode */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {filterMode === 'day' && (
+              <div className="md:col-span-2">
+                <Label>Select Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {format(selectedDate, 'PPP')}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => date && setSelectedDate(date)}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+
+            {filterMode === 'week' && (
+              <div className="md:col-span-2">
+                <Label>Select Week (pick any day)</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      Week of {format(startOfWeek(selectedDate, { weekStartsOn: 1 }), 'MMM d, yyyy')}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => date && setSelectedDate(date)}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+
+            {filterMode === 'month' && (
+              <>
+                <div>
+                  <Label>Month</Label>
+                  <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {months.map((month) => (
+                        <SelectItem key={month.value} value={month.value}>
+                          {month.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
-                  <Label htmlFor="search-range">Search</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="search-range"
-                      placeholder="Employee or department..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-9"
-                    />
-                  </div>
+                  <Label>Year</Label>
+                  <Select value={selectedYear} onValueChange={setSelectedYear}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {years.map((year) => (
+                        <SelectItem key={year} value={year}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
+              </>
+            )}
+
+            {filterMode === 'custom' && (
+              <div className="md:col-span-2">
+                <Label>Date Range</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn("w-full justify-start text-left", !dateRange && "text-muted-foreground")}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateRange?.from ? (
+                        dateRange.to ? (
+                          <>
+                            {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
+                          </>
+                        ) : (
+                          format(dateRange.from, "LLL dd, y")
+                        )
+                      ) : (
+                        <span>Pick a date range</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      initialFocus
+                      mode="range"
+                      defaultMonth={dateRange?.from}
+                      selected={dateRange}
+                      onSelect={setDateRange}
+                      numberOfMonths={2}
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+
+            <div>
+              <Label>Search</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Employee or department..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
               </div>
             </div>
-          )}
+
+            <div className="flex items-end">
+              <Button onClick={() => refetch()} variant="outline" className="w-full">
+                <Calendar className="w-4 h-4 mr-2" />
+                Refresh
+              </Button>
+            </div>
+          </div>
+
+          {/* Current Filter Display */}
+          <div className="p-3 bg-muted/50 rounded-lg">
+            <p className="text-sm text-muted-foreground">
+              Showing overtime for: <span className="font-medium text-foreground">{getFilterDescription()}</span>
+            </p>
+          </div>
 
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -595,19 +720,18 @@ export function OvertimePayrollReport() {
               <p>No overtime records found for this period</p>
             </div>
           ) : (
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Employee</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead className="text-right">Regular Hours</TableHead>
-                    <TableHead className="text-right">Overtime Hours</TableHead>
-                    <TableHead className="text-right">Night Shift Hours</TableHead>
-                    <TableHead className="text-center">Days with OT</TableHead>
-                    <TableHead className="text-right">Overtime Pay</TableHead>
-                    <TableHead className="text-right">Night Shift Pay</TableHead>
-                    <TableHead className="text-right">Total Payment</TableHead>
+                    <TableHead>Shift</TableHead>
+                    <TableHead className="text-right">Regular Hrs</TableHead>
+                    <TableHead className="text-right">Overtime Hrs</TableHead>
+                    <TableHead className="text-right">Night Hrs</TableHead>
+                    <TableHead className="text-center">OT Days</TableHead>
+                    <TableHead className="text-right">OT Pay</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
                     <TableHead className="text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -621,7 +745,15 @@ export function OvertimePayrollReport() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{item.department}</Badge>
+                        <Badge variant={item.shift_type === 'night' ? 'secondary' : item.shift_type === 'mixed' ? 'outline' : 'default'} className="gap-1">
+                          {item.shift_type === 'night' ? (
+                            <><Moon className="w-3 h-3" /> Night</>
+                          ) : item.shift_type === 'day' ? (
+                            <><Sun className="w-3 h-3" /> Day</>
+                          ) : (
+                            'Mixed'
+                          )}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         {item.regular_hours.toFixed(1)}h
@@ -650,9 +782,6 @@ export function OvertimePayrollReport() {
                       <TableCell className="text-right font-medium">
                         ₦{item.overtime_amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                       </TableCell>
-                      <TableCell className="text-right font-medium">
-                        ₦{item.night_shift_amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                      </TableCell>
                       <TableCell className="text-right">
                         <span className="font-bold text-green-600">
                           ₦{item.total_payment.toLocaleString(undefined, { maximumFractionDigits: 0 })}
@@ -673,15 +802,14 @@ export function OvertimePayrollReport() {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Delete Overtime Records?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                This will reset overtime records for {item.employee_name}. 
-                                This action cannot be undone.
+                                This will reset overtime records for {item.employee_name}.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
                               <AlertDialogAction 
                                 onClick={() => deleteEmployeeOvertimeRecords(item.employee_id, item.employee_name)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                className="bg-destructive text-destructive-foreground"
                               >
                                 Delete
                               </AlertDialogAction>
@@ -696,9 +824,9 @@ export function OvertimePayrollReport() {
             </div>
           )}
 
-          <div className="flex items-center justify-between pt-4 border-t">
+          <div className="flex items-center justify-between pt-4 border-t flex-wrap gap-4">
             <div className="text-sm text-muted-foreground">
-              Base hourly rate: ₦{baseHourlyRate.toLocaleString()} | Showing {filteredData?.length || 0} employees
+              Rates: Operator (₦1000/800/1500/2000) | Helper (₦800/1200/1500) per hour by day type
             </div>
             <div className="text-right">
               <div className="text-sm text-muted-foreground">Grand Total</div>
