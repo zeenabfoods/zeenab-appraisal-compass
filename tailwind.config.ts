@@ -73,6 +73,11 @@ export default {
 					neutral: 'hsl(var(--attendance-neutral))',
 					'card-bg': 'hsl(var(--attendance-card-bg))',
 					'card-border': 'hsl(var(--attendance-card-border))'
+				},
+				// Recruitment Module Colors
+				recruitment: {
+					primary: 'hsl(var(--recruitment-primary))',
+					'primary-hover': 'hsl(var(--recruitment-primary-hover))'
 				}
 			},
 			borderRadius: {

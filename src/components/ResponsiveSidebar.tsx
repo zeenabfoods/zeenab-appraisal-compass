@@ -16,6 +16,7 @@ import {
   BookOpen,
   CheckSquare,
   Clock,
+  UserPlus,
 } from "lucide-react"
 
 import { useAuthContext } from "@/components/AuthProvider"
@@ -121,6 +122,11 @@ export function ResponsiveSidebar() {
         title: "Company Reports",
         url: "/company-reports",
         icon: BarChart3,
+      },
+      {
+        title: "Recruitment",
+        url: "/recruitment",
+        icon: UserPlus,
       },
     ]
 
