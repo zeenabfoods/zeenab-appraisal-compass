@@ -196,17 +196,20 @@ export function SimpleSidebar() {
             )
           })}
           
-          <Link
-            to="/notifications"
-            className={`flex items-center px-3 py-3 text-sm rounded-md transition-colors group ${
-              isCurrentPath('/notifications')
-                ? 'bg-orange-100 text-orange-800 font-medium'
-                : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-            }`}
-          >
-            <Bell className="h-5 w-5 flex-shrink-0" />
-            <span className="ml-3 truncate">Notifications</span>
-          </Link>
+          {/* Only show Notifications for non-recruiters */}
+          {profile?.role !== 'recruiter' && (
+            <Link
+              to="/notifications"
+              className={`flex items-center px-3 py-3 text-sm rounded-md transition-colors group ${
+                isCurrentPath('/notifications')
+                  ? 'bg-orange-100 text-orange-800 font-medium'
+                  : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+              }`}
+            >
+              <Bell className="h-5 w-5 flex-shrink-0" />
+              <span className="ml-3 truncate">Notifications</span>
+            </Link>
+          )}
         </nav>
       </div>
       
