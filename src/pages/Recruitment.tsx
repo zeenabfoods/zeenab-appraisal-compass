@@ -22,6 +22,7 @@ function dbToUiCandidate(db: DbCandidate): Candidate {
     email: db.email || '',
     phone: db.phone || '',
     currentRole: db.applied_role || 'Applicant',
+    appliedRole: db.applied_role || undefined,
     matchScore: db.match_score || 0,
     skills: {
       technical: 70,
@@ -121,10 +122,11 @@ export default function Recruitment() {
 
   const handleHireCandidate = async (candidateId: string) => {
     try {
-      await updateCandidateStatus(candidateId, 'hired');
+      // Use 'selected' status instead of 'hired' - archived for record
+      await updateCandidateStatus(candidateId, 'selected');
       toast({
-        title: "Candidate Hired!",
-        description: "Candidate has been successfully hired."
+        title: "Candidate Selected!",
+        description: "Candidate has been selected and archived."
       });
     } catch (error) {
       toast({

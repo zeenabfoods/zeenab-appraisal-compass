@@ -10,6 +10,7 @@ interface CandidateInfoCardProps {
   email: string;
   phone: string;
   currentRole: string;
+  appliedRole?: string;
   yearsOfExperience?: number;
   location?: string;
   linkedIn?: string;
@@ -47,6 +48,7 @@ export function CandidateInfoCard({
   email,
   phone,
   currentRole,
+  appliedRole,
   yearsOfExperience,
   location,
   linkedIn,
@@ -73,7 +75,7 @@ export function CandidateInfoCard({
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs text-muted-foreground">Click to view full details</p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
             <InfoItem
               icon={FileText}
               label="Name"
@@ -88,6 +90,11 @@ export function CandidateInfoCard({
               icon={Phone}
               label="Phone"
               value={truncate(phone, 14)}
+            />
+            <InfoItem
+              icon={Briefcase}
+              label="Applied Role"
+              value={truncate(appliedRole || currentRole, 12)}
             />
             <InfoItem
               icon={Briefcase}
@@ -149,6 +156,17 @@ export function CandidateInfoCard({
               <div>
                 <p className="text-xs text-muted-foreground font-medium">Phone Number</p>
                 <p className="font-semibold text-foreground">{phone || "Not provided"}</p>
+              </div>
+            </div>
+
+            {/* Applied Role */}
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-orange-50/50 border border-orange-200">
+              <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/20">
+                <Briefcase className="h-5 w-5 text-recruitment-primary" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground font-medium">Applied Role</p>
+                <p className="font-semibold text-foreground">{appliedRole || currentRole || "Not specified"}</p>
               </div>
             </div>
 

@@ -7,8 +7,10 @@ import {
   DialogDescription
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Upload, FileText, CheckCircle, Loader2 } from "lucide-react";
+import { Upload, FileText, CheckCircle, Loader2, Edit2 } from "lucide-react";
 import { Candidate, generateNewCandidate } from "./mockData";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +31,7 @@ export function UploadResumeDialog({
   const [progress, setProgress] = useState(0);
   const [fileName, setFileName] = useState<string | null>(null);
   const [extractedData, setExtractedData] = useState<Candidate | null>(null);
+  const [appliedRole, setAppliedRole] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Enhanced email extraction patterns
@@ -147,6 +150,7 @@ export function UploadResumeDialog({
     newCandidate.resumeText = fileContent.substring(0, 5000); // Limit size
     
     setExtractedData(newCandidate);
+    setAppliedRole(newCandidate.currentRole || "");
     setState('complete');
   };
 
@@ -167,7 +171,12 @@ export function UploadResumeDialog({
 
   const handleConfirm = () => {
     if (extractedData) {
-      onUploadComplete(extractedData);
+      // Update with the applied role set by HR
+      const finalCandidate = {
+        ...extractedData,
+        currentRole: appliedRole || extractedData.currentRole
+      };
+      onUploadComplete(finalCandidate);
       resetState();
     }
   };
@@ -177,6 +186,7 @@ export function UploadResumeDialog({
     setProgress(0);
     setFileName(null);
     setExtractedData(null);
+    setAppliedRole("");
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -264,7 +274,7 @@ export function UploadResumeDialog({
 
             {/* Extracted data preview */}
             {state === 'complete' && extractedData && (
-              <div className="p-4 bg-green-50 border border-green-200 rounded-lg space-y-2">
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg space-y-3">
                 <h4 className="font-medium text-green-800">Extracted Information</h4>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>
@@ -276,13 +286,32 @@ export function UploadResumeDialog({
                     <span className="ml-2 font-medium text-recruitment-primary">{extractedData.matchScore}%</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Role:</span>
-                    <span className="ml-2 font-medium">{extractedData.currentRole}</span>
+                    <span className="text-muted-foreground">Email:</span>
+                    <span className="ml-2 font-medium">{extractedData.email || 'N/A'}</span>
                   </div>
                   <div>
+                    <span className="text-muted-foreground">Phone:</span>
+                    <span className="ml-2 font-medium">{extractedData.phone || 'N/A'}</span>
+                  </div>
+                  <div className="col-span-2">
                     <span className="text-muted-foreground">Skills Found:</span>
                     <span className="ml-2 font-medium">{extractedData.foundKeywords.length}</span>
                   </div>
+                </div>
+                
+                {/* Applied Role - Editable by HR */}
+                <div className="pt-3 border-t border-green-200">
+                  <Label htmlFor="applied-role" className="text-green-800 flex items-center gap-1 mb-2">
+                    <Edit2 className="h-3 w-3" />
+                    Applied Role (Set by HR)
+                  </Label>
+                  <Input
+                    id="applied-role"
+                    value={appliedRole}
+                    onChange={(e) => setAppliedRole(e.target.value)}
+                    placeholder="e.g., Software Engineer, Project Manager"
+                    className="bg-white"
+                  />
                 </div>
               </div>
             )}

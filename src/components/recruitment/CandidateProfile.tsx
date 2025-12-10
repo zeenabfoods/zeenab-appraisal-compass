@@ -63,6 +63,7 @@ export function CandidateProfile({
             email={candidate.email}
             phone={candidate.phone}
             currentRole={candidate.currentRole}
+            appliedRole={candidate.appliedRole}
             yearsOfExperience={yearsOfExperience}
           />
 

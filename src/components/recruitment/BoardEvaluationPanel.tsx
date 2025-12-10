@@ -228,40 +228,6 @@ export function BoardEvaluationPanel({
         </CardContent>
       </Card>
 
-      {/* HR/Admin Action Zone */}
-      {isHROrAdmin && (
-        <Card className="shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Final Decision</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                className="flex-1 gap-2"
-                onClick={onReject}
-                disabled={isActionDisabled}
-              >
-                <XCircle className="h-4 w-4" />
-                Reject
-              </Button>
-              <Button
-                className="flex-1 gap-2 bg-green-600 hover:bg-green-700"
-                onClick={handleHire}
-                disabled={isActionDisabled}
-              >
-                <CheckCircle className="h-4 w-4" />
-                Select for Hire
-              </Button>
-            </div>
-            {isActionDisabled && (
-              <p className="text-sm text-muted-foreground text-center mt-2">
-                This candidate has already been {candidateStatus}.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

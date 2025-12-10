@@ -32,6 +32,17 @@ export function SimpleSidebar() {
 
   // Define navigation items based on user role
   const getNavigationItems = () => {
+    // Recruiters only see Recruitment - return early
+    if (profile?.role === 'recruiter') {
+      return [
+        {
+          title: "Recruitment",
+          url: "/recruitment",
+          icon: UserPlus,
+        },
+      ];
+    }
+
     const baseItems = [
       {
         title: "Dashboard",
@@ -140,11 +151,6 @@ export function SimpleSidebar() {
     // Add HR/Admin items for hr and admin users
     if (profile?.role === 'hr' || profile?.role === 'admin') {
       items = [...items, ...managerItems, ...hrAdminItems]
-    }
-
-    // Recruiters only see recruitment (no appraisal/attendance access)
-    if (profile?.role === 'recruiter') {
-      items = recruiterItems
     }
 
     return items

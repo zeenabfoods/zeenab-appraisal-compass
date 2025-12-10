@@ -4,6 +4,7 @@ export interface Candidate {
   email: string;
   phone: string;
   currentRole: string;
+  appliedRole?: string;
   avatar?: string;
   matchScore: number;
   status: 'pending' | 'under_review' | 'selected' | 'rejected' | 'hired';
