@@ -212,8 +212,13 @@ export default function Recruitment() {
               <CandidateProfile
                 candidate={selectedCandidate}
                 keywords={keywords}
+                evaluations={evaluations}
+                currentUserId={profile?.id || ''}
+                isHROrAdmin={isHROrAdmin}
+                passingThreshold={settings?.passing_threshold || 70}
                 onHire={handleHireCandidate}
                 onReject={handleRejectCandidate}
+                onSubmitEvaluation={submitEvaluation}
               />
             ) : (
               <div className="flex items-center justify-center h-full text-muted-foreground">
