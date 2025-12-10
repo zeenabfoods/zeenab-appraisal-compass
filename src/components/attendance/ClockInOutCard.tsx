@@ -213,20 +213,39 @@ export function ClockInOutCard() {
     };
   };
 
-  // Check if it's within overtime period (after work_end_time)
-  const isAfterWorkEndTime = (): boolean => {
-    if (!activeRule) return false;
-    const workEndTime = activeRule.work_end_time || '17:00';
-    const [endH, endM] = workEndTime.split(':').map(Number);
+  // Check if employee has completed required shift hours
+  const hasCompletedShiftHours = (): { completed: boolean; hoursWorked: number; requiredHours: number } => {
+    if (!todayLog || !activeRule) {
+      return { completed: false, hoursWorked: 0, requiredHours: 9 };
+    }
+
+    const clockInTime = new Date(todayLog.clock_in_time);
     const now = new Date();
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-    const endMinutes = endH * 60 + endM;
-    return currentMinutes >= endMinutes;
+    const hoursWorked = (now.getTime() - clockInTime.getTime()) / (1000 * 60 * 60);
+    
+    // Day shift requires 9 hours, Night shift requires 11 hours
+    const requiredHours = todayLog.is_night_shift ? 11 : 9;
+    
+    return {
+      completed: hoursWorked >= requiredHours,
+      hoursWorked: Math.round(hoursWorked * 100) / 100,
+      requiredHours
+    };
   };
 
   // Start overtime session
   const handleStartOvertime = async () => {
     if (!todayLog) return;
+    
+    // Validate that shift hours are completed
+    const shiftCheck = hasCompletedShiftHours();
+    if (!shiftCheck.completed) {
+      const remainingHours = (shiftCheck.requiredHours - shiftCheck.hoursWorked).toFixed(1);
+      toast.error('Cannot Start Overtime', {
+        description: `You must complete your ${shiftCheck.requiredHours}-hour shift first. ${remainingHours} hours remaining.`,
+      });
+      return;
+    }
     
     setIsStartingOvertime(true);
     try {
