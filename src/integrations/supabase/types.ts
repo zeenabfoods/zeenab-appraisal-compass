@@ -2567,7 +2567,7 @@ export type Database = {
         | "hr_review"
         | "completed"
         | "committee_review"
-      user_role: "staff" | "manager" | "hr" | "admin"
+      user_role: "staff" | "manager" | "hr" | "admin" | "recruiter"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2703,7 +2703,7 @@ export const Constants = {
         "completed",
         "committee_review",
       ],
-      user_role: ["staff", "manager", "hr", "admin"],
+      user_role: ["staff", "manager", "hr", "admin", "recruiter"],
     },
   },
 } as const
