@@ -120,7 +120,7 @@ export function RecruitmentSettingsDialog({
         
         toast({
           title: "Board Member Added",
-          description: `${newMemberFirstName} has been granted recruiter access.`
+          description: `${newMemberFirstName} has been granted recruiter access. They need to log out and log back in to see the Recruitment menu.`
         });
       } else {
         toast({
