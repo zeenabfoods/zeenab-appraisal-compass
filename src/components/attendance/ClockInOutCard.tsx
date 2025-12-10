@@ -223,8 +223,8 @@ export function ClockInOutCard() {
     const now = new Date();
     const hoursWorked = (now.getTime() - clockInTime.getTime()) / (1000 * 60 * 60);
     
-    // Day shift requires 9 hours, Night shift requires 11 hours
-    const requiredHours = todayLog.is_night_shift ? 11 : 9;
+    // Both day shift and night shift require 9 hours (day: 8am-5pm, night: 8pm-5am)
+    const requiredHours = 9;
     
     return {
       completed: hoursWorked >= requiredHours,
