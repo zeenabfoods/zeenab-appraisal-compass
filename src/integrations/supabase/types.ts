@@ -1118,6 +1118,125 @@ export type Database = {
           },
         ]
       }
+      candidate_evaluations: {
+        Row: {
+          candidate_id: string
+          comments: string | null
+          created_at: string
+          cultural_fit: number
+          evaluator_id: string
+          id: string
+          leadership: number
+          problem_solving: number
+          relevant_experience: number
+          submitted_at: string | null
+          technical_proficiency: number
+          total_score: number | null
+          updated_at: string
+        }
+        Insert: {
+          candidate_id: string
+          comments?: string | null
+          created_at?: string
+          cultural_fit?: number
+          evaluator_id: string
+          id?: string
+          leadership?: number
+          problem_solving?: number
+          relevant_experience?: number
+          submitted_at?: string | null
+          technical_proficiency?: number
+          total_score?: number | null
+          updated_at?: string
+        }
+        Update: {
+          candidate_id?: string
+          comments?: string | null
+          created_at?: string
+          cultural_fit?: number
+          evaluator_id?: string
+          id?: string
+          leadership?: number
+          problem_solving?: number
+          relevant_experience?: number
+          submitted_at?: string | null
+          technical_proficiency?: number
+          total_score?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_evaluations_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_evaluations_evaluator_id_fkey"
+            columns: ["evaluator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidates: {
+        Row: {
+          applied_role: string | null
+          created_at: string
+          cycle_id: string | null
+          email: string | null
+          id: string
+          match_score: number | null
+          name: string
+          phone: string | null
+          resume_text: string | null
+          resume_url: string | null
+          skills: string[] | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          applied_role?: string | null
+          created_at?: string
+          cycle_id?: string | null
+          email?: string | null
+          id?: string
+          match_score?: number | null
+          name: string
+          phone?: string | null
+          resume_text?: string | null
+          resume_url?: string | null
+          skills?: string[] | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          applied_role?: string | null
+          created_at?: string
+          cycle_id?: string | null
+          email?: string | null
+          id?: string
+          match_score?: number | null
+          name?: string
+          phone?: string | null
+          resume_text?: string | null
+          resume_url?: string | null
+          skills?: string[] | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidates_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "recruitment_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       departments: {
         Row: {
           created_at: string
@@ -1861,6 +1980,47 @@ export type Database = {
           },
         ]
       }
+      recruitment_settings: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          cycle_name: string
+          id: string
+          is_active: boolean
+          passing_threshold: number
+          required_keywords: string[]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          cycle_name: string
+          id?: string
+          is_active?: boolean
+          passing_threshold?: number
+          required_keywords?: string[]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          cycle_name?: string
+          id?: string
+          is_active?: boolean
+          passing_threshold?: number
+          required_keywords?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recruitment_settings_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       training_assignments: {
         Row: {
           assigned_at: string
@@ -2334,6 +2494,18 @@ export type Database = {
       delete_section_with_questions: {
         Args: { section_id_param: string }
         Returns: undefined
+      }
+      get_candidate_aggregated_score: {
+        Args: { candidate_id_param: string }
+        Returns: {
+          avg_cultural_fit: number
+          avg_experience: number
+          avg_leadership: number
+          avg_problem_solving: number
+          avg_technical: number
+          avg_total: number
+          evaluator_count: number
+        }[]
       }
       get_manager_appraisals: {
         Args: { manager_id_param: string }
