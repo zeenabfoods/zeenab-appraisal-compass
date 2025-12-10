@@ -15,7 +15,7 @@ export interface Profile {
   };
   position?: string;
   line_manager_id?: string;
-  role: 'staff' | 'manager' | 'hr' | 'admin';
+  role: 'staff' | 'manager' | 'hr' | 'admin' | 'recruiter';
   created_at?: string;
   last_login?: string;
   is_active?: boolean;

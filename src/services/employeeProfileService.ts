@@ -6,7 +6,7 @@ export interface EmployeeUpdateData {
   first_name: string;
   last_name: string;
   email: string;
-  role: 'staff' | 'manager' | 'hr' | 'admin';
+  role: 'staff' | 'manager' | 'hr' | 'admin' | 'recruiter';
   position?: string;
   department_id?: string | null;
   line_manager_id?: string | null;

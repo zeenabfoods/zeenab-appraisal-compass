@@ -6,7 +6,7 @@ export interface Candidate {
   currentRole: string;
   avatar?: string;
   matchScore: number;
-  status: 'new' | 'reviewing' | 'hired' | 'rejected';
+  status: 'pending' | 'under_review' | 'selected' | 'rejected' | 'hired';
   resumeUrl?: string;
   skills: {
     technical: number;
@@ -35,7 +35,7 @@ export const mockCandidates: Candidate[] = [
     phone: "+1 (555) 123-4567",
     currentRole: "Senior Frontend Developer",
     matchScore: 92,
-    status: 'new',
+    status: 'pending',
     skills: {
       technical: 95,
       experience: 88,
@@ -60,7 +60,7 @@ export const mockCandidates: Candidate[] = [
     phone: "+1 (555) 234-5678",
     currentRole: "Full Stack Engineer",
     matchScore: 78,
-    status: 'reviewing',
+    status: 'under_review',
     skills: {
       technical: 82,
       experience: 75,
@@ -85,7 +85,7 @@ export const mockCandidates: Candidate[] = [
     phone: "+1 (555) 345-6789",
     currentRole: "Tech Lead",
     matchScore: 88,
-    status: 'new',
+    status: 'pending',
     skills: {
       technical: 88,
       experience: 92,
@@ -110,7 +110,7 @@ export const mockCandidates: Candidate[] = [
     phone: "+1 (555) 456-7890",
     currentRole: "Junior Developer",
     matchScore: 45,
-    status: 'new',
+    status: 'pending',
     skills: {
       technical: 55,
       experience: 40,
@@ -135,7 +135,7 @@ export const mockCandidates: Candidate[] = [
     phone: "+1 (555) 567-8901",
     currentRole: "Backend Developer",
     matchScore: 65,
-    status: 'reviewing',
+    status: 'under_review',
     skills: {
       technical: 70,
       experience: 65,
@@ -170,7 +170,7 @@ export const generateNewCandidate = (name: string): Candidate => {
     phone: `+1 (555) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
     currentRole: ["Software Engineer", "Frontend Developer", "Full Stack Developer", "Tech Lead"][Math.floor(Math.random() * 4)],
     matchScore,
-    status: 'new',
+    status: 'pending',
     skills: {
       technical: Math.floor(Math.random() * 40) + 60,
       experience: Math.floor(Math.random() * 40) + 60,

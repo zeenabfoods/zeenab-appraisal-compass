@@ -27,7 +27,7 @@ export function CandidateList({ candidates, selectedCandidate, onSelect }: Candi
   };
 
   const getStatusIcon = (status: Candidate['status']) => {
-    if (status === 'hired') return <UserCheck className="h-4 w-4 text-green-600" />;
+    if (status === 'hired' || status === 'selected') return <UserCheck className="h-4 w-4 text-green-600" />;
     if (status === 'rejected') return <UserX className="h-4 w-4 text-red-500" />;
     return null;
   };

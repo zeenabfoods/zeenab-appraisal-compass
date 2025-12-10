@@ -138,7 +138,7 @@ export function CandidateProfile({ candidate, keywords, onHire, onReject }: Cand
                 <div>
                   <h2 className="text-xl font-semibold">{candidate.name}</h2>
                   <p className="text-muted-foreground">{candidate.currentRole}</p>
-                  {candidate.status !== 'new' && (
+                  {candidate.status !== 'pending' && (
                     <Badge 
                       className={cn(
                         "mt-2",
