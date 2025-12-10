@@ -537,7 +537,7 @@ export function HRAttendanceView() {
                         {log.clock_in_latitude && log.clock_in_longitude ? (
                           <div className="text-xs">
                             <a 
-                              href={`https://www.google.com/maps?q=${log.clock_in_latitude},${log.clock_in_longitude}`}
+                              href={`https://www.openstreetmap.org/?mlat=${log.clock_in_latitude}&mlon=${log.clock_in_longitude}&zoom=17`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-primary hover:underline flex items-center gap-1"
