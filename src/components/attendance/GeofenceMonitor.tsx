@@ -40,6 +40,7 @@ export function GeofenceMonitor() {
   const { playVoiceGuide } = useVoiceGuides();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isMonitoring, setIsMonitoring] = useState(false);
+  const [isOnField, setIsOnField] = useState(false);
   const watchIdRef = useRef<number | null>(null);
   const previousStatusRef = useRef<Map<string, boolean>>(new Map());
 
@@ -62,10 +63,37 @@ export function GeofenceMonitor() {
     }
   }, []);
 
-  // Fetch active branches
+  // Fetch active branches and check if employee is on field
   useEffect(() => {
     fetchBranches();
-  }, []);
+    checkIfOnField();
+  }, [profile?.id]);
+
+  // Check if employee is currently on field work
+  const checkIfOnField = async () => {
+    if (!profile?.id) return;
+    
+    try {
+      const today = new Date();
+      const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
+      const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+      
+      const { data } = await supabase
+        .from('attendance_logs')
+        .select('location_type, clock_out_time')
+        .eq('employee_id', profile.id)
+        .gte('clock_in_time', startOfDay)
+        .lte('clock_in_time', endOfDay)
+        .is('clock_out_time', null)
+        .order('clock_in_time', { ascending: false })
+        .limit(1);
+      
+      // If active session is field work, disable geofence alerts
+      setIsOnField(data && data.length > 0 && data[0].location_type === 'field');
+    } catch (error) {
+      console.error('Error checking field status:', error);
+    }
+  };
 
   const fetchBranches = async () => {
     try {
@@ -125,6 +153,11 @@ export function GeofenceMonitor() {
   };
 
   const checkGeofence = (latitude: number, longitude: number) => {
+    // Skip geofence alerts for employees on field work
+    if (isOnField) {
+      return;
+    }
+    
     branches.forEach((branch) => {
       const distance = calculateDistance(latitude, longitude, branch.latitude, branch.longitude);
       const isInside = distance <= branch.geofence_radius;
