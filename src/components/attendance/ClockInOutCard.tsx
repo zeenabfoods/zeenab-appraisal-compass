@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Clock, MapPin, Wifi, WifiOff, AlertCircle, CheckCircle2, CloudOff, Moon } from 'lucide-react';
+import { Clock, MapPin, Wifi, WifiOff, AlertCircle, CheckCircle2, CloudOff, Moon, Timer } from 'lucide-react';
 import { GeofenceMapView } from './GeofenceMapView';
 import { cn } from '@/lib/utils';
 import { useGeolocation } from '@/hooks/attendance/useGeolocation';
@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { generateDeviceFingerprint, storeDeviceFingerprint, compareDeviceFingerprint } from '@/utils/deviceFingerprinting';
 import { detectLocationSpoofing } from '@/utils/locationSpoofingDetection';
-import { OvertimePromptDialog } from './OvertimePromptDialog';
+import { supabase } from '@/integrations/supabase/client';
 
 export function ClockInOutCard() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -29,6 +29,7 @@ export function ClockInOutCard() {
   const [showEarlyClosureDialog, setShowEarlyClosureDialog] = useState(false);
   const [earlyClosureInfo, setEarlyClosureInfo] = useState<{ hoursWorked: number; requiredHours: number; chargeAmount: number } | null>(null);
   const [showApiDemoDialog, setShowApiDemoDialog] = useState(false);
+  const [isStartingOvertime, setIsStartingOvertime] = useState(false);
   
   const { branches } = useBranches();
   const { isClocked, todayLog, clockIn, clockOut, loading: logsLoading, isClockingIn, refetch: refetchLogs } = useAttendanceLogs();
@@ -212,6 +213,47 @@ export function ClockInOutCard() {
     };
   };
 
+  // Check if it's within overtime period (after work_end_time)
+  const isAfterWorkEndTime = (): boolean => {
+    if (!activeRule) return false;
+    const workEndTime = activeRule.work_end_time || '17:00';
+    const [endH, endM] = workEndTime.split(':').map(Number);
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const endMinutes = endH * 60 + endM;
+    return currentMinutes >= endMinutes;
+  };
+
+  // Start overtime session
+  const handleStartOvertime = async () => {
+    if (!todayLog) return;
+    
+    setIsStartingOvertime(true);
+    try {
+      const { error } = await supabase
+        .from('attendance_logs')
+        .update({
+          overtime_prompted_at: new Date().toISOString(),
+          overtime_approved: true,
+          overtime_approved_at: new Date().toISOString(),
+          overtime_start_time: new Date().toISOString(),
+        })
+        .eq('id', todayLog.id);
+
+      if (error) throw error;
+
+      toast.success('Overtime Started', {
+        description: 'Your overtime hours are now being tracked.',
+      });
+      refetchLogs();
+    } catch (error) {
+      console.error('Error starting overtime:', error);
+      toast.error('Failed to start overtime');
+    } finally {
+      setIsStartingOvertime(false);
+    }
+  };
+
   const handleClockToggle = async () => {
     // Block clock action if API Demo Mode is enabled
     if (apiDemoMode) {
@@ -229,13 +271,15 @@ export function ClockInOutCard() {
           return;
         }
         
-        // Check for early closure
-        const earlyCheck = checkEarlyClosureCondition();
-        
-        if (earlyCheck.isEarly) {
-          setEarlyClosureInfo(earlyCheck);
-          setShowEarlyClosureDialog(true);
-          return;
+        // If overtime is not approved and it's before end time, check for early closure
+        if (!todayLog.overtime_approved) {
+          const earlyCheck = checkEarlyClosureCondition();
+          
+          if (earlyCheck.isEarly) {
+            setEarlyClosureInfo(earlyCheck);
+            setShowEarlyClosureDialog(true);
+            return;
+          }
         }
       }
       // Field mode can clock out from anywhere - no geofence validation
@@ -378,6 +422,12 @@ export function ClockInOutCard() {
   const dayName = currentTime.toLocaleDateString('en-US', { weekday: 'long' });
   const dateStr = currentTime.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
   const timeStr = currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+
+  // Check if overtime button should be shown (clocked in, office mode, not already on overtime, after work end time)
+  const showOvertimeButton = isClocked && 
+    todayLog?.location_type === 'office' && 
+    !todayLog?.overtime_approved && 
+    !todayLog?.clock_out_time;
 
   if (logsLoading) {
     return (
@@ -607,6 +657,28 @@ export function ClockInOutCard() {
             </div>
           )}
 
+          {/* Overtime Button - Only show when clocked in to office and not already on overtime */}
+          {showOvertimeButton && (
+            <Button
+              size="lg"
+              onClick={handleStartOvertime}
+              disabled={isStartingOvertime}
+              className="w-full h-14 mb-4 text-lg font-bold uppercase tracking-wide bg-gradient-to-r from-green-600 to-emerald-600 hover:from-emerald-600 hover:to-green-600 text-white shadow-xl shadow-green-600/30 border-0"
+            >
+              {isStartingOvertime ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-3" />
+                  Starting...
+                </>
+              ) : (
+                <>
+                  <Timer className="w-5 h-5 mr-3" />
+                  Start Overtime
+                </>
+              )}
+            </Button>
+          )}
+
           {/* Main Action Button */}
           <Button
             size="lg"
@@ -638,26 +710,6 @@ export function ClockInOutCard() {
           </Button>
         </div>
       </Card>
-
-      {todayLog && todayLog.location_type === 'office' && !todayLog.clock_out_time && (
-        <OvertimePromptDialog
-          attendanceLogId={todayLog.id}
-          onResponse={(approved) => {
-            if (approved) {
-              toast.success('Overtime Tracking Started', {
-                description: 'Your overtime hours are now being tracked.',
-              });
-            }
-            refetchLogs();
-          }}
-          onAutoClockOut={async () => {
-            if (latitude && longitude) {
-              await clockOut(latitude, longitude);
-              refetchLogs();
-            }
-          }}
-        />
-      )}
 
       <Dialog open={showFieldDialog} onOpenChange={setShowFieldDialog}>
         <DialogContent>
