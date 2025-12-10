@@ -184,40 +184,38 @@ export function useOneSignal() {
   const requestPermission = async (): Promise<boolean> => {
     console.log('[OneSignal] requestPermission called');
     
-    // First check native browser permission
-    if ('Notification' in window) {
-      const nativePermission = Notification.permission;
-      console.log('[OneSignal] Native browser permission:', nativePermission);
-      
-      if (nativePermission === 'denied') {
-        console.log('[OneSignal] Browser notifications are blocked');
-        throw new Error('Notifications are blocked in your browser. Please enable them in your browser settings.');
-      }
-      
-      // If not determined yet, request native permission first
+    // Check if browser supports notifications
+    if (!('Notification' in window)) {
+      console.log('[OneSignal] Browser does not support notifications');
+      throw new Error('Your browser does not support push notifications');
+    }
+
+    const nativePermission = Notification.permission;
+    console.log('[OneSignal] Native browser permission:', nativePermission);
+    
+    if (nativePermission === 'denied') {
+      console.log('[OneSignal] Browser notifications are blocked');
+      throw new Error('Notifications are blocked. Please enable them in your browser settings and try again.');
+    }
+    
+    try {
+      // Request native browser permission
       if (nativePermission === 'default') {
         console.log('[OneSignal] Requesting native browser permission...');
         const result = await Notification.requestPermission();
         console.log('[OneSignal] Native permission result:', result);
         
         if (result === 'denied') {
-          throw new Error('Notification permission was denied. Please enable in browser settings.');
+          throw new Error('Permission denied. Please enable notifications in browser settings.');
         }
         
         if (result === 'granted') {
           setIsSubscribed(true);
-          
-          // Now register with OneSignal if available
-          if (window.OneSignal?.Notifications) {
-            try {
-              await window.OneSignal.Notifications.requestPermission();
-            } catch (e) {
-              console.log('[OneSignal] OneSignal registration error (non-fatal):', e);
-            }
-          }
-          
           return true;
         }
+        
+        // User dismissed the dialog
+        return false;
       }
       
       // Already granted
@@ -225,23 +223,15 @@ export function useOneSignal() {
         setIsSubscribed(true);
         return true;
       }
-    }
-
-    // Fallback to OneSignal SDK
-    if (!window.OneSignal) {
-      console.log('[OneSignal] SDK not loaded, cannot request permission');
-      throw new Error('Notification service not available');
-    }
-
-    try {
-      console.log('[OneSignal] Requesting via OneSignal SDK...');
-      const permission = await window.OneSignal.Notifications.requestPermission();
-      console.log('[OneSignal] Permission request result:', permission);
-      setIsSubscribed(permission === true);
-      return permission === true;
-    } catch (error) {
-      console.error('[OneSignal] Error requesting notification permission:', error);
-      throw error;
+      
+      return false;
+    } catch (error: any) {
+      console.error('[OneSignal] Error requesting permission:', error);
+      // Provide user-friendly error message
+      if (error?.message) {
+        throw error;
+      }
+      throw new Error('Could not enable notifications. Please check your browser settings.');
     }
   };
 

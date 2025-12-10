@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { format, startOfMonth, endOfMonth, subMonths, parseISO, startOfDay, endOfDay } from 'date-fns';
-import { Calendar, MapPin, Clock, Filter, User, Building, Download, Search, Trash2 } from 'lucide-react';
+import { Calendar, MapPin, Clock, Filter, User, Building, Download, Search, Trash2, Moon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,7 @@ export function HRAttendanceView() {
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [monthFilter, setMonthFilter] = useState<string>('all');
   const [employeeFilter, setEmployeeFilter] = useState<string>('all');
+  const [shiftFilter, setShiftFilter] = useState<string>('all');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
 
@@ -112,10 +113,14 @@ export function HRAttendanceView() {
       if (geofenceFilter === 'outside' && log.within_geofence_at_clock_in) return false;
       if (branchFilter !== 'all' && log.branch?.name !== branchFilter) return false;
       if (departmentFilter !== 'all' && log.employee?.department !== departmentFilter) return false;
+      
+      // Shift filter (day shift vs night shift)
+      if (shiftFilter === 'night' && !log.is_night_shift) return false;
+      if (shiftFilter === 'day' && log.is_night_shift) return false;
 
       return true;
     });
-  }, [allLogs, searchQuery, locationFilter, geofenceFilter, branchFilter, departmentFilter, monthFilter, employeeFilter, startDate, endDate]);
+  }, [allLogs, searchQuery, locationFilter, geofenceFilter, branchFilter, departmentFilter, monthFilter, employeeFilter, shiftFilter, startDate, endDate]);
 
   // Calculate statistics
   const stats = useMemo(() => {
@@ -124,7 +129,9 @@ export function HRAttendanceView() {
     const officeRecords = filteredLogs.filter((log: any) => log.location_type === 'office').length;
     const fieldRecords = filteredLogs.filter((log: any) => log.location_type === 'field').length;
     const insideGeofence = filteredLogs.filter((log: any) => log.within_geofence_at_clock_in).length;
+    const nightShiftRecords = filteredLogs.filter((log: any) => log.is_night_shift).length;
     const totalHours = filteredLogs.reduce((sum: number, log: any) => sum + (log.total_hours || 0), 0);
+    const totalNightShiftHours = filteredLogs.reduce((sum: number, log: any) => sum + (log.night_shift_hours || 0), 0);
 
     return {
       totalRecords,
@@ -132,6 +139,8 @@ export function HRAttendanceView() {
       officeRecords,
       fieldRecords,
       insideGeofence,
+      nightShiftRecords,
+      totalNightShiftHours: totalNightShiftHours.toFixed(1),
       avgHours: totalRecords > 0 ? (totalHours / totalRecords).toFixed(1) : '0',
     };
   }, [filteredLogs]);
@@ -172,7 +181,7 @@ export function HRAttendanceView() {
       <ApiDemoModeSettings />
       
       {/* Statistics Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Records</CardTitle>
@@ -192,6 +201,17 @@ export function HRAttendanceView() {
           <CardContent>
             <div className="text-2xl font-bold">{stats.officeRecords} / {stats.fieldRecords}</div>
             <p className="text-xs text-muted-foreground">Location distribution</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Night Shift</CardTitle>
+            <Moon className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.nightShiftRecords}</div>
+            <p className="text-xs text-muted-foreground">{stats.totalNightShiftHours}h total night hours</p>
           </CardContent>
         </Card>
 
@@ -344,7 +364,18 @@ export function HRAttendanceView() {
                 </SelectContent>
               </Select>
 
-              {(searchQuery || monthFilter !== 'all' || locationFilter !== 'all' || geofenceFilter !== 'all' || branchFilter !== 'all' || departmentFilter !== 'all' || employeeFilter !== 'all' || startDate || endDate) && (
+              <Select value={shiftFilter} onValueChange={setShiftFilter}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="Shift" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Shifts</SelectItem>
+                  <SelectItem value="day">Day Shift</SelectItem>
+                  <SelectItem value="night">Night Shift</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {(searchQuery || monthFilter !== 'all' || locationFilter !== 'all' || geofenceFilter !== 'all' || branchFilter !== 'all' || departmentFilter !== 'all' || employeeFilter !== 'all' || shiftFilter !== 'all' || startDate || endDate) && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -356,6 +387,7 @@ export function HRAttendanceView() {
                     setBranchFilter('all');
                     setDepartmentFilter('all');
                     setEmployeeFilter('all');
+                    setShiftFilter('all');
                     setStartDate('');
                     setEndDate('');
                   }}
