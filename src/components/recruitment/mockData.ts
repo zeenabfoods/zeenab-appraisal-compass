@@ -8,6 +8,11 @@ export interface Candidate {
   matchScore: number;
   status: 'pending' | 'under_review' | 'selected' | 'rejected' | 'hired';
   resumeUrl?: string;
+  resumeText?: string;
+  yearsOfExperience?: number;
+  location?: string;
+  linkedIn?: string;
+  education?: string;
   skills: {
     technical: number;
     experience: number;

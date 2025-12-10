@@ -174,17 +174,63 @@ export function useRecruitmentData() {
     leadership: number;
     comments?: string;
   }) => {
-    const { error } = await supabase
-      .from('candidate_evaluations')
-      .upsert({
-        ...evaluation,
-        evaluator_id: user?.id,
-        submitted_at: new Date().toISOString()
-      }, {
-        onConflict: 'candidate_id,evaluator_id'
-      });
+    // Calculate total score
+    const total_score = 
+      evaluation.technical_proficiency + 
+      evaluation.relevant_experience + 
+      evaluation.cultural_fit + 
+      evaluation.problem_solving + 
+      evaluation.leadership;
 
-    if (error) throw error;
+    // Check if evaluation already exists
+    const { data: existingEval } = await supabase
+      .from('candidate_evaluations')
+      .select('id')
+      .eq('candidate_id', evaluation.candidate_id)
+      .eq('evaluator_id', user?.id)
+      .maybeSingle();
+
+    if (existingEval) {
+      // Update existing evaluation
+      const { error } = await supabase
+        .from('candidate_evaluations')
+        .update({
+          ...evaluation,
+          total_score,
+          submitted_at: new Date().toISOString()
+        })
+        .eq('id', existingEval.id);
+
+      if (error) throw error;
+    } else {
+      // Insert new evaluation
+      const { error } = await supabase
+        .from('candidate_evaluations')
+        .insert({
+          ...evaluation,
+          total_score,
+          evaluator_id: user?.id,
+          submitted_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+    }
+
+    // Update candidate status to under_review if pending
+    const { data: candidate } = await supabase
+      .from('candidates')
+      .select('status')
+      .eq('id', evaluation.candidate_id)
+      .single();
+
+    if (candidate?.status === 'pending') {
+      await supabase
+        .from('candidates')
+        .update({ status: 'under_review' })
+        .eq('id', evaluation.candidate_id);
+      await fetchCandidates();
+    }
+
     await fetchEvaluations(evaluation.candidate_id);
     toast({
       title: "Evaluation Submitted",
