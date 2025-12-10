@@ -56,8 +56,23 @@ export function OvertimePayrollReport() {
     to: endOfMonth(currentDate),
   });
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedBranch, setSelectedBranch] = useState<string>('all');
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeletingEmployee, setIsDeletingEmployee] = useState<string | null>(null);
+
+  // Fetch branches for filter
+  const { data: branches } = useQuery({
+    queryKey: ['attendance-branches-overtime'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('attendance_branches')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return data;
+    }
+  });
 
   // Calculate date range based on filter mode
   const getDateRange = (): { startDate: string; endDate: string } => {
@@ -97,7 +112,7 @@ export function OvertimePayrollReport() {
   };
 
   const { data: overtimeData, isLoading, refetch } = useQuery({
-    queryKey: ['overtime-report', filterMode, selectedDate, selectedMonth, selectedYear, dateRange],
+    queryKey: ['overtime-report', filterMode, selectedDate, selectedMonth, selectedYear, dateRange, selectedBranch],
     queryFn: async () => {
       const { startDate, endDate } = getDateRange();
 
@@ -135,10 +150,11 @@ export function OvertimePayrollReport() {
       };
 
       // Fetch attendance logs with all relevant data
-      const { data: logs, error } = await supabase
+      let query = supabase
         .from('attendance_logs')
         .select(`
           employee_id,
+          branch_id,
           total_hours,
           overtime_hours,
           overtime_approved,
@@ -158,6 +174,13 @@ export function OvertimePayrollReport() {
         .not('employee_id', 'is', null)
         .not('clock_out_time', 'is', null) // Only count completed sessions
         .order('employee_id');
+
+      // Apply branch filter if selected
+      if (selectedBranch !== 'all') {
+        query = query.eq('branch_id', selectedBranch);
+      }
+
+      const { data: logs, error } = await query;
 
       if (error) throw error;
 
@@ -644,6 +667,23 @@ export function OvertimePayrollReport() {
                 </Popover>
               </div>
             )}
+
+            <div>
+              <Label>Branch</Label>
+              <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Branches" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Branches</SelectItem>
+                  {branches?.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             <div>
               <Label>Search</Label>
