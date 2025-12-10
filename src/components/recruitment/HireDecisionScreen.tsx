@@ -210,12 +210,15 @@ export function HireDecisionScreen({
             </div>
           </div>
 
-          {/* HR/Admin Decision Buttons */}
+          {/* HR/Admin Decision Buttons - Only HR can make final decisions */}
           {isHROrAdmin && !isDecisionMade && (
             <>
               <Separator />
               <div className="space-y-4">
-                <h3 className="font-semibold text-center">Final Decision</h3>
+                <h3 className="font-semibold text-center">Final Decision (HR Only)</h3>
+                <p className="text-sm text-muted-foreground text-center">
+                  Based on board member evaluations, HR makes the final selection decision.
+                </p>
                 <div className="flex gap-4">
                   <Button
                     variant="outline"
@@ -237,16 +240,25 @@ export function HireDecisionScreen({
                     onClick={handleHire}
                   >
                     <CheckCircle className="h-5 w-5" />
-                    {passesThreshold ? "Hire Candidate" : "Hire Anyway"}
+                    {passesThreshold ? "Select Candidate" : "Select Anyway"}
                   </Button>
                 </div>
                 {!passesThreshold && (
                   <p className="text-center text-sm text-muted-foreground">
-                    ⚠️ Candidate is below the {passingThreshold}% threshold but can still be hired if desired
+                    ⚠️ Candidate is below the {passingThreshold}% threshold but can still be selected if desired
                   </p>
                 )}
               </div>
             </>
+          )}
+
+          {/* Message for non-HR users */}
+          {!isHROrAdmin && !isDecisionMade && submittedEvaluations.length > 0 && (
+            <div className="text-center p-4 bg-muted/50 rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                Only HR can make the final hire decision based on board evaluations.
+              </p>
+            </div>
           )}
         </CardContent>
       </Card>
