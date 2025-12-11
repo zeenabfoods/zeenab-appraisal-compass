@@ -13,7 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { Upload, FileText, CheckCircle, Loader2, Edit2 } from "lucide-react";
 import { Candidate } from "./mockData";
 import { cn } from "@/lib/utils";
-
+import { supabase } from "@/integrations/supabase/client";
 interface UploadResumeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -222,16 +222,34 @@ export function UploadResumeDialog({
     });
   };
 
-  // Create data URL for document viewing
-  const createDocumentUrl = async (file: File): Promise<string> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        resolve(e.target?.result as string || '');
-      };
-      reader.onerror = () => resolve('');
-      reader.readAsDataURL(file);
-    });
+  // Upload file to Supabase storage and return public URL
+  const uploadToStorage = async (file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `resumes/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('resumes')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        return null;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('resumes')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Storage upload failed:', error);
+      return null;
+    }
   };
 
   const simulateUpload = async (file: File) => {
@@ -241,8 +259,8 @@ export function UploadResumeDialog({
     // Read file content for extraction
     const fileContent = await readFileContent(file);
     
-    // Create document URL for viewing
-    const documentUrl = await createDocumentUrl(file);
+    // Upload to Supabase storage for persistent storage
+    const storageUrl = await uploadToStorage(file);
     
     // Determine document type
     const ext = file.name.split('.').pop()?.toLowerCase() || 'unknown';
@@ -298,7 +316,7 @@ export function UploadResumeDialog({
       appliedRole: '', // HR will set this
       matchScore,
       status: 'pending',
-      resumeUrl: documentUrl,
+      resumeUrl: storageUrl || undefined, // Persistent URL from Supabase storage
       resumeText: fileContent.substring(0, 10000),
       yearsOfExperience: extractedExp,
       location: extractedLoc || undefined,
