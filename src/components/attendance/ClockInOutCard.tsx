@@ -30,6 +30,8 @@ export function ClockInOutCard() {
   const [earlyClosureInfo, setEarlyClosureInfo] = useState<{ hoursWorked: number; requiredHours: number; chargeAmount: number } | null>(null);
   const [showApiDemoDialog, setShowApiDemoDialog] = useState(false);
   const [isStartingOvertime, setIsStartingOvertime] = useState(false);
+  const [isTransitioningToField, setIsTransitioningToField] = useState(false);
+  const [showFieldTransitionDialog, setShowFieldTransitionDialog] = useState(false);
   
   const { branches } = useBranches();
   const { isClocked, todayLog, clockIn, clockOut, loading: logsLoading, isClockingIn, refetch: refetchLogs } = useAttendanceLogs();
@@ -384,8 +386,46 @@ export function ClockInOutCard() {
 
   const handleGoToFieldTrip = () => {
     setShowEarlyClosureDialog(false);
-    setMode('field');
-    setShowFieldDialog(true);
+    // Open field transition dialog for mid-day office-to-field transition
+    setShowFieldTransitionDialog(true);
+  };
+
+  // Handle transitioning from office to field work (clock out office, clock in field)
+  const handleFieldTransition = async () => {
+    if (!fieldReason.trim() || !fieldLocation.trim()) {
+      toast.error('Please provide location and reason for field work');
+      return;
+    }
+
+    setIsTransitioningToField(true);
+    try {
+      // Clock out from office session WITHOUT early closure charge (valid field transition)
+      await clockOut(
+        latitude,
+        longitude,
+        isWithinGeofence,
+        false // NOT early closure - this is a valid field transition
+      );
+
+      // Now clock in as field work
+      await clockIn({
+        locationType: 'field',
+        latitude,
+        longitude,
+        fieldWorkReason: fieldReason,
+        fieldWorkLocation: fieldLocation,
+      });
+
+      setShowFieldTransitionDialog(false);
+      setFieldReason('');
+      setFieldLocation('');
+      toast.success('Transitioned to field work successfully');
+    } catch (error) {
+      console.error('Error transitioning to field work:', error);
+      toast.error('Failed to transition to field work');
+    } finally {
+      setIsTransitioningToField(false);
+    }
   };
 
   // Allow external triggers (e.g., bottom nav fingerprint button) to toggle clock
@@ -442,11 +482,20 @@ export function ClockInOutCard() {
   const dateStr = currentTime.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
   const timeStr = currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 
-  // Check if overtime button should be shown (clocked in, office mode, not already on overtime, after work end time)
+  // Check if overtime button should be shown - ALWAYS visible when clocked in office mode (validation in handler)
   const showOvertimeButton = isClocked && 
     todayLog?.location_type === 'office' && 
-    !todayLog?.overtime_approved && 
-    !todayLog?.clock_out_time;
+    !todayLog?.overtime_approved;
+
+  // Check if overtime can be started (only after 5pm / work end time)
+  const canStartOvertime = (): boolean => {
+    if (!activeRule?.work_end_time) return false;
+    const [endH, endM] = activeRule.work_end_time.split(':').map(Number);
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const endMinutes = endH * 60 + endM;
+    return currentMinutes >= endMinutes;
+  };
 
   if (logsLoading) {
     return (
@@ -676,26 +725,38 @@ export function ClockInOutCard() {
             </div>
           )}
 
-          {/* Overtime Button - Only show when clocked in to office and not already on overtime */}
+          {/* Overtime Button - Always visible when clocked in office mode, disabled until 5pm */}
           {showOvertimeButton && (
-            <Button
-              size="lg"
-              onClick={handleStartOvertime}
-              disabled={isStartingOvertime}
-              className="w-full h-14 mb-4 text-lg font-bold uppercase tracking-wide bg-gradient-to-r from-green-600 to-emerald-600 hover:from-emerald-600 hover:to-green-600 text-white shadow-xl shadow-green-600/30 border-0"
-            >
-              {isStartingOvertime ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-3" />
-                  Starting...
-                </>
-              ) : (
-                <>
-                  <Timer className="w-5 h-5 mr-3" />
-                  Start Overtime
-                </>
+            <div className="w-full mb-4">
+              <Button
+                size="lg"
+                onClick={handleStartOvertime}
+                disabled={isStartingOvertime || !canStartOvertime()}
+                className={cn(
+                  "w-full h-14 text-lg font-bold uppercase tracking-wide border-0",
+                  canStartOvertime()
+                    ? "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-emerald-600 hover:to-green-600 text-white shadow-xl shadow-green-600/30"
+                    : "bg-gradient-to-r from-gray-600 to-gray-700 text-white/70 cursor-not-allowed"
+                )}
+              >
+                {isStartingOvertime ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-3" />
+                    Starting...
+                  </>
+                ) : (
+                  <>
+                    <Timer className="w-5 h-5 mr-3" />
+                    Start Overtime
+                  </>
+                )}
+              </Button>
+              {!canStartOvertime() && (
+                <p className="text-xs text-center text-white/50 mt-2">
+                  Available after {activeRule?.work_end_time || '17:00'}
+                </p>
               )}
-            </Button>
+            </div>
           )}
 
           {/* Main Action Button */}
@@ -862,6 +923,73 @@ export function ClockInOutCard() {
               Understood
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Field Work Transition Dialog - For transitioning from office to field mid-day */}
+      <Dialog open={showFieldTransitionDialog} onOpenChange={setShowFieldTransitionDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-cyan-500" />
+              Transition to Field Work
+            </DialogTitle>
+            <DialogDescription>
+              Your office session will be clocked out and you'll start a field work session. 
+              <strong className="text-green-500"> No early closure charge will be applied.</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="transition-location">Field Work Location *</Label>
+              <Textarea
+                id="transition-location"
+                value={fieldLocation}
+                onChange={(e) => setFieldLocation(e.target.value)}
+                placeholder="e.g., Client office at Victoria Island"
+                rows={2}
+              />
+            </div>
+            <div>
+              <Label htmlFor="transition-reason">Purpose of Field Work *</Label>
+              <Textarea
+                id="transition-reason"
+                value={fieldReason}
+                onChange={(e) => setFieldReason(e.target.value)}
+                placeholder="e.g., Client meeting, site visit, delivery"
+                rows={3}
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowFieldTransitionDialog(false);
+                  setFieldReason('');
+                  setFieldLocation('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleFieldTransition}
+                disabled={!fieldReason.trim() || !fieldLocation.trim() || isTransitioningToField}
+                className="bg-cyan-600 hover:bg-cyan-700"
+              >
+                {isTransitioningToField ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                    Transitioning...
+                  </>
+                ) : (
+                  <>
+                    <MapPin className="w-4 h-4 mr-2" />
+                    Start Field Work
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </>
