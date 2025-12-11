@@ -9,12 +9,17 @@ export interface DbCandidate {
   email: string | null;
   phone: string | null;
   applied_role: string | null;
+  candidate_current_role: string | null;
   resume_url: string | null;
   resume_text: string | null;
   skills: string[];
   match_score: number;
   status: string;
   cycle_id: string | null;
+  years_of_experience: number | null;
+  location: string | null;
+  education: string | null;
+  linkedin: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -140,10 +145,17 @@ export function useRecruitmentData() {
         email: candidate.email,
         phone: candidate.phone,
         applied_role: candidate.applied_role,
+        candidate_current_role: candidate.candidate_current_role,
         skills: candidate.skills || [],
         match_score: candidate.match_score || 0,
         status: 'pending',
-        cycle_id: settings?.id
+        cycle_id: settings?.id,
+        resume_url: candidate.resume_url,
+        resume_text: candidate.resume_text,
+        years_of_experience: candidate.years_of_experience,
+        location: candidate.location,
+        education: candidate.education,
+        linkedin: candidate.linkedin
       })
       .select()
       .single();

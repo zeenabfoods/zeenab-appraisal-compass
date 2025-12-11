@@ -9,7 +9,7 @@ import { DeleteAllCandidatesDialog } from "@/components/recruitment/DeleteAllCan
 import { CandidateStatusTabs } from "@/components/recruitment/CandidateStatusTabs";
 import { Button } from "@/components/ui/button";
 import { Settings2, Upload, Trash2, Loader2 } from "lucide-react";
-import { Candidate, generateNewCandidate } from "@/components/recruitment/mockData";
+import { Candidate } from "@/components/recruitment/mockData";
 import { useRecruitmentData, DbCandidate } from "@/hooks/useRecruitmentData";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -21,20 +21,26 @@ function dbToUiCandidate(db: DbCandidate): Candidate {
     name: db.name,
     email: db.email || '',
     phone: db.phone || '',
-    currentRole: db.applied_role || 'Applicant',
+    // currentRole is extracted from resume, appliedRole is set by HR
+    currentRole: db.candidate_current_role || '',
     appliedRole: db.applied_role || undefined,
     matchScore: db.match_score || 0,
     skills: {
       technical: 70,
-      experience: 70,
-      education: 70,
+      experience: db.years_of_experience ? db.years_of_experience * 10 : 70,
+      education: db.education ? 75 : 50,
       softSkills: 70,
       tools: 70
     },
     foundKeywords: db.skills || [],
     missingKeywords: [],
     status: db.status as Candidate['status'],
-    resumeUrl: db.resume_url || undefined
+    resumeUrl: db.resume_url || undefined,
+    resumeText: db.resume_text || undefined,
+    yearsOfExperience: db.years_of_experience || undefined,
+    location: db.location || undefined,
+    education: db.education || undefined,
+    linkedIn: db.linkedin || undefined
   };
 }
 
@@ -105,9 +111,16 @@ export default function Recruitment() {
         name: newCandidate.name,
         email: newCandidate.email,
         phone: newCandidate.phone,
-        applied_role: newCandidate.currentRole,
+        applied_role: newCandidate.appliedRole || undefined,
+        candidate_current_role: newCandidate.currentRole,
         skills: newCandidate.foundKeywords,
-        match_score: newCandidate.matchScore
+        match_score: newCandidate.matchScore,
+        resume_url: newCandidate.resumeUrl,
+        resume_text: newCandidate.resumeText,
+        years_of_experience: newCandidate.yearsOfExperience,
+        location: newCandidate.location,
+        education: newCandidate.education,
+        linkedin: newCandidate.linkedIn
       });
       await fetchCandidates();
       setUploadDialogOpen(false);

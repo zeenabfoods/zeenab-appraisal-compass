@@ -1184,10 +1184,14 @@ export type Database = {
       candidates: {
         Row: {
           applied_role: string | null
+          candidate_current_role: string | null
           created_at: string
           cycle_id: string | null
+          education: string | null
           email: string | null
           id: string
+          linkedin: string | null
+          location: string | null
           match_score: number | null
           name: string
           phone: string | null
@@ -1196,13 +1200,18 @@ export type Database = {
           skills: string[] | null
           status: string
           updated_at: string
+          years_of_experience: number | null
         }
         Insert: {
           applied_role?: string | null
+          candidate_current_role?: string | null
           created_at?: string
           cycle_id?: string | null
+          education?: string | null
           email?: string | null
           id?: string
+          linkedin?: string | null
+          location?: string | null
           match_score?: number | null
           name: string
           phone?: string | null
@@ -1211,13 +1220,18 @@ export type Database = {
           skills?: string[] | null
           status?: string
           updated_at?: string
+          years_of_experience?: number | null
         }
         Update: {
           applied_role?: string | null
+          candidate_current_role?: string | null
           created_at?: string
           cycle_id?: string | null
+          education?: string | null
           email?: string | null
           id?: string
+          linkedin?: string | null
+          location?: string | null
           match_score?: number | null
           name?: string
           phone?: string | null
@@ -1226,6 +1240,7 @@ export type Database = {
           skills?: string[] | null
           status?: string
           updated_at?: string
+          years_of_experience?: number | null
         }
         Relationships: [
           {
