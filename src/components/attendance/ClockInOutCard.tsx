@@ -399,13 +399,29 @@ export function ClockInOutCard() {
 
     setIsTransitioningToField(true);
     try {
-      // Clock out from office session WITHOUT early closure charge (valid field transition)
-      await clockOut(
-        latitude,
-        longitude,
-        isWithinGeofence,
-        false // NOT early closure - this is a valid field transition
-      );
+      // First, update the current log to mark it as a field transition (NOT early closure)
+      // This prevents the early closure charge from being applied
+      if (todayLog) {
+        const clockOutTime = new Date().toISOString();
+        const clockInTime = new Date(todayLog.clock_in_time);
+        const diffMs = new Date(clockOutTime).getTime() - clockInTime.getTime();
+        const totalHours = diffMs / (1000 * 60 * 60);
+
+        // Directly update the log to close the office session without early closure flag
+        const { error: updateError } = await supabase
+          .from('attendance_logs')
+          .update({
+            clock_out_time: clockOutTime,
+            clock_out_latitude: latitude,
+            clock_out_longitude: longitude,
+            within_geofence_at_clock_out: isWithinGeofence,
+            total_hours: Number(totalHours.toFixed(2)),
+            early_closure: false, // Explicitly NOT early closure - valid field transition
+          })
+          .eq('id', todayLog.id);
+
+        if (updateError) throw updateError;
+      }
 
       // Now clock in as field work
       await clockIn({
@@ -420,6 +436,9 @@ export function ClockInOutCard() {
       setFieldReason('');
       setFieldLocation('');
       toast.success('Transitioned to field work successfully');
+      
+      // Refresh logs to get updated state
+      refetchLogs();
     } catch (error) {
       console.error('Error transitioning to field work:', error);
       toast.error('Failed to transition to field work');
@@ -483,8 +502,9 @@ export function ClockInOutCard() {
   const timeStr = currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 
   // Check if overtime button should be shown - ALWAYS visible when clocked in office mode (validation in handler)
+  // Also check for night shift mode
   const showOvertimeButton = isClocked && 
-    todayLog?.location_type === 'office' && 
+    (todayLog?.location_type === 'office' || todayLog?.is_night_shift) && 
     !todayLog?.overtime_approved;
 
   // Check if overtime can be started (only after 5pm / work end time)
