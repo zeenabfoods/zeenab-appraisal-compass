@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Candidate } from "./mockData";
 import { RadarChartComparison } from "./RadarChartComparison";
 import { MatchScoreCircle } from "./MatchScoreCircle";
-import { ResumePreview } from "./ResumePreview";
+import { DocumentViewer } from "./DocumentViewer";
 import { CandidateInfoCard } from "./CandidateInfoCard";
 import { BoardEvaluationPanel } from "./BoardEvaluationPanel";
 import { HireDecisionScreen } from "./HireDecisionScreen";
@@ -44,13 +44,21 @@ export function CandidateProfile({
   onReject,
   onSubmitEvaluation
 }: CandidateProfileProps) {
-  // Calculate years of experience from skills
-  const yearsOfExperience = candidate.skills?.experience 
-    ? Math.round(candidate.skills.experience / 10) 
-    : undefined;
+  // Calculate years of experience - use extracted value or estimate from skills
+  const yearsOfExperience = candidate.yearsOfExperience || 
+    (candidate.skills?.experience ? Math.round(candidate.skills.experience / 10) : undefined);
 
   // Check if evaluations exist
   const hasEvaluations = evaluations.filter(e => e.submitted_at).length > 0;
+
+  // Determine document type from resume URL
+  const getDocumentType = (): 'pdf' | 'doc' | 'docx' | 'unknown' => {
+    if (!candidate.resumeUrl) return 'unknown';
+    if (candidate.resumeUrl.includes('application/pdf')) return 'pdf';
+    if (candidate.resumeUrl.includes('application/msword')) return 'doc';
+    if (candidate.resumeUrl.includes('application/vnd.openxmlformats')) return 'docx';
+    return 'unknown';
+  };
 
   return (
     <div className="p-6">
@@ -65,10 +73,17 @@ export function CandidateProfile({
             currentRole={candidate.currentRole}
             appliedRole={candidate.appliedRole}
             yearsOfExperience={yearsOfExperience}
+            location={candidate.location}
+            education={candidate.education}
+            linkedIn={candidate.linkedIn}
           />
 
-          {/* Resume Preview with actual candidate data */}
-          <ResumePreview candidate={candidate} />
+          {/* Document Viewer - shows actual uploaded resume */}
+          <DocumentViewer
+            documentUrl={candidate.resumeUrl || null}
+            documentName={candidate.name}
+            documentType={getDocumentType()}
+          />
         </div>
 
         {/* Right Column - Evaluation Dashboard (40%) */}
