@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Upload, FileText, CheckCircle, Loader2, Edit2 } from "lucide-react";
-import { Candidate, generateNewCandidate } from "./mockData";
+import { Candidate } from "./mockData";
 import { cn } from "@/lib/utils";
 
 interface UploadResumeDialogProps {
@@ -84,6 +84,129 @@ export function UploadResumeDialog({
     return null;
   };
 
+  // Extract name from resume text
+  const extractName = (text: string, fileName: string): string => {
+    // Try to extract name from first lines (common resume pattern)
+    const lines = text.split('\n').filter(line => line.trim().length > 0);
+    
+    // First non-empty line is often the name
+    if (lines.length > 0) {
+      const firstLine = lines[0].trim();
+      // Check if it looks like a name (2-4 words, no special chars)
+      if (/^[A-Za-z\s.'-]{2,50}$/.test(firstLine) && firstLine.split(/\s+/).length <= 4) {
+        return firstLine;
+      }
+    }
+    
+    // Fallback to filename
+    return fileName.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+  };
+
+  // Extract current role from resume text
+  const extractCurrentRole = (text: string): string | null => {
+    const rolePatterns = [
+      /(?:current\s*(?:position|role|title)|job\s*title)[:\s]*([A-Za-z\s,]+)/i,
+      /(?:^|\n)([A-Za-z]+\s+(?:Developer|Engineer|Manager|Lead|Architect|Designer|Analyst|Consultant|Director|Specialist|Coordinator))/im,
+      /(?:position|role|title)[:\s]*([A-Za-z\s,]+)(?:\n|$)/i,
+    ];
+    
+    for (const pattern of rolePatterns) {
+      const match = text.match(pattern);
+      if (match && match[1]) {
+        return match[1].trim().substring(0, 50);
+      }
+    }
+    return null;
+  };
+
+  // Extract years of experience
+  const extractExperience = (text: string): number | undefined => {
+    const expPatterns = [
+      /(\d+)\+?\s*years?\s*(?:of\s*)?(?:experience|exp)/i,
+      /experience[:\s]*(\d+)\+?\s*years?/i,
+      /(\d+)\+?\s*years?\s*(?:in\s*(?:the\s*)?(?:industry|field))/i,
+    ];
+    
+    for (const pattern of expPatterns) {
+      const match = text.match(pattern);
+      if (match && match[1]) {
+        return parseInt(match[1], 10);
+      }
+    }
+    return undefined;
+  };
+
+  // Extract location from resume text
+  const extractLocation = (text: string): string | null => {
+    const locationPatterns = [
+      /(?:location|address|city)[:\s]*([A-Za-z\s,]+)(?:\n|$)/i,
+      /([A-Za-z\s]+,\s*(?:Nigeria|USA|UK|Canada|India|Ghana))/i,
+      /(?:Lagos|Abuja|Port Harcourt|Kano|Ibadan|Kaduna|Benin City)/i,
+    ];
+    
+    for (const pattern of locationPatterns) {
+      const match = text.match(pattern);
+      if (match) {
+        return (match[1] || match[0]).trim().substring(0, 50);
+      }
+    }
+    return null;
+  };
+
+  // Extract education from resume text
+  const extractEducation = (text: string): string | null => {
+    const eduPatterns = [
+      /(?:B\.?S\.?c?|B\.?A\.?|M\.?S\.?c?|M\.?A\.?|Ph\.?D\.?|Bachelor|Master|Doctorate)['\s]*(?:in\s*)?([A-Za-z\s,]+)/i,
+      /(?:degree|education)[:\s]*([A-Za-z\s,]+)(?:\n|$)/i,
+    ];
+    
+    for (const pattern of eduPatterns) {
+      const match = text.match(pattern);
+      if (match) {
+        return match[0].trim().substring(0, 100);
+      }
+    }
+    return null;
+  };
+
+  // Extract LinkedIn URL
+  const extractLinkedIn = (text: string): string | null => {
+    const match = text.match(/(?:linkedin\.com\/in\/|linkedin:?\s*)([a-zA-Z0-9-]+)/i);
+    if (match) {
+      return `https://linkedin.com/in/${match[1]}`;
+    }
+    return null;
+  };
+
+  // Extract skills/keywords from resume
+  const extractSkills = (text: string, keywords: string[]): { found: string[], missing: string[] } => {
+    const textLower = text.toLowerCase();
+    const found: string[] = [];
+    const missing: string[] = [];
+    
+    // Common tech skills to look for
+    const allSkills = [...keywords, 'JavaScript', 'TypeScript', 'React', 'Node.js', 'Python', 
+      'SQL', 'Java', 'C#', '.NET', 'AWS', 'Azure', 'Docker', 'Kubernetes', 'Git',
+      'HTML', 'CSS', 'MongoDB', 'PostgreSQL', 'MySQL', 'REST', 'API', 'Agile', 'Scrum'];
+    
+    const uniqueSkills = [...new Set(allSkills)];
+    
+    for (const skill of uniqueSkills) {
+      if (textLower.includes(skill.toLowerCase())) {
+        found.push(skill);
+      }
+    }
+    
+    // Check which keywords are missing
+    for (const keyword of keywords) {
+      if (!textLower.includes(keyword.toLowerCase())) {
+        missing.push(keyword);
+      }
+    }
+    
+    return { found: [...new Set(found)], missing: [...new Set(missing)] };
+  };
+
   // Read file content for text extraction
   const readFileContent = async (file: File): Promise<string> => {
     return new Promise((resolve) => {
@@ -99,12 +222,31 @@ export function UploadResumeDialog({
     });
   };
 
+  // Create data URL for document viewing
+  const createDocumentUrl = async (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        resolve(e.target?.result as string || '');
+      };
+      reader.onerror = () => resolve('');
+      reader.readAsDataURL(file);
+    });
+  };
+
   const simulateUpload = async (file: File) => {
     setState('uploading');
     setFileName(file.name);
     
     // Read file content for extraction
     const fileContent = await readFileContent(file);
+    
+    // Create document URL for viewing
+    const documentUrl = await createDocumentUrl(file);
+    
+    // Determine document type
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'unknown';
+    const docType = ext === 'pdf' ? 'pdf' : ['doc', 'docx'].includes(ext) ? ext : 'unknown';
     
     // Simulate upload progress
     for (let i = 0; i <= 100; i += 10) {
@@ -124,33 +266,64 @@ export function UploadResumeDialog({
     setState('extracting');
     setProgress(0);
     
-    // Simulate data extraction
+    // Simulate data extraction progress
     for (let i = 0; i <= 100; i += 20) {
       await new Promise(r => setTimeout(r, 150));
       setProgress(i);
     }
 
-    // Generate candidate data with extracted info
-    const candidateName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
-    const newCandidate = generateNewCandidate(candidateName);
+    // Extract real data from resume content
+    const extractedName = extractName(fileContent, file.name);
+    const extractedEmailValue = extractEmail(fileContent);
+    const extractedPhoneValue = extractPhone(fileContent);
+    const extractedRole = extractCurrentRole(fileContent);
+    const extractedExp = extractExperience(fileContent);
+    const extractedLoc = extractLocation(fileContent);
+    const extractedEdu = extractEducation(fileContent);
+    const extractedLinkedInUrl = extractLinkedIn(fileContent);
+    const skillsResult = extractSkills(fileContent, ['React', 'TypeScript', 'Node.js', 'SQL', 'Leadership']);
     
-    // Try to extract email and phone from file content
-    const extractedEmail = extractEmail(fileContent);
-    const extractedPhone = extractPhone(fileContent);
-    
-    // Override with extracted data if found
-    if (extractedEmail) {
-      newCandidate.email = extractedEmail;
-    }
-    if (extractedPhone) {
-      newCandidate.phone = extractedPhone;
-    }
-    
-    // Store the file content as resume text for reference
-    newCandidate.resumeText = fileContent.substring(0, 5000); // Limit size
+    // Calculate a realistic match score based on skills found
+    const matchScore = Math.min(100, Math.round(
+      (skillsResult.found.length / (skillsResult.found.length + skillsResult.missing.length)) * 100
+    )) || 50;
+
+    // Build candidate from REAL extracted data (no mock data)
+    const newCandidate: Candidate = {
+      id: Date.now().toString(),
+      name: extractedName,
+      email: extractedEmailValue || '',
+      phone: extractedPhoneValue || '',
+      currentRole: extractedRole || '',
+      appliedRole: '', // HR will set this
+      matchScore,
+      status: 'pending',
+      resumeUrl: documentUrl,
+      resumeText: fileContent.substring(0, 10000),
+      yearsOfExperience: extractedExp,
+      location: extractedLoc || undefined,
+      education: extractedEdu || undefined,
+      linkedIn: extractedLinkedInUrl || undefined,
+      skills: {
+        technical: Math.min(100, skillsResult.found.length * 15),
+        experience: extractedExp ? Math.min(100, extractedExp * 10) : 50,
+        education: extractedEdu ? 75 : 50,
+        softSkills: 60,
+        tools: Math.min(100, skillsResult.found.length * 12)
+      },
+      foundKeywords: skillsResult.found,
+      missingKeywords: skillsResult.missing,
+      boardScores: {
+        technicalProficiency: 5,
+        relevantExperience: 5,
+        culturalFit: 5,
+        problemSolving: 5,
+        leadership: 5
+      }
+    };
     
     setExtractedData(newCandidate);
-    setAppliedRole(newCandidate.currentRole || "");
+    setAppliedRole(""); // Empty so HR can set it
     setState('complete');
   };
 
@@ -171,10 +344,11 @@ export function UploadResumeDialog({
 
   const handleConfirm = () => {
     if (extractedData) {
-      // Update with the applied role set by HR
-      const finalCandidate = {
+      // Set applied role separately - DO NOT override currentRole
+      const finalCandidate: Candidate = {
         ...extractedData,
-        currentRole: appliedRole || extractedData.currentRole
+        appliedRole: appliedRole || extractedData.currentRole || 'Not specified',
+        // Keep currentRole as extracted from resume
       };
       onUploadComplete(finalCandidate);
       resetState();
