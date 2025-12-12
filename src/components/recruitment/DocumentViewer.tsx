@@ -12,14 +12,10 @@ interface DocumentViewerProps {
 export function DocumentViewer({ documentUrl, documentName, documentType = 'unknown' }: DocumentViewerProps) {
   const [loadError, setLoadError] = useState(false);
 
-  // Determine if we can render inline
-  const isPdf = documentType === 'pdf';
-  const isWord = documentType === 'doc' || documentType === 'docx';
-  
   // Check if URL is a proper HTTP URL (not data URL)
   const isValidUrl = documentUrl && documentUrl.startsWith('http');
 
-  if (!documentUrl) {
+  if (!documentUrl || !isValidUrl) {
     return (
       <Card className="shadow-sm overflow-hidden">
         <div className="bg-gray-100 dark:bg-gray-800 p-4 border-b flex items-center gap-2">
@@ -37,10 +33,8 @@ export function DocumentViewer({ documentUrl, documentName, documentType = 'unkn
     );
   }
 
-  // Use Google Docs Viewer for PDFs and Word documents for better compatibility
+  // Use Google Docs Viewer for PDF and Word documents
   const getViewerUrl = () => {
-    if (!isValidUrl) return documentUrl;
-    // Google Docs Viewer can render PDFs and Word documents
     return `https://docs.google.com/viewer?url=${encodeURIComponent(documentUrl)}&embedded=true`;
   };
 
@@ -78,7 +72,7 @@ export function DocumentViewer({ documentUrl, documentName, documentType = 'unkn
       </div>
 
       <div className="bg-white dark:bg-gray-900 min-h-[500px]">
-        {isValidUrl && !loadError ? (
+        {!loadError ? (
           <iframe
             src={getViewerUrl()}
             className="w-full h-[600px] border-0"
@@ -89,23 +83,17 @@ export function DocumentViewer({ documentUrl, documentName, documentType = 'unkn
         ) : (
           <div className="p-8 flex flex-col items-center justify-center text-center min-h-[400px]">
             <FileText className="h-16 w-16 text-muted-foreground mb-4" />
-            <h3 className="font-medium text-lg mb-2">
-              {loadError ? 'Preview Unavailable' : 'Document Preview'}
-            </h3>
+            <h3 className="font-medium text-lg mb-2">Preview Unavailable</h3>
             <p className="text-muted-foreground text-sm max-w-md mb-4">
-              {loadError 
-                ? 'Unable to render document inline. Click the buttons above to open or download.'
-                : 'Click the buttons above to view or download the document.'}
+              Unable to render document inline. Click the buttons above to open or download.
             </p>
-            <div className="flex gap-2">
-              <Button
-                onClick={() => window.open(documentUrl, '_blank')}
-                className="bg-recruitment-primary hover:bg-recruitment-primary/90 gap-2"
-              >
-                <ExternalLink className="h-4 w-4" />
-                Open Document
-              </Button>
-            </div>
+            <Button
+              onClick={() => window.open(documentUrl, '_blank')}
+              className="bg-recruitment-primary hover:bg-recruitment-primary/90 gap-2"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Open Document
+            </Button>
           </div>
         )}
       </div>
