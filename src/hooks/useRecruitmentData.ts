@@ -42,12 +42,21 @@ export interface DbEvaluation {
   };
 }
 
+export interface SkillRequirements {
+  technical: number;
+  experience: number;
+  education: number;
+  softSkills: number;
+  tools: number;
+}
+
 export interface RecruitmentSettings {
   id: string;
   cycle_name: string;
   passing_threshold: number;
   is_active: boolean;
   required_keywords: string[];
+  skill_requirements: SkillRequirements;
 }
 
 export function useRecruitmentData() {
@@ -109,7 +118,23 @@ export function useRecruitmentData() {
       console.error('Error fetching settings:', error);
       return;
     }
-    setSettings(data);
+    if (data) {
+      const skillReqs = data.skill_requirements as unknown as SkillRequirements | null;
+      setSettings({
+        id: data.id,
+        cycle_name: data.cycle_name,
+        passing_threshold: data.passing_threshold,
+        is_active: data.is_active,
+        required_keywords: data.required_keywords,
+        skill_requirements: skillReqs || {
+          technical: 80,
+          experience: 75,
+          education: 70,
+          softSkills: 80,
+          tools: 75
+        }
+      });
+    }
   };
 
   // Save or update settings
@@ -117,19 +142,31 @@ export function useRecruitmentData() {
     if (settings?.id) {
       const { error } = await supabase
         .from('recruitment_settings')
-        .update(newSettings)
+        .update({
+          cycle_name: newSettings.cycle_name,
+          passing_threshold: newSettings.passing_threshold,
+          required_keywords: newSettings.required_keywords,
+          skill_requirements: newSettings.skill_requirements as unknown as Record<string, number>
+        })
         .eq('id', settings.id);
 
       if (error) throw error;
     } else {
       const { error } = await supabase
         .from('recruitment_settings')
-        .insert({
+        .insert([{
           cycle_name: newSettings.cycle_name || 'Default Cycle',
           passing_threshold: newSettings.passing_threshold || 70,
           required_keywords: newSettings.required_keywords || [],
+          skill_requirements: (newSettings.skill_requirements || {
+            technical: 80,
+            experience: 75,
+            education: 70,
+            softSkills: 80,
+            tools: 75
+          }) as unknown as Record<string, number>,
           created_by: user?.id
-        });
+        }]);
 
       if (error) throw error;
     }

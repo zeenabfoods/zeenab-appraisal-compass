@@ -15,9 +15,9 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { X, Plus, Settings2, Users, UserPlus, Trash2 } from "lucide-react";
+import { X, Plus, Settings2, Users, UserPlus, Trash2, Sliders } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { RecruitmentSettings } from "@/hooks/useRecruitmentData";
+import { RecruitmentSettings, SkillRequirements } from "@/hooks/useRecruitmentData";
 import { supabase } from "@/integrations/supabase/client";
 
 interface BoardMember {
@@ -48,6 +48,17 @@ export function RecruitmentSettingsDialog({
   const [newKeyword, setNewKeyword] = useState("");
   const [saving, setSaving] = useState(false);
   
+  // Skill requirements
+  const [skillRequirements, setSkillRequirements] = useState<SkillRequirements>(
+    settings?.skill_requirements || {
+      technical: 80,
+      experience: 75,
+      education: 70,
+      softSkills: 80,
+      tools: 75
+    }
+  );
+  
   // Board member management
   const [boardMembers, setBoardMembers] = useState<BoardMember[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
@@ -61,6 +72,13 @@ export function RecruitmentSettingsDialog({
       setCycleName(settings.cycle_name);
       setThreshold(settings.passing_threshold);
       setKeywords(settings.required_keywords);
+      setSkillRequirements(settings.skill_requirements || {
+        technical: 80,
+        experience: 75,
+        education: 70,
+        softSkills: 80,
+        tools: 75
+      });
     }
   }, [settings]);
 
@@ -190,7 +208,8 @@ export function RecruitmentSettingsDialog({
       await onSave({
         cycle_name: cycleName,
         passing_threshold: threshold,
-        required_keywords: keywords
+        required_keywords: keywords,
+        skill_requirements: skillRequirements
       });
       toast({
         title: "Settings Saved",
@@ -222,11 +241,15 @@ export function RecruitmentSettingsDialog({
         </DialogHeader>
 
         <Tabs defaultValue="general" className="mt-4">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="general">General</TabsTrigger>
+            <TabsTrigger value="skills" className="gap-2">
+              <Sliders className="h-4 w-4" />
+              Skills
+            </TabsTrigger>
             <TabsTrigger value="board" className="gap-2">
               <Users className="h-4 w-4" />
-              Board Members
+              Board
             </TabsTrigger>
           </TabsList>
 
@@ -300,6 +323,37 @@ export function RecruitmentSettingsDialog({
                 )}
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="skills" className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground mb-4">
+              Set the minimum skill requirements for candidates. These thresholds are used in the Skills Comparison chart.
+            </p>
+            
+            {[
+              { key: 'technical', label: 'Technical Skills', color: 'text-blue-500' },
+              { key: 'experience', label: 'Experience', color: 'text-purple-500' },
+              { key: 'education', label: 'Education', color: 'text-emerald-500' },
+              { key: 'softSkills', label: 'Soft Skills', color: 'text-orange-500' },
+              { key: 'tools', label: 'Tools & Technologies', color: 'text-pink-500' }
+            ].map(({ key, label, color }) => (
+              <div key={key} className="space-y-2">
+                <div className="flex justify-between">
+                  <Label className={color}>{label}</Label>
+                  <span className="text-sm font-medium">
+                    {skillRequirements[key as keyof SkillRequirements]}%
+                  </span>
+                </div>
+                <Slider
+                  value={[skillRequirements[key as keyof SkillRequirements]]}
+                  onValueChange={(value) => setSkillRequirements(prev => ({ ...prev, [key]: value[0] }))}
+                  min={50}
+                  max={100}
+                  step={5}
+                  className="cursor-pointer"
+                />
+              </div>
+            ))}
           </TabsContent>
 
           <TabsContent value="board" className="space-y-4 py-4">

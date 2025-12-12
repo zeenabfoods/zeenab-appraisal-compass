@@ -1,14 +1,17 @@
 import { motion } from "framer-motion";
 import { Code, Briefcase, GraduationCap, Users, Wrench } from "lucide-react";
 
+interface SkillRequirements {
+  technical: number;
+  experience: number;
+  education: number;
+  softSkills: number;
+  tools: number;
+}
+
 interface RadarChartComparisonProps {
-  skills: {
-    technical: number;
-    experience: number;
-    education: number;
-    softSkills: number;
-    tools: number;
-  };
+  skills: SkillRequirements;
+  requiredSkills?: SkillRequirements;
 }
 
 interface SkillBarProps {
@@ -111,9 +114,9 @@ function SkillBar({ label, icon: Icon, value, required, color, bgColor, delay }:
   );
 }
 
-export function RadarChartComparison({ skills }: RadarChartComparisonProps) {
-  // Required skills baseline
-  const requiredSkills = {
+export function RadarChartComparison({ skills, requiredSkills: passedRequirements }: RadarChartComparisonProps) {
+  // Use passed requirements or defaults
+  const requiredSkills = passedRequirements || {
     technical: 80,
     experience: 75,
     education: 70,

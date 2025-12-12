@@ -11,7 +11,7 @@ import { BoardEvaluationPanel } from "./BoardEvaluationPanel";
 import { HireDecisionScreen } from "./HireDecisionScreen";
 import { FileText, Mail, Phone, Briefcase, ClipboardCheck, Award } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DbEvaluation } from "@/hooks/useRecruitmentData";
+import { DbEvaluation, SkillRequirements } from "@/hooks/useRecruitmentData";
 
 interface CandidateProfileProps {
   candidate: Candidate;
@@ -20,6 +20,7 @@ interface CandidateProfileProps {
   currentUserId: string;
   isHROrAdmin: boolean;
   passingThreshold: number;
+  skillRequirements?: SkillRequirements;
   onHire: (candidateId: string) => void;
   onReject: (candidateId: string) => void;
   onSubmitEvaluation: (evaluation: {
@@ -40,6 +41,7 @@ export function CandidateProfile({
   currentUserId,
   isHROrAdmin,
   passingThreshold,
+  skillRequirements,
   onHire, 
   onReject,
   onSubmitEvaluation,
@@ -122,7 +124,7 @@ export function CandidateProfile({
               <CardTitle className="text-lg">Skills Comparison</CardTitle>
             </CardHeader>
             <CardContent>
-              <RadarChartComparison skills={candidate.skills} />
+              <RadarChartComparison skills={candidate.skills} requiredSkills={skillRequirements} />
             </CardContent>
           </Card>
 
