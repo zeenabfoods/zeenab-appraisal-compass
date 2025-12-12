@@ -107,27 +107,33 @@ export default function Recruitment() {
 
   const handleUploadComplete = async (newCandidate: Candidate) => {
     try {
+      console.log('Adding candidate:', newCandidate);
       await addCandidate({
         name: newCandidate.name,
-        email: newCandidate.email,
-        phone: newCandidate.phone,
-        applied_role: newCandidate.appliedRole || undefined,
-        candidate_current_role: newCandidate.currentRole,
-        skills: newCandidate.foundKeywords,
-        match_score: newCandidate.matchScore,
-        resume_url: newCandidate.resumeUrl,
-        resume_text: newCandidate.resumeText,
-        years_of_experience: newCandidate.yearsOfExperience,
-        location: newCandidate.location,
-        education: newCandidate.education,
-        linkedin: newCandidate.linkedIn
+        email: newCandidate.email || null,
+        phone: newCandidate.phone || null,
+        applied_role: newCandidate.appliedRole || null,
+        candidate_current_role: newCandidate.currentRole || null,
+        skills: newCandidate.foundKeywords || [],
+        match_score: newCandidate.matchScore || 0,
+        resume_url: newCandidate.resumeUrl || null,
+        resume_text: newCandidate.resumeText || null,
+        years_of_experience: newCandidate.yearsOfExperience || null,
+        location: newCandidate.location || null,
+        education: newCandidate.education || null,
+        linkedin: newCandidate.linkedIn || null
       });
       await fetchCandidates();
       setUploadDialogOpen(false);
-    } catch (error) {
+      toast({
+        title: "Candidate Added",
+        description: `${newCandidate.name} has been added successfully.`
+      });
+    } catch (error: any) {
+      console.error('Error adding candidate:', error);
       toast({
         title: "Error",
-        description: "Failed to add candidate",
+        description: error?.message || "Failed to add candidate. Please try again.",
         variant: "destructive"
       });
     }
