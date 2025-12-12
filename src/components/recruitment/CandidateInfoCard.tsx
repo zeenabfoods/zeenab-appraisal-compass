@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { motion, AnimatePresence } from "framer-motion";
-import { FileText, Mail, Phone, Briefcase, Calendar, MapPin, GraduationCap, Linkedin } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
+import { FileText, Mail, Phone, Briefcase, Calendar, MapPin, GraduationCap, Linkedin, Pencil } from "lucide-react";
+import { CandidateEditDialog } from "./CandidateEditDialog";
 
 interface CandidateInfoCardProps {
+  candidateId: string;
   name: string;
   email: string;
   phone: string;
@@ -15,6 +17,8 @@ interface CandidateInfoCardProps {
   location?: string;
   linkedIn?: string;
   education?: string;
+  isHROrAdmin?: boolean;
+  onUpdate?: () => void;
 }
 
 interface InfoItemProps {
@@ -44,6 +48,7 @@ function InfoItem({ icon: Icon, label, value, onClick }: InfoItemProps) {
 }
 
 export function CandidateInfoCard({
+  candidateId,
   name,
   email,
   phone,
@@ -52,9 +57,12 @@ export function CandidateInfoCard({
   yearsOfExperience,
   location,
   linkedIn,
-  education
+  education,
+  isHROrAdmin = false,
+  onUpdate
 }: CandidateInfoCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
   // Truncate helper
   const truncate = (str: string, length: number) => {
@@ -64,6 +72,16 @@ export function CandidateInfoCard({
   };
 
   const openModal = () => setIsModalOpen(true);
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsModalOpen(false);
+    setIsEditOpen(true);
+  };
+
+  const handleSaved = () => {
+    if (onUpdate) onUpdate();
+  };
 
   return (
     <>
@@ -114,10 +132,23 @@ export function CandidateInfoCard({
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-recruitment-primary" />
-              Candidate Details
-            </DialogTitle>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-recruitment-primary" />
+                Candidate Details
+              </DialogTitle>
+              {isHROrAdmin && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleEditClick}
+                  className="gap-1 text-recruitment-primary border-recruitment-primary hover:bg-recruitment-primary/10"
+                >
+                  <Pencil className="h-4 w-4" />
+                  Edit
+                </Button>
+              )}
+            </div>
           </DialogHeader>
           
           <motion.div 
@@ -194,40 +225,36 @@ export function CandidateInfoCard({
               </div>
             </div>
 
-            {/* Location (if available) */}
-            {location && (
-              <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                <div className="p-2 rounded-lg bg-orange-50 dark:bg-orange-900/20">
-                  <MapPin className="h-5 w-5 text-recruitment-primary" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium">Location</p>
-                  <p className="font-semibold text-foreground">{location}</p>
-                </div>
+            {/* Location */}
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+              <div className="p-2 rounded-lg bg-orange-50 dark:bg-orange-900/20">
+                <MapPin className="h-5 w-5 text-recruitment-primary" />
               </div>
-            )}
-
-            {/* Education (if available) */}
-            {education && (
-              <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                <div className="p-2 rounded-lg bg-orange-50 dark:bg-orange-900/20">
-                  <GraduationCap className="h-5 w-5 text-recruitment-primary" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium">Education</p>
-                  <p className="font-semibold text-foreground">{education}</p>
-                </div>
+              <div>
+                <p className="text-xs text-muted-foreground font-medium">Location</p>
+                <p className="font-semibold text-foreground">{location || "Not provided"}</p>
               </div>
-            )}
+            </div>
 
-            {/* LinkedIn (if available) */}
-            {linkedIn && (
-              <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                <div className="p-2 rounded-lg bg-orange-50 dark:bg-orange-900/20">
-                  <Linkedin className="h-5 w-5 text-recruitment-primary" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium">LinkedIn</p>
+            {/* Education */}
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+              <div className="p-2 rounded-lg bg-orange-50 dark:bg-orange-900/20">
+                <GraduationCap className="h-5 w-5 text-recruitment-primary" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground font-medium">Education</p>
+                <p className="font-semibold text-foreground">{education || "Not provided"}</p>
+              </div>
+            </div>
+
+            {/* LinkedIn */}
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+              <div className="p-2 rounded-lg bg-orange-50 dark:bg-orange-900/20">
+                <Linkedin className="h-5 w-5 text-recruitment-primary" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground font-medium">LinkedIn</p>
+                {linkedIn ? (
                   <a 
                     href={linkedIn} 
                     target="_blank" 
@@ -236,12 +263,33 @@ export function CandidateInfoCard({
                   >
                     View Profile
                   </a>
-                </div>
+                ) : (
+                  <p className="font-semibold text-foreground">Not provided</p>
+                )}
               </div>
-            )}
+            </div>
           </motion.div>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Dialog */}
+      <CandidateEditDialog
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        candidateId={candidateId}
+        initialData={{
+          name: name || '',
+          email: email || '',
+          phone: phone || '',
+          appliedRole: appliedRole || '',
+          currentRole: currentRole || '',
+          yearsOfExperience: yearsOfExperience ?? null,
+          location: location || '',
+          education: education || '',
+          linkedIn: linkedIn || ''
+        }}
+        onSaved={handleSaved}
+      />
     </>
   );
 }

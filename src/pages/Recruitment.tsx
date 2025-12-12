@@ -325,6 +325,7 @@ export default function Recruitment() {
                 onHire={handleHireCandidate}
                 onReject={handleRejectCandidate}
                 onSubmitEvaluation={submitEvaluation}
+                onCandidateUpdate={fetchCandidates}
               />
             ) : (
               <div className="flex items-center justify-center h-full text-muted-foreground">

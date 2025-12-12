@@ -42,8 +42,9 @@ export function CandidateProfile({
   passingThreshold,
   onHire, 
   onReject,
-  onSubmitEvaluation
-}: CandidateProfileProps) {
+  onSubmitEvaluation,
+  onCandidateUpdate
+}: CandidateProfileProps & { onCandidateUpdate?: () => void }) {
   // Calculate years of experience - use extracted value or estimate from skills
   const yearsOfExperience = candidate.yearsOfExperience || 
     (candidate.skills?.experience ? Math.round(candidate.skills.experience / 10) : undefined);
@@ -67,6 +68,7 @@ export function CandidateProfile({
         <div className="lg:col-span-3 space-y-6">
           {/* Enhanced Info Card with hover animations */}
           <CandidateInfoCard
+            candidateId={candidate.id}
             name={candidate.name}
             email={candidate.email}
             phone={candidate.phone}
@@ -76,6 +78,8 @@ export function CandidateProfile({
             location={candidate.location}
             education={candidate.education}
             linkedIn={candidate.linkedIn}
+            isHROrAdmin={isHROrAdmin}
+            onUpdate={onCandidateUpdate}
           />
 
           {/* Document Viewer - shows actual uploaded resume */}
