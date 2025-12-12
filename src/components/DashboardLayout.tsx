@@ -1,7 +1,7 @@
 import { useAuthContext } from '@/components/AuthProvider';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ResponsiveSidebar } from '@/components/ResponsiveSidebar';
+import { ResponsiveSidebar, SidebarProvider, useSidebarState } from '@/components/ResponsiveSidebar';
 import { NotificationBell } from '@/components/NotificationBell';
 import { BottomNavigation } from '@/components/BottomNavigation';
 import { LogOut, User, Search } from 'lucide-react';
@@ -16,10 +16,11 @@ interface DashboardLayoutProps {
   pageTitle?: string;
 }
 
-export function DashboardLayout({ children, showSearch = true, pageTitle = "Dashboard" }: DashboardLayoutProps) {
+function DashboardLayoutContent({ children, showSearch = true, pageTitle = "Dashboard" }: DashboardLayoutProps) {
   const { profile, signOut } = useAuthContext();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const { isCollapsed } = useSidebarState();
 
   // CRITICAL: Layout enforcement - throw error if duplicate headers exist
   useEffect(() => {
@@ -87,8 +88,10 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
       {/* Responsive Sidebar */}
       <ResponsiveSidebar />
       
-      {/* Main Content Area - Responsive layout */}
-      <div className="flex-1 flex flex-col min-w-0 md:ml-64 pb-20 md:pb-0">
+      {/* Main Content Area - Responsive layout with dynamic margin */}
+      <div className={`flex-1 flex flex-col min-w-0 pb-20 md:pb-0 transition-all duration-300 ${
+        isMobile ? '' : (isCollapsed ? 'md:ml-16' : 'md:ml-64')
+      }`}>
         {/* 🎯 SINGLE CONSOLIDATED HEADER - Responsive design */}
         <header 
           data-testid="app-header"
@@ -177,4 +180,12 @@ export function DashboardLayout({ children, showSearch = true, pageTitle = "Dash
       <BottomNavigation />
     </div>
   )
+}
+
+export function DashboardLayout(props: DashboardLayoutProps) {
+  return (
+    <SidebarProvider>
+      <DashboardLayoutContent {...props} />
+    </SidebarProvider>
+  );
 }
