@@ -243,6 +243,24 @@ export default function Recruitment() {
     }
   };
 
+  // Save keywords to database when updated from keyword bank dialog
+  const handleKeywordsChange = async (newKeywords: string[]) => {
+    try {
+      setKeywords(newKeywords);
+      await saveSettings({ required_keywords: newKeywords });
+      toast({
+        title: "Keywords Saved",
+        description: `${newKeywords.length} keywords saved to keyword bank.`
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save keywords. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
   // Filter candidates by status
   const filteredCandidates = activeStatusTab === 'all' 
     ? candidates 
@@ -375,7 +393,7 @@ export default function Recruitment() {
         open={keywordDialogOpen}
         onOpenChange={setKeywordDialogOpen}
         keywords={keywords}
-        onKeywordsChange={setKeywords}
+        onKeywordsChange={handleKeywordsChange}
       />
 
       <UploadResumeDialog

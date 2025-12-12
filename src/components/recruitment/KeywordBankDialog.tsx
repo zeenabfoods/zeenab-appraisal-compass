@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +27,13 @@ export function KeywordBankDialog({
 }: KeywordBankDialogProps) {
   const [newKeyword, setNewKeyword] = useState("");
   const [localKeywords, setLocalKeywords] = useState<string[]>(keywords);
+
+  // Sync localKeywords with keywords prop when dialog opens or keywords change
+  useEffect(() => {
+    if (open) {
+      setLocalKeywords(keywords);
+    }
+  }, [open, keywords]);
 
   const handleAddKeyword = () => {
     if (newKeyword.trim() && !localKeywords.includes(newKeyword.trim())) {
