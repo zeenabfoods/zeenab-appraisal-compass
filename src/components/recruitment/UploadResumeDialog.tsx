@@ -34,15 +34,27 @@ export function UploadResumeDialog({
   const [appliedRole, setAppliedRole] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Sanitize text to remove problematic Unicode characters
+  const sanitizeText = (text: string): string => {
+    if (!text) return '';
+    // Remove null bytes, control characters, and problematic Unicode sequences
+    return text
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control characters
+      .replace(/\\u[0-9a-fA-F]{4}/g, '') // Remove Unicode escape sequences
+      .replace(/[\uFFFD\uFFFE\uFFFF]/g, '') // Remove replacement and non-characters
+      .replace(/[\u0000-\u001F]/g, ' ') // Replace remaining control chars with space
+      .trim();
+  };
+
   // Enhanced email extraction patterns
   const extractEmail = (text: string): string | null => {
-    // Clean the text first
-    const cleanText = text.replace(/\s+/g, ' ');
+    // Clean and sanitize the text first
+    const cleanText = sanitizeText(text.replace(/\s+/g, ' '));
     
     // Multiple patterns for email extraction - most specific first
     const emailPatterns = [
-      /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b/gi,
-      /(?:email|e-mail|mail)[:\s]*([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7})/gi,
+      /\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,7}\b/gi,
+      /(?:email|e-mail|mail)[:\s]*([A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,7})/gi,
     ];
     
     for (const pattern of emailPatterns) {
@@ -53,7 +65,7 @@ export function UploadResumeDialog({
           const email = match.replace(/^(?:email|e-mail|mail)[:\s]*/i, '').trim().toLowerCase();
           // Validate it looks like an email
           if (email.includes('@') && email.includes('.') && !email.includes(' ')) {
-            return email;
+            return sanitizeText(email);
           }
         }
       }
@@ -63,19 +75,19 @@ export function UploadResumeDialog({
 
   // Enhanced phone number extraction patterns
   const extractPhone = (text: string): string | null => {
-    const cleanText = text.replace(/\s+/g, ' ');
+    const cleanText = sanitizeText(text.replace(/\s+/g, ' '));
     
     // Multiple patterns for phone extraction - handles various formats
     const phonePatterns = [
       // Nigerian format: +234, 0803, etc.
       /(?:\+?234|0)[789][01]\d{8}/g,
       // International format with country code
-      /\+\d{1,3}[\s.-]?\(?\d{2,4}\)?[\s.-]?\d{3,4}[\s.-]?\d{3,4}/g,
+      /\+\d{1,3}[\s.\-]?\(?\d{2,4}\)?[\s.\-]?\d{3,4}[\s.\-]?\d{3,4}/g,
       // Labeled phone numbers
       /(?:phone|tel|mobile|cell)[:\s]*([+\d\s\-().]{10,18})/gi,
       // Common phone formats
-      /\(\d{3}\)\s*\d{3}[-.\s]?\d{4}/g,
-      /\d{3}[-.\s]\d{3}[-.\s]\d{4}/g,
+      /\(\d{3}\)\s*\d{3}[.\-\s]?\d{4}/g,
+      /\d{3}[.\-\s]\d{3}[.\-\s]\d{4}/g,
       // Simple numeric patterns (10-14 digits)
       /\b\d{10,14}\b/g,
     ];
@@ -89,7 +101,7 @@ export function UploadResumeDialog({
           // Keep only digits and + sign
           phone = phone.replace(/[^\d+]/g, '');
           if (phone.length >= 10 && phone.length <= 15) {
-            return phone;
+            return sanitizeText(phone);
           }
         }
       }
@@ -317,16 +329,19 @@ export function UploadResumeDialog({
       setProgress(i);
     }
 
+    // Sanitize file content before extraction
+    const sanitizedContent = sanitizeText(fileContent);
+    
     // Extract real data from resume content
-    const extractedName = extractName(fileContent, file.name);
-    const extractedEmailValue = extractEmail(fileContent);
-    const extractedPhoneValue = extractPhone(fileContent);
-    const extractedRole = extractCurrentRole(fileContent);
-    const extractedExp = extractExperience(fileContent);
-    const extractedLoc = extractLocation(fileContent);
-    const extractedEdu = extractEducation(fileContent);
-    const extractedLinkedInUrl = extractLinkedIn(fileContent);
-    const skillsResult = extractSkills(fileContent, ['React', 'TypeScript', 'Node.js', 'SQL', 'Leadership']);
+    const extractedName = sanitizeText(extractName(sanitizedContent, file.name));
+    const extractedEmailValue = extractEmail(sanitizedContent);
+    const extractedPhoneValue = extractPhone(sanitizedContent);
+    const extractedRole = extractCurrentRole(sanitizedContent);
+    const extractedExp = extractExperience(sanitizedContent);
+    const extractedLoc = extractLocation(sanitizedContent);
+    const extractedEdu = extractEducation(sanitizedContent);
+    const extractedLinkedInUrl = extractLinkedIn(sanitizedContent);
+    const skillsResult = extractSkills(sanitizedContent, ['React', 'TypeScript', 'Node.js', 'SQL', 'Leadership']);
     
     // Calculate a realistic match score based on skills found
     const matchScore = Math.min(100, Math.round(
@@ -339,16 +354,16 @@ export function UploadResumeDialog({
       name: extractedName,
       email: extractedEmailValue || '',
       phone: extractedPhoneValue || '',
-      currentRole: extractedRole || '',
+      currentRole: sanitizeText(extractedRole || ''),
       appliedRole: '', // HR will set this
       matchScore,
       status: 'pending',
       resumeUrl: storageUrl || undefined, // Persistent URL from Supabase storage
-      resumeText: fileContent.substring(0, 10000),
+      resumeText: sanitizeText(sanitizedContent.substring(0, 10000)),
       yearsOfExperience: extractedExp,
-      location: extractedLoc || undefined,
-      education: extractedEdu || undefined,
-      linkedIn: extractedLinkedInUrl || undefined,
+      location: sanitizeText(extractedLoc || ''),
+      education: sanitizeText(extractedEdu || ''),
+      linkedIn: sanitizeText(extractedLinkedInUrl || ''),
       skills: {
         technical: Math.min(100, skillsResult.found.length * 15),
         experience: extractedExp ? Math.min(100, extractedExp * 10) : 50,
@@ -356,8 +371,8 @@ export function UploadResumeDialog({
         softSkills: 60,
         tools: Math.min(100, skillsResult.found.length * 12)
       },
-      foundKeywords: skillsResult.found,
-      missingKeywords: skillsResult.missing,
+      foundKeywords: skillsResult.found.map(s => sanitizeText(s)),
+      missingKeywords: skillsResult.missing.map(s => sanitizeText(s)),
       boardScores: {
         technicalProficiency: 5,
         relevantExperience: 5,
