@@ -219,28 +219,28 @@ export function HireDecisionScreen({
                 <p className="text-sm text-muted-foreground text-center">
                   Based on board member evaluations, HR makes the final selection decision.
                 </p>
-                <div className="flex gap-4">
+                <div className="flex gap-3">
                   <Button
                     variant="outline"
-                    size="lg"
-                    className="flex-1 gap-2 h-14 text-lg border-red-200 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
+                    size="sm"
+                    className="flex-1 gap-1.5 h-10 text-sm border-red-200 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
                     onClick={onReject}
                   >
-                    <XCircle className="h-5 w-5" />
-                    Reject Candidate
+                    <XCircle className="h-4 w-4" />
+                    Reject
                   </Button>
                   <Button
-                    size="lg"
+                    size="sm"
                     className={cn(
-                      "flex-1 gap-2 h-14 text-lg",
+                      "flex-1 gap-1.5 h-10 text-sm",
                       passesThreshold
                         ? "bg-green-600 hover:bg-green-700"
                         : "bg-recruitment-primary hover:bg-recruitment-primary/90"
                     )}
                     onClick={handleHire}
                   >
-                    <CheckCircle className="h-5 w-5" />
-                    {passesThreshold ? "Select Candidate" : "Select Anyway"}
+                    <CheckCircle className="h-4 w-4" />
+                    {passesThreshold ? "Select" : "Select Anyway"}
                   </Button>
                 </div>
                 {!passesThreshold && (
