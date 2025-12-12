@@ -264,16 +264,16 @@ export default function Recruitment() {
                   <Settings2 className="h-4 w-4" />
                   Settings
                 </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setKeywordDialogOpen(true)}
+                  className="gap-2"
+                >
+                  <Settings2 className="h-4 w-4" />
+                  Keyword Bank
+                </Button>
               </>
             )}
-            <Button
-              variant="outline"
-              onClick={() => setKeywordDialogOpen(true)}
-              className="gap-2"
-            >
-              <Settings2 className="h-4 w-4" />
-              Keyword Bank
-            </Button>
             <Button
               onClick={() => setUploadDialogOpen(true)}
               className="gap-2 bg-recruitment-primary hover:bg-recruitment-primary/90 text-white"

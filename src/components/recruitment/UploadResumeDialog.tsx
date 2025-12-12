@@ -227,11 +227,10 @@ export function UploadResumeDialog({
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `resumes/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('resumes')
-        .upload(filePath, file, {
+        .upload(fileName, file, {
           cacheControl: '3600',
           upsert: false
         });
@@ -243,7 +242,7 @@ export function UploadResumeDialog({
 
       const { data: { publicUrl } } = supabase.storage
         .from('resumes')
-        .getPublicUrl(filePath);
+        .getPublicUrl(fileName);
 
       return publicUrl;
     } catch (error) {
