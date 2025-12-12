@@ -223,13 +223,7 @@ export function useRecruitmentData() {
     leadership: number;
     comments?: string;
   }) => {
-    // Calculate total score
-    const total_score = 
-      evaluation.technical_proficiency + 
-      evaluation.relevant_experience + 
-      evaluation.cultural_fit + 
-      evaluation.problem_solving + 
-      evaluation.leadership;
+    // total_score is auto-calculated by database trigger
 
     // Check if evaluation already exists
     const { data: existingEval } = await supabase
@@ -240,24 +234,33 @@ export function useRecruitmentData() {
       .maybeSingle();
 
     if (existingEval) {
-      // Update existing evaluation
+      // Update existing evaluation (total_score is auto-calculated by trigger)
       const { error } = await supabase
         .from('candidate_evaluations')
         .update({
-          ...evaluation,
-          total_score,
+          technical_proficiency: evaluation.technical_proficiency,
+          relevant_experience: evaluation.relevant_experience,
+          cultural_fit: evaluation.cultural_fit,
+          problem_solving: evaluation.problem_solving,
+          leadership: evaluation.leadership,
+          comments: evaluation.comments,
           submitted_at: new Date().toISOString()
         })
         .eq('id', existingEval.id);
 
       if (error) throw error;
     } else {
-      // Insert new evaluation
+      // Insert new evaluation (total_score is auto-calculated by trigger)
       const { error } = await supabase
         .from('candidate_evaluations')
         .insert({
-          ...evaluation,
-          total_score,
+          candidate_id: evaluation.candidate_id,
+          technical_proficiency: evaluation.technical_proficiency,
+          relevant_experience: evaluation.relevant_experience,
+          cultural_fit: evaluation.cultural_fit,
+          problem_solving: evaluation.problem_solving,
+          leadership: evaluation.leadership,
+          comments: evaluation.comments,
           evaluator_id: user?.id,
           submitted_at: new Date().toISOString()
         });

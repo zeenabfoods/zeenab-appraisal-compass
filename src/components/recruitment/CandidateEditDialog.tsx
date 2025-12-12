@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,11 @@ export function CandidateEditDialog({
 }: CandidateEditDialogProps) {
   const [formData, setFormData] = useState(initialData);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Reset form data when initialData changes (different candidate selected)
+  useEffect(() => {
+    setFormData(initialData);
+  }, [candidateId, initialData]);
 
   const handleChange = (field: keyof typeof formData, value: string | number) => {
     setFormData(prev => ({ ...prev, [field]: value }));
