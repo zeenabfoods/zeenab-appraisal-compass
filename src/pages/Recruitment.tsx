@@ -95,7 +95,7 @@ export default function Recruitment() {
   } = useRecruitmentData();
 
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
-  const [keywords, setKeywords] = useState<string[]>(settings?.required_keywords || ["React", "TypeScript", "Node.js", "SQL", "Leadership"]);
+  const [keywords, setKeywords] = useState<string[]>(settings?.required_keywords || []);
   const [keywordDialogOpen, setKeywordDialogOpen] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
