@@ -36,19 +36,25 @@ export function UploadResumeDialog({
 
   // Enhanced email extraction patterns
   const extractEmail = (text: string): string | null => {
-    // Multiple patterns for email extraction
+    // Clean the text first
+    const cleanText = text.replace(/\s+/g, ' ');
+    
+    // Multiple patterns for email extraction - most specific first
     const emailPatterns = [
-      /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/gi,
-      /(?:email|e-mail|mail|contact)[:\s]*([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,})/gi,
+      /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b/gi,
+      /(?:email|e-mail|mail)[:\s]*([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7})/gi,
     ];
     
     for (const pattern of emailPatterns) {
-      const matches = text.match(pattern);
+      const matches = cleanText.match(pattern);
       if (matches && matches.length > 0) {
-        // Clean the email
-        const email = matches[0].replace(/^(?:email|e-mail|mail|contact)[:\s]*/i, '').trim();
-        if (email.includes('@')) {
-          return email.toLowerCase();
+        for (const match of matches) {
+          // Clean the email
+          const email = match.replace(/^(?:email|e-mail|mail)[:\s]*/i, '').trim().toLowerCase();
+          // Validate it looks like an email
+          if (email.includes('@') && email.includes('.') && !email.includes(' ')) {
+            return email;
+          }
         }
       }
     }
@@ -57,27 +63,34 @@ export function UploadResumeDialog({
 
   // Enhanced phone number extraction patterns
   const extractPhone = (text: string): string | null => {
+    const cleanText = text.replace(/\s+/g, ' ');
+    
     // Multiple patterns for phone extraction - handles various formats
     const phonePatterns = [
       // Nigerian format: +234, 0803, etc.
       /(?:\+?234|0)[789][01]\d{8}/g,
       // International format with country code
-      /\+?\d{1,3}[-.\s]?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/g,
-      // General patterns
-      /(?:phone|tel|mobile|cell|contact)[:\s]*([+\d\s\-().]{10,})/gi,
-      // Simple numeric patterns (10+ digits)
+      /\+\d{1,3}[\s.-]?\(?\d{2,4}\)?[\s.-]?\d{3,4}[\s.-]?\d{3,4}/g,
+      // Labeled phone numbers
+      /(?:phone|tel|mobile|cell)[:\s]*([+\d\s\-().]{10,18})/gi,
+      // Common phone formats
+      /\(\d{3}\)\s*\d{3}[-.\s]?\d{4}/g,
+      /\d{3}[-.\s]\d{3}[-.\s]\d{4}/g,
+      // Simple numeric patterns (10-14 digits)
       /\b\d{10,14}\b/g,
     ];
     
     for (const pattern of phonePatterns) {
-      const matches = text.match(pattern);
+      const matches = cleanText.match(pattern);
       if (matches && matches.length > 0) {
-        // Clean the phone number
-        let phone = matches[0].replace(/^(?:phone|tel|mobile|cell|contact)[:\s]*/i, '').trim();
-        // Remove non-phone characters but keep + for country code
-        phone = phone.replace(/[^\d+]/g, '');
-        if (phone.length >= 10) {
-          return phone;
+        for (const match of matches) {
+          // Clean the phone number
+          let phone = match.replace(/^(?:phone|tel|mobile|cell)[:\s]*/i, '').trim();
+          // Keep only digits and + sign
+          phone = phone.replace(/[^\d+]/g, '');
+          if (phone.length >= 10 && phone.length <= 15) {
+            return phone;
+          }
         }
       }
     }
@@ -90,11 +103,18 @@ export function UploadResumeDialog({
     const lines = text.split('\n').filter(line => line.trim().length > 0);
     
     // First non-empty line is often the name
-    if (lines.length > 0) {
-      const firstLine = lines[0].trim();
-      // Check if it looks like a name (2-4 words, no special chars)
-      if (/^[A-Za-z\s.'-]{2,50}$/.test(firstLine) && firstLine.split(/\s+/).length <= 4) {
-        return firstLine;
+    for (let i = 0; i < Math.min(5, lines.length); i++) {
+      const line = lines[i].trim();
+      // Check if it looks like a name (2-4 words, letters/spaces/hyphens/periods only)
+      if (/^[A-Za-z][A-Za-z\s.'-]{1,48}[A-Za-z.]$/.test(line)) {
+        const words = line.split(/\s+/).filter(w => w.length > 0);
+        if (words.length >= 2 && words.length <= 5) {
+          // Ensure it's not all caps acronyms or titles
+          const hasLowerCase = /[a-z]/.test(line);
+          if (hasLowerCase || line.length > 10) {
+            return line;
+          }
+        }
       }
     }
     
@@ -225,25 +245,31 @@ export function UploadResumeDialog({
   // Upload file to Supabase storage and return public URL
   const uploadToStorage = async (file: File): Promise<string | null> => {
     try {
-      const fileExt = file.name.split('.').pop();
+      const fileExt = file.name.split('.').pop()?.toLowerCase();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
+      console.log('Uploading file to storage:', fileName);
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('resumes')
         .upload(fileName, file, {
           cacheControl: '3600',
-          upsert: false
+          upsert: true // Allow overwriting if file exists
         });
 
       if (uploadError) {
-        console.error('Upload error:', uploadError);
+        console.error('Storage upload error:', uploadError);
+        // Don't fail the whole process, candidate can still be saved without resume URL
         return null;
       }
+
+      console.log('Upload successful:', uploadData);
 
       const { data: { publicUrl } } = supabase.storage
         .from('resumes')
         .getPublicUrl(fileName);
 
+      console.log('Public URL:', publicUrl);
       return publicUrl;
     } catch (error) {
       console.error('Storage upload failed:', error);
