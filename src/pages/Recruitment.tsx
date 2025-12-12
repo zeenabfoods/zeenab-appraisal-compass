@@ -14,26 +14,57 @@ import { useRecruitmentData, DbCandidate } from "@/hooks/useRecruitmentData";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
-// Convert DB candidate to UI Candidate format
-function dbToUiCandidate(db: DbCandidate): Candidate {
+// Convert DB candidate to UI Candidate format with keyword matching
+function dbToUiCandidate(db: DbCandidate, requiredKeywords: string[]): Candidate {
+  const candidateSkills = db.skills || [];
+  
+  // Compare candidate skills against required keywords (case-insensitive)
+  const normalizedCandidateSkills = candidateSkills.map(s => s.toLowerCase().trim());
+  const normalizedRequired = requiredKeywords.map(k => k.toLowerCase().trim());
+  
+  const foundKeywords = requiredKeywords.filter(keyword => 
+    normalizedCandidateSkills.some(skill => 
+      skill.includes(keyword.toLowerCase()) || keyword.toLowerCase().includes(skill)
+    )
+  );
+  
+  const missingKeywords = requiredKeywords.filter(keyword => 
+    !normalizedCandidateSkills.some(skill => 
+      skill.includes(keyword.toLowerCase()) || keyword.toLowerCase().includes(skill)
+    )
+  );
+  
+  // Calculate match score based on keyword matching
+  const keywordMatchPercent = requiredKeywords.length > 0 
+    ? Math.round((foundKeywords.length / requiredKeywords.length) * 100)
+    : 0;
+  
+  // Calculate skill percentages based on keyword matching and other factors
+  const technicalScore = Math.min(100, 50 + (foundKeywords.length * 10));
+  const experienceScore = db.years_of_experience 
+    ? Math.min(100, db.years_of_experience * 10 + 20)
+    : 50;
+  const educationScore = db.education ? 75 : 50;
+  const softSkillsScore = Math.min(100, 50 + (foundKeywords.length * 8));
+  const toolsScore = Math.min(100, 40 + (candidateSkills.length * 5));
+  
   return {
     id: db.id,
     name: db.name,
     email: db.email || '',
     phone: db.phone || '',
-    // currentRole is extracted from resume, appliedRole is set by HR
     currentRole: db.candidate_current_role || '',
     appliedRole: db.applied_role || undefined,
-    matchScore: db.match_score || 0,
+    matchScore: keywordMatchPercent, // Dynamic match score based on keyword matching
     skills: {
-      technical: 70,
-      experience: db.years_of_experience ? db.years_of_experience * 10 : 70,
-      education: db.education ? 75 : 50,
-      softSkills: 70,
-      tools: 70
+      technical: technicalScore,
+      experience: experienceScore,
+      education: educationScore,
+      softSkills: softSkillsScore,
+      tools: toolsScore
     },
-    foundKeywords: db.skills || [],
-    missingKeywords: [],
+    foundKeywords,
+    missingKeywords,
     status: db.status as Candidate['status'],
     resumeUrl: db.resume_url || undefined,
     resumeText: db.resume_text || undefined,
@@ -63,12 +94,6 @@ export default function Recruitment() {
     fetchCandidates
   } = useRecruitmentData();
 
-  // Convert DB candidates to UI format
-  const candidates = useMemo(() => 
-    dbCandidates.map(dbToUiCandidate), 
-    [dbCandidates]
-  );
-
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [keywords, setKeywords] = useState<string[]>(settings?.required_keywords || ["React", "TypeScript", "Node.js", "SQL", "Leadership"]);
   const [keywordDialogOpen, setKeywordDialogOpen] = useState(false);
@@ -83,6 +108,12 @@ export default function Recruitment() {
       setKeywords(settings.required_keywords);
     }
   }, [settings]);
+
+  // Convert DB candidates to UI format with keyword matching
+  const candidates = useMemo(() => 
+    dbCandidates.map(db => dbToUiCandidate(db, keywords)), 
+    [dbCandidates, keywords]
+  );
 
   // Fetch evaluations when candidate is selected
   useEffect(() => {
