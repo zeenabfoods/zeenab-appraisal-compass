@@ -294,7 +294,7 @@ export default function Recruitment() {
         {/* Top Bar */}
         <div className="flex items-center justify-between p-4 border-b bg-white">
           <div>
-            <h1 className="text-xl font-semibold text-foreground">Candidate Cockpit</h1>
+            <h1 className="text-xl font-semibold text-foreground">Candidate Hub</h1>
             {settings?.cycle_name && (
               <p className="text-sm text-muted-foreground">{settings.cycle_name}</p>
             )}
