@@ -278,15 +278,15 @@ export default function Recruitment() {
                   <Settings2 className="h-4 w-4" />
                   Keyword Bank
                 </Button>
+                <Button
+                  onClick={() => setUploadDialogOpen(true)}
+                  className="gap-2 bg-recruitment-primary hover:bg-recruitment-primary/90 text-white"
+                >
+                  <Upload className="h-4 w-4" />
+                  Upload Resume
+                </Button>
               </>
             )}
-            <Button
-              onClick={() => setUploadDialogOpen(true)}
-              className="gap-2 bg-recruitment-primary hover:bg-recruitment-primary/90 text-white"
-            >
-              <Upload className="h-4 w-4" />
-              Upload Resume
-            </Button>
           </div>
         </div>
 

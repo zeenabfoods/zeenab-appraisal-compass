@@ -106,7 +106,8 @@ export function UploadResumeDialog({
     for (let i = 0; i < Math.min(5, lines.length); i++) {
       const line = lines[i].trim();
       // Check if it looks like a name (2-4 words, letters/spaces/hyphens/periods only)
-      if (/^[A-Za-z][A-Za-z\s.'-]{1,48}[A-Za-z.]$/.test(line)) {
+      const namePattern = /^[A-Za-z][A-Za-z\s.\-']{1,48}[A-Za-z.]$/;
+      if (namePattern.test(line)) {
         const words = line.split(/\s+/).filter(w => w.length > 0);
         if (words.length >= 2 && words.length <= 5) {
           // Ensure it's not all caps acronyms or titles
@@ -119,7 +120,8 @@ export function UploadResumeDialog({
     }
     
     // Fallback to filename
-    return fileName.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+    const cleanedName = fileName.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+    return cleanedName;
   };
 
   // Extract current role from resume text
