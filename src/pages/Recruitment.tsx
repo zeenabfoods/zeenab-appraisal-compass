@@ -322,6 +322,7 @@ export default function Recruitment() {
                 currentUserId={profile?.id || ''}
                 isHROrAdmin={isHROrAdmin}
                 passingThreshold={settings?.passing_threshold || 70}
+                skillRequirements={settings?.skill_requirements}
                 onHire={handleHireCandidate}
                 onReject={handleRejectCandidate}
                 onSubmitEvaluation={submitEvaluation}

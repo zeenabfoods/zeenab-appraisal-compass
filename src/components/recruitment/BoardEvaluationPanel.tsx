@@ -103,6 +103,16 @@ export function BoardEvaluationPanel({
         ...scores,
         comments: comments || undefined
       });
+      toast({
+        title: "Evaluation Submitted",
+        description: "Your evaluation has been saved. The candidate is now under review."
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to submit evaluation. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setSubmitting(false);
     }
