@@ -33,6 +33,20 @@ export function ChargesManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [filterMonth, setFilterMonth] = useState<string>('all');
+
+  // Generate month options for the past 12 months
+  const monthOptions = useMemo(() => {
+    const options = [];
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const label = format(date, 'MMMM yyyy');
+      options.push({ value, label });
+    }
+    return options;
+  }, []);
 
   const filteredCharges = useMemo(() => {
     return charges.filter((charge) => {
@@ -41,9 +55,18 @@ export function ChargesManagement() {
         charge.employee?.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         charge.employee?.last_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         charge.employee?.department?.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesStatus && matchesSearch;
+      
+      // Month filter
+      let matchesMonth = true;
+      if (filterMonth !== 'all') {
+        const chargeDate = new Date(charge.charge_date);
+        const chargeYearMonth = `${chargeDate.getFullYear()}-${String(chargeDate.getMonth() + 1).padStart(2, '0')}`;
+        matchesMonth = chargeYearMonth === filterMonth;
+      }
+      
+      return matchesStatus && matchesSearch && matchesMonth;
     });
-  }, [charges, filterStatus, searchQuery]);
+  }, [charges, filterStatus, searchQuery, filterMonth]);
 
   const stats = useMemo(() => {
     return {
@@ -211,14 +234,27 @@ export function ChargesManagement() {
 
       {/* Filters */}
       <Card className="p-4">
-        <div className="flex gap-4">
-          <div className="flex-1">
+        <div className="flex flex-wrap gap-4">
+          <div className="flex-1 min-w-[200px]">
             <Input
               placeholder="Search by employee name or department..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
+          <Select value={filterMonth} onValueChange={setFilterMonth}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by month" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Months</SelectItem>
+              {monthOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="w-[180px]">
               <Filter className="w-4 h-4 mr-2" />
