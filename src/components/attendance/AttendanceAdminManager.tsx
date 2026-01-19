@@ -32,7 +32,8 @@ import {
   Search,
   Loader2,
   Calendar,
-  Building2
+  Building2,
+  Trash2
 } from 'lucide-react';
 import { useAttendanceRoles } from '@/hooks/attendance/useAttendanceRoles';
 import { supabase } from '@/integrations/supabase/client';
@@ -54,6 +55,7 @@ export function AttendanceAdminManager() {
     loading, 
     assignAttendanceAdmin, 
     revokeAttendanceAdmin,
+    deleteAttendanceAdmin,
     refetch 
   } = useAttendanceRoles();
   
@@ -63,6 +65,7 @@ export function AttendanceAdminManager() {
   const [selectedEmployee, setSelectedEmployee] = useState<Profile | null>(null);
   const [assignReason, setAssignReason] = useState('');
   const [revokeReason, setRevokeReason] = useState('');
+  const [deleteReason, setDeleteReason] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -116,6 +119,11 @@ export function AttendanceAdminManager() {
   const handleRevoke = async (roleId: string, userId: string) => {
     await revokeAttendanceAdmin(roleId, userId, revokeReason);
     setRevokeReason('');
+  };
+
+  const handleDelete = async (roleId: string, userId: string) => {
+    await deleteAttendanceAdmin(roleId, userId, deleteReason);
+    setDeleteReason('');
   };
 
   return (
@@ -278,7 +286,7 @@ export function AttendanceAdminManager() {
                   <Badge variant="secondary">Attendance Admin</Badge>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                      <Button variant="ghost" size="sm" className="text-amber-600 hover:text-amber-700">
                         <UserMinus className="h-4 w-4" />
                       </Button>
                     </AlertDialogTrigger>
@@ -288,7 +296,7 @@ export function AttendanceAdminManager() {
                         <AlertDialogDescription>
                           Are you sure you want to revoke the attendance admin role from{' '}
                           <strong>{admin.profile?.first_name} {admin.profile?.last_name}</strong>?
-                          They will no longer be able to manage attendance settings.
+                          They will no longer be able to manage attendance settings. The role can be reassigned later.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <div className="py-2">
@@ -305,9 +313,45 @@ export function AttendanceAdminManager() {
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={() => handleRevoke(admin.id, admin.user_id)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          className="bg-amber-600 text-white hover:bg-amber-700"
                         >
                           Revoke Role
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Attendance Admin Role</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to permanently delete the attendance admin role for{' '}
+                          <strong>{admin.profile?.first_name} {admin.profile?.last_name}</strong>?
+                          This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <div className="py-2">
+                        <Label>Reason (Optional)</Label>
+                        <Textarea
+                          placeholder="Reason for deleting this role..."
+                          value={deleteReason}
+                          onChange={(e) => setDeleteReason(e.target.value)}
+                          rows={2}
+                          className="mt-2"
+                        />
+                      </div>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDelete(admin.id, admin.user_id)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete Permanently
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
