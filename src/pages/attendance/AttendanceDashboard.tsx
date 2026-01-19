@@ -50,13 +50,44 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { useAuthContext } from '@/components/AuthProvider';
+import { useAttendanceRoles } from '@/hooks/attendance/useAttendanceRoles';
 import { cn } from '@/lib/utils';
 
 export default function AttendanceDashboard() {
   const { profile } = useAuthContext();
   const { enhancedProfile, loading: profileLoading } = useEnhancedProfile();
+  const { isAttendanceAdmin, canManageAttendance } = useAttendanceRoles();
   const isHRorAdmin = profile?.role === 'hr' || profile?.role === 'admin';
   const [activeView, setActiveView] = useState('overview');
+
+  // Attendance admin menu items - management features without HR-specific ones
+  const attendanceAdminMenuItems = [
+    { id: 'overview', label: 'Overview', icon: Clock },
+    { id: 'breaks', label: 'Breaks', icon: Coffee },
+    { id: 'field-work', label: 'Field Work', icon: MapPin },
+    { id: 'hr-admin', label: 'Staff Attendance', icon: Users },
+    { id: 'lateness', label: 'Lateness Tracking', icon: ClockAlert },
+    { id: 'history', label: 'My History', icon: Clock },
+    { id: 'stats', label: 'Statistics', icon: TrendingUp },
+    { id: 'branches', label: 'Branches', icon: Building2 },
+    { id: 'rules', label: 'Rules & Policies', icon: Settings },
+    { id: 'charges', label: 'Charges', icon: DollarSign },
+    { id: 'escalation', label: 'Escalation Rules', icon: ArrowUpCircle },
+    { id: 'auto-charges', label: 'Auto Charge Engine', icon: Calculator },
+    { id: 'overtime-report', label: 'Overtime Payroll', icon: FileText },
+    { id: 'overtime-rates', label: 'Overtime Rates', icon: Timer },
+    { id: 'overrides', label: 'Manual Overrides', icon: Edit3 },
+    { id: 'break-config', label: 'Break Config', icon: Settings },
+    { id: 'break-compliance', label: 'Compliance', icon: AlertCircle },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+    { id: 'geofence', label: 'Geofence', icon: MapPin },
+    { id: 'alert-sound', label: 'Alert Sounds', icon: Volume2 },
+    { id: 'voice-guides', label: 'Voice Guides', icon: Mic },
+    { id: 'push-notifications', label: 'Push Notifications', icon: Bell },
+    { id: 'audit-logs', label: 'Audit Logs', icon: ScrollText },
+    { id: 'hr-security', label: 'Security Dashboard', icon: Shield },
+    { id: 'eye-service', label: 'Eye Service', icon: Eye },
+  ];
 
   const hrMenuItems = [
     { id: 'overview', label: 'Overview', icon: Clock },
@@ -98,7 +129,10 @@ export default function AttendanceDashboard() {
     { id: 'notifications', label: 'Notifications', icon: Bell },
   ];
 
-  const menuItems = isHRorAdmin ? hrMenuItems : staffMenuItems;
+  // Determine which menu items to show based on role
+  const menuItems = isHRorAdmin 
+    ? hrMenuItems 
+    : (isAttendanceAdmin ? attendanceAdminMenuItems : staffMenuItems);
 
   const renderOverviewContent = () => (
     <div className="grid lg:grid-cols-3 gap-4 lg:gap-8 w-full max-w-full">
