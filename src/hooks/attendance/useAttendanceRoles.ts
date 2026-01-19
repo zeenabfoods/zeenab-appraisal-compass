@@ -100,17 +100,44 @@ export function useAttendanceRoles() {
     if (!user) return { error: 'Not authenticated' };
 
     try {
-      // Insert role assignment
-      const { error: insertError } = await supabase
+      // First check if user already has an inactive role assignment
+      const { data: existingRole } = await supabase
         .from('attendance_user_roles')
-        .insert({
-          user_id: userId,
-          role: 'attendance_admin',
-          assigned_by: user.id,
-          is_active: true
-        });
+        .select('id, is_active')
+        .eq('user_id', userId)
+        .eq('role', 'attendance_admin')
+        .maybeSingle();
 
-      if (insertError) throw insertError;
+      if (existingRole) {
+        if (existingRole.is_active) {
+          toast.error('This user already has the attendance admin role');
+          return { error: 'Already has role' };
+        }
+        
+        // Reactivate the existing role
+        const { error: updateError } = await supabase
+          .from('attendance_user_roles')
+          .update({
+            is_active: true,
+            assigned_by: user.id,
+            assigned_at: new Date().toISOString()
+          })
+          .eq('id', existingRole.id);
+
+        if (updateError) throw updateError;
+      } else {
+        // Insert new role assignment
+        const { error: insertError } = await supabase
+          .from('attendance_user_roles')
+          .insert({
+            user_id: userId,
+            role: 'attendance_admin',
+            assigned_by: user.id,
+            is_active: true
+          });
+
+        if (insertError) throw insertError;
+      }
 
       // Log the action
       await logAuditAction('role_assigned', 'role_management', userId, null, null, {
@@ -123,11 +150,7 @@ export function useAttendanceRoles() {
       return { error: null };
     } catch (error: any) {
       console.error('Error assigning attendance admin:', error);
-      if (error.code === '23505') {
-        toast.error('This user already has the attendance admin role');
-      } else {
-        toast.error('Failed to assign attendance admin role');
-      }
+      toast.error('Failed to assign attendance admin role');
       return { error };
     }
   }, [user, fetchAttendanceAdmins]);
@@ -155,6 +178,33 @@ export function useAttendanceRoles() {
     } catch (error) {
       console.error('Error revoking attendance admin:', error);
       toast.error('Failed to revoke attendance admin role');
+      return { error };
+    }
+  }, [user, fetchAttendanceAdmins]);
+
+  const deleteAttendanceAdmin = useCallback(async (roleId: string, userId: string, reason?: string) => {
+    if (!user) return { error: 'Not authenticated' };
+
+    try {
+      const { error: deleteError } = await supabase
+        .from('attendance_user_roles')
+        .delete()
+        .eq('id', roleId);
+
+      if (deleteError) throw deleteError;
+
+      // Log the action
+      await logAuditAction('role_deleted', 'role_management', userId, null, null, {
+        role: 'attendance_admin',
+        reason
+      });
+
+      toast.success('Attendance admin role deleted permanently');
+      await fetchAttendanceAdmins();
+      return { error: null };
+    } catch (error) {
+      console.error('Error deleting attendance admin:', error);
+      toast.error('Failed to delete attendance admin role');
       return { error };
     }
   }, [user, fetchAttendanceAdmins]);
@@ -205,6 +255,7 @@ export function useAttendanceRoles() {
     canManageAttendance,
     assignAttendanceAdmin,
     revokeAttendanceAdmin,
+    deleteAttendanceAdmin,
     logAuditAction,
     refetch: fetchAttendanceAdmins
   };
