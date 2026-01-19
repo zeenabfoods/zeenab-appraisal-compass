@@ -18,6 +18,12 @@ interface EscalationRule {
   is_active: boolean;
 }
 
+// Helper to check if a date is a weekend (Saturday = 6, Sunday = 0)
+function isWeekend(date: Date): boolean {
+  const day = date.getDay();
+  return day === 0 || day === 6;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -39,6 +45,21 @@ Deno.serve(async (req) => {
     const dateStr = calculationDate.toISOString().split('T')[0];
 
     console.log(`Calculating charges for date: ${dateStr}`);
+
+    // WEEKEND CHECK: Skip charging on weekends (Saturday and Sunday)
+    if (isWeekend(calculationDate)) {
+      console.log(`Skipping charge calculation for weekend date: ${dateStr}`);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          date: dateStr,
+          chargesCreated: 0,
+          skipped: true,
+          reason: 'Weekend - no charges applied on Saturdays and Sundays',
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Get active attendance rules
     const { data: rules, error: rulesError } = await supabaseClient
