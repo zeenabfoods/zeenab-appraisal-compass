@@ -67,6 +67,8 @@ export function AttendanceAdminManager() {
   const [revokeReason, setRevokeReason] = useState('');
   const [deleteReason, setDeleteReason] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isRevoking, setIsRevoking] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const searchEmployees = async (query: string) => {
@@ -117,13 +119,17 @@ export function AttendanceAdminManager() {
   };
 
   const handleRevoke = async (roleId: string, userId: string) => {
+    setIsRevoking(roleId);
     await revokeAttendanceAdmin(roleId, userId, revokeReason);
     setRevokeReason('');
+    setIsRevoking(null);
   };
 
   const handleDelete = async (roleId: string, userId: string) => {
+    setIsDeleting(roleId);
     await deleteAttendanceAdmin(roleId, userId, deleteReason);
     setDeleteReason('');
+    setIsDeleting(null);
   };
 
   return (
@@ -313,9 +319,17 @@ export function AttendanceAdminManager() {
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={() => handleRevoke(admin.id, admin.user_id)}
+                          disabled={isRevoking === admin.id}
                           className="bg-amber-600 text-white hover:bg-amber-700"
                         >
-                          Revoke Role
+                          {isRevoking === admin.id ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Revoking...
+                            </>
+                          ) : (
+                            'Revoke Role'
+                          )}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
@@ -349,9 +363,17 @@ export function AttendanceAdminManager() {
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={() => handleDelete(admin.id, admin.user_id)}
+                          disabled={isDeleting === admin.id}
                           className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
-                          Delete Permanently
+                          {isDeleting === admin.id ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Deleting...
+                            </>
+                          ) : (
+                            'Delete Permanently'
+                          )}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
