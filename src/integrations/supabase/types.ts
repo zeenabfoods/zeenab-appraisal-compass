@@ -2585,6 +2585,47 @@ export type Database = {
         }
         Relationships: []
       }
+      weekend_work_schedules: {
+        Row: {
+          attendance_logged: boolean | null
+          confirmed_at: string
+          created_at: string
+          employee_id: string
+          id: string
+          updated_at: string
+          weekend_date: string
+          will_work: boolean
+        }
+        Insert: {
+          attendance_logged?: boolean | null
+          confirmed_at?: string
+          created_at?: string
+          employee_id: string
+          id?: string
+          updated_at?: string
+          weekend_date: string
+          will_work?: boolean
+        }
+        Update: {
+          attendance_logged?: boolean | null
+          confirmed_at?: string
+          created_at?: string
+          employee_id?: string
+          id?: string
+          updated_at?: string
+          weekend_date?: string
+          will_work?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekend_work_schedules_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

@@ -34,8 +34,11 @@ import { OvertimeRatesConfig } from '@/components/attendance/OvertimeRatesConfig
 import { OvertimeHistory } from '@/components/attendance/OvertimeHistory';
 import { AttendanceAdminManager } from '@/components/attendance/AttendanceAdminManager';
 import { AttendanceAuditLogs } from '@/components/attendance/AttendanceAuditLogs';
+import { WeekendWorkPrompt } from '@/components/attendance/WeekendWorkPrompt';
+import { WeekendScheduleView } from '@/components/attendance/WeekendScheduleView';
+import { useWeekendWorkSchedule } from '@/hooks/attendance/useWeekendWorkSchedule';
 import FieldWorkDashboard from '@/pages/attendance/FieldWorkDashboard';
-import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText, Volume2, ClockAlert, Mic, Bell, Timer, UserCog, ScrollText } from 'lucide-react';
+import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText, Volume2, ClockAlert, Mic, Bell, Timer, UserCog, ScrollText, CalendarDays } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import {
   Sidebar,
@@ -57,8 +60,10 @@ export default function AttendanceDashboard() {
   const { profile } = useAuthContext();
   const { enhancedProfile, loading: profileLoading } = useEnhancedProfile();
   const { isAttendanceAdmin, canManageAttendance } = useAttendanceRoles();
+  const { showPrompt, promptDates, submitWeekendWork, dismissPrompt, loading: weekendLoading } = useWeekendWorkSchedule();
   const isHRorAdmin = profile?.role === 'hr' || profile?.role === 'admin';
   const [activeView, setActiveView] = useState('overview');
+  const [weekendPromptOpen, setWeekendPromptOpen] = useState(true);
 
   // Attendance admin menu items - management features without HR-specific ones
   const attendanceAdminMenuItems = [
@@ -95,6 +100,7 @@ export default function AttendanceDashboard() {
     { id: 'field-work', label: 'Field Work', icon: MapPin },
     { id: 'hr-admin', label: 'HR Admin', icon: Users },
     { id: 'lateness', label: 'Lateness Tracking', icon: ClockAlert },
+    { id: 'weekend-schedule', label: 'Weekend Schedule', icon: CalendarDays },
     { id: 'history', label: 'My History', icon: Clock },
     { id: 'stats', label: 'Statistics', icon: TrendingUp },
     { id: 'branches', label: 'Branches', icon: Building2 },
@@ -285,6 +291,8 @@ export default function AttendanceDashboard() {
           return <AttendanceAuditLogs />;
         case 'notifications':
           return <EmployeeNotificationSubscribe />;
+        case 'weekend-schedule':
+          return <WeekendScheduleView />;
         default:
           return renderOverviewContent();
       }
@@ -308,6 +316,18 @@ export default function AttendanceDashboard() {
         
         {/* Push notification subscription prompt */}
         <PushNotificationPrompt />
+        
+        {/* Weekend work prompt - shows on Fridays and Saturdays */}
+        {showPrompt && (
+          <WeekendWorkPrompt
+            open={weekendPromptOpen && showPrompt}
+            onOpenChange={setWeekendPromptOpen}
+            promptDates={promptDates}
+            onSubmit={submitWeekendWork}
+            onDismiss={dismissPrompt}
+            loading={weekendLoading}
+          />
+        )}
         
         {/* Sidebar */}
         <Sidebar className="border-r border-orange-100 dark:border-gray-800">
