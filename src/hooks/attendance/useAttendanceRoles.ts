@@ -72,31 +72,71 @@ export function useAttendanceRoles() {
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
+
+      // 1) Fetch role assignments (no relational selects to avoid FK naming/relationship issues)
+      const { data: roles, error: rolesError } = await supabase
         .from('attendance_user_roles')
-        .select(`
-          *,
-          profile:user_id(
-            id,
-            first_name,
-            last_name,
-            email,
-            department,
-            position
-          ),
-          assigner:assigned_by(
-            first_name,
-            last_name
-          )
-        `)
+        .select('id, user_id, role, assigned_by, assigned_at, is_active')
         .eq('role', 'attendance_admin')
         .order('assigned_at', { ascending: false });
 
-      if (error) {
-        console.error('Fetch attendance admins error:', error);
-        throw error;
+      if (rolesError) {
+        console.error('Fetch attendance admins roles error:', rolesError);
+        throw rolesError;
       }
-      setAttendanceAdmins((data as unknown as AttendanceAdmin[]) || []);
+
+      const roleRows = (roles || []) as unknown as AttendanceAdmin[];
+      if (roleRows.length === 0) {
+        setAttendanceAdmins([]);
+        return;
+      }
+
+      // 2) Fetch user profiles for the assigned users
+      const userIds = Array.from(new Set(roleRows.map((r) => r.user_id).filter(Boolean)));
+      const assignerIds = Array.from(
+        new Set(roleRows.map((r) => r.assigned_by).filter((v): v is string => !!v))
+      );
+
+      const [{ data: userProfiles, error: userProfilesError }, { data: assignerProfiles, error: assignerProfilesError }] =
+        await Promise.all([
+          supabase
+            .from('profiles')
+            .select('id, first_name, last_name, email, department, position')
+            .in('id', userIds),
+          assignerIds.length
+            ? supabase
+                .from('profiles')
+                .select('id, first_name, last_name')
+                .in('id', assignerIds)
+            : Promise.resolve({ data: [], error: null } as any),
+        ]);
+
+      if (userProfilesError) {
+        console.error('Fetch attendance admins profiles error:', userProfilesError);
+        throw userProfilesError;
+      }
+      if (assignerProfilesError) {
+        console.error('Fetch attendance admins assigners error:', assignerProfilesError);
+        throw assignerProfilesError;
+      }
+
+      const userProfileMap = new Map<string, NonNullable<AttendanceAdmin['profile']>>(
+        (userProfiles || []).map((p: any) => [p.id as string, p as NonNullable<AttendanceAdmin['profile']>])
+      );
+      const assignerMap = new Map<string, { id: string; first_name: string; last_name: string }>(
+        (assignerProfiles || []).map((p: any) => [p.id as string, p as { id: string; first_name: string; last_name: string }])
+      );
+
+      const merged: AttendanceAdmin[] = roleRows.map((r) => {
+        const assigner = r.assigned_by ? assignerMap.get(r.assigned_by) : undefined;
+        return {
+          ...r,
+          profile: userProfileMap.get(r.user_id),
+          assigner: assigner ? { first_name: assigner.first_name, last_name: assigner.last_name } : undefined,
+        };
+      });
+
+      setAttendanceAdmins(merged);
     } catch (error) {
       console.error('Error fetching attendance admins:', error);
       toast.error('Failed to load attendance admins');
@@ -175,18 +215,23 @@ export function useAttendanceRoles() {
 
       if (updateError) throw updateError;
 
+      // Optimistic UI update (safe) + refetch for truth
+      setAttendanceAdmins((prev) =>
+        prev.map((a) => (a.id === roleId ? { ...a, is_active: false } : a))
+      );
+
       // Log the action
       await logAuditAction('role_revoked', 'role_management', userId, null, null, {
         role: 'attendance_admin',
-        reason
+        reason,
       });
 
       toast.success('Attendance admin role revoked');
       await fetchAttendanceAdmins();
       return { error: null };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error revoking attendance admin:', error);
-      toast.error('Failed to revoke attendance admin role');
+      toast.error(error?.message || 'Failed to revoke attendance admin role');
       return { error };
     }
   }, [user, fetchAttendanceAdmins]);
@@ -202,18 +247,21 @@ export function useAttendanceRoles() {
 
       if (deleteError) throw deleteError;
 
+      // Optimistic UI update (safe) + refetch for truth
+      setAttendanceAdmins((prev) => prev.filter((a) => a.id !== roleId));
+
       // Log the action
       await logAuditAction('role_deleted', 'role_management', userId, null, null, {
         role: 'attendance_admin',
-        reason
+        reason,
       });
 
       toast.success('Attendance admin role deleted permanently');
       await fetchAttendanceAdmins();
       return { error: null };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting attendance admin:', error);
-      toast.error('Failed to delete attendance admin role');
+      toast.error(error?.message || 'Failed to delete attendance admin role');
       return { error };
     }
   }, [user, fetchAttendanceAdmins]);
