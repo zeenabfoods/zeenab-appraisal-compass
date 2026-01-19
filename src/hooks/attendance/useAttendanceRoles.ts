@@ -64,13 +64,19 @@ export function useAttendanceRoles() {
   }, [user, profile]);
 
   const fetchAttendanceAdmins = useCallback(async () => {
+    // Only HR/Admin should fetch the list of attendance admins
+    if (!profile || (profile.role !== 'hr' && profile.role !== 'admin')) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('attendance_user_roles')
         .select(`
           *,
-          profile:profiles!attendance_user_roles_user_id_fkey(
+          profile:user_id(
             id,
             first_name,
             last_name,
@@ -78,7 +84,7 @@ export function useAttendanceRoles() {
             department,
             position
           ),
-          assigner:profiles!attendance_user_roles_assigned_by_fkey(
+          assigner:assigned_by(
             first_name,
             last_name
           )
@@ -86,7 +92,10 @@ export function useAttendanceRoles() {
         .eq('role', 'attendance_admin')
         .order('assigned_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Fetch attendance admins error:', error);
+        throw error;
+      }
       setAttendanceAdmins((data as unknown as AttendanceAdmin[]) || []);
     } catch (error) {
       console.error('Error fetching attendance admins:', error);
@@ -94,7 +103,7 @@ export function useAttendanceRoles() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [profile]);
 
   const assignAttendanceAdmin = useCallback(async (userId: string, reason?: string) => {
     if (!user) return { error: 'Not authenticated' };
@@ -243,7 +252,7 @@ export function useAttendanceRoles() {
   }, [checkAttendancePermissions]);
 
   useEffect(() => {
-    if (profile?.role === 'hr' || profile?.role === 'admin') {
+    if (profile) {
       fetchAttendanceAdmins();
     }
   }, [profile, fetchAttendanceAdmins]);

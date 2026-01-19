@@ -2658,6 +2658,7 @@ export type Database = {
         Args: { cycle_id_param: string }
         Returns: boolean
       }
+      is_hr_or_admin: { Args: { _user_id: string }; Returns: boolean }
       is_within_geofence: {
         Args: {
           branch_id_param: string
