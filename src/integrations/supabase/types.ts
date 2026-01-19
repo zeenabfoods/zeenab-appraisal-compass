@@ -443,6 +443,69 @@ export type Database = {
           },
         ]
       }
+      attendance_audit_logs: {
+        Row: {
+          action_category: string
+          action_type: string
+          created_at: string | null
+          id: string
+          ip_address: string | null
+          new_values: Json | null
+          old_values: Json | null
+          performed_by: string
+          reason: string | null
+          target_employee_id: string | null
+          target_record_id: string | null
+          target_table: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          action_category: string
+          action_type: string
+          created_at?: string | null
+          id?: string
+          ip_address?: string | null
+          new_values?: Json | null
+          old_values?: Json | null
+          performed_by: string
+          reason?: string | null
+          target_employee_id?: string | null
+          target_record_id?: string | null
+          target_table?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          action_category?: string
+          action_type?: string
+          created_at?: string | null
+          id?: string
+          ip_address?: string | null
+          new_values?: Json | null
+          old_values?: Json | null
+          performed_by?: string
+          reason?: string | null
+          target_employee_id?: string | null
+          target_record_id?: string | null
+          target_table?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_audit_logs_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_audit_logs_target_employee_id_fkey"
+            columns: ["target_employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_branches: {
         Row: {
           address: string | null
@@ -1068,6 +1131,41 @@ export type Database = {
           {
             foreignKeyName: "attendance_sync_queue_employee_id_fkey"
             columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_user_roles: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          id: string
+          is_active: boolean | null
+          role: Database["public"]["Enums"]["attendance_role"]
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          role: Database["public"]["Enums"]["attendance_role"]
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          role?: Database["public"]["Enums"]["attendance_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_user_roles_assigned_by_fkey"
+            columns: ["assigned_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -2497,6 +2595,7 @@ export type Database = {
         Returns: number
       }
       calculate_performance_band: { Args: { score: number }; Returns: string }
+      can_manage_attendance: { Args: { _user_id: string }; Returns: boolean }
       complete_appraisal_cycle: {
         Args: { cycle_id_param: string }
         Returns: undefined
@@ -2548,6 +2647,13 @@ export type Database = {
           position: string
         }[]
       }
+      has_attendance_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["attendance_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       is_cycle_accessible_to_employee: {
         Args: { cycle_id_param: string }
         Returns: boolean
@@ -2585,6 +2691,7 @@ export type Database = {
         | "hr_review"
         | "completed"
         | "committee_review"
+      attendance_role: "attendance_admin"
       user_role: "staff" | "manager" | "hr" | "admin" | "recruiter"
     }
     CompositeTypes: {
@@ -2721,6 +2828,7 @@ export const Constants = {
         "completed",
         "committee_review",
       ],
+      attendance_role: ["attendance_admin"],
       user_role: ["staff", "manager", "hr", "admin", "recruiter"],
     },
   },
