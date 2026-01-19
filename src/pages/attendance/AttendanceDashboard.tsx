@@ -32,8 +32,10 @@ import { PushNotificationPrompt } from '@/components/attendance/PushNotification
 import { EmployeeNotificationSubscribe } from '@/components/attendance/EmployeeNotificationSubscribe';
 import { OvertimeRatesConfig } from '@/components/attendance/OvertimeRatesConfig';
 import { OvertimeHistory } from '@/components/attendance/OvertimeHistory';
+import { AttendanceAdminManager } from '@/components/attendance/AttendanceAdminManager';
+import { AttendanceAuditLogs } from '@/components/attendance/AttendanceAuditLogs';
 import FieldWorkDashboard from '@/pages/attendance/FieldWorkDashboard';
-import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText, Volume2, ClockAlert, Mic, Bell, Timer } from 'lucide-react';
+import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText, Volume2, ClockAlert, Mic, Bell, Timer, UserCog, ScrollText } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import {
   Sidebar,
@@ -79,6 +81,8 @@ export default function AttendanceDashboard() {
     { id: 'alert-sound', label: 'Alert Sounds', icon: Volume2 },
     { id: 'voice-guides', label: 'Voice Guides', icon: Mic },
     { id: 'push-notifications', label: 'Push Notifications', icon: Bell },
+    { id: 'attendance-admins', label: 'Admin Roles', icon: UserCog },
+    { id: 'audit-logs', label: 'Audit Logs', icon: ScrollText },
     { id: 'security', label: 'My Security', icon: Shield },
     { id: 'hr-security', label: 'Security Dashboard', icon: Shield },
     { id: 'eye-service', label: 'Eye Service', icon: Eye },
@@ -241,6 +245,10 @@ export default function AttendanceDashboard() {
           return <VoiceGuideManager />;
         case 'push-notifications':
           return <OneSignalConfig />;
+        case 'attendance-admins':
+          return <AttendanceAdminManager />;
+        case 'audit-logs':
+          return <AttendanceAuditLogs />;
         case 'notifications':
           return <EmployeeNotificationSubscribe />;
         default:
