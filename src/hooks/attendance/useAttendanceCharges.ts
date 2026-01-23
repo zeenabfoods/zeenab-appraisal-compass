@@ -32,8 +32,7 @@ export function useAttendanceCharges() {
             email
           )
         `)
-        .order('charge_date', { ascending: false })
-        .limit(100);
+        .order('charge_date', { ascending: false });
 
       if (error) throw error;
       setCharges(data || []);
