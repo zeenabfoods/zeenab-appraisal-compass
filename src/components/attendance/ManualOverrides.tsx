@@ -15,12 +15,13 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 
 export function ManualOverrides() {
-  const { allLogs, loading, refetch } = useAllAttendanceLogs();
+  const { allLogs, loading, refetch, currentPage, totalPages, goToPage } = useAllAttendanceLogs();
   const { profile } = useAuth();
   const [selectedLog, setSelectedLog] = useState<typeof allLogs[0] | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterBranch, setFilterBranch] = useState<string>('all');
+  const [filterDate, setFilterDate] = useState<string>('');
   const [overrideData, setOverrideData] = useState({
     clock_in_time: '',
     clock_out_time: '',
@@ -42,9 +43,11 @@ export function ManualOverrides() {
         log.employee?.last_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         log.employee?.department?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesBranch = filterBranch === 'all' || log.branch?.name === filterBranch;
-      return matchesSearch && matchesBranch;
+      const matchesDate = !filterDate || 
+        format(new Date(log.clock_in_time), 'yyyy-MM-dd') === filterDate;
+      return matchesSearch && matchesBranch && matchesDate;
     });
-  }, [allLogs, searchQuery, filterBranch]);
+  }, [allLogs, searchQuery, filterBranch, filterDate]);
 
   const handleEditClick = (log: typeof allLogs[0]) => {
     setSelectedLog(log);
@@ -140,13 +143,22 @@ export function ManualOverrides() {
 
       {/* Filters */}
       <Card className="p-4">
-        <div className="flex gap-4">
-          <div className="flex-1">
+        <div className="flex flex-wrap gap-4">
+          <div className="flex-1 min-w-[200px]">
             <Input
               placeholder="Search by employee name or department..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full"
+            />
+          </div>
+          <div>
+            <Input
+              type="date"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              className="w-[180px]"
+              placeholder="Filter by date"
             />
           </div>
           <Select value={filterBranch} onValueChange={setFilterBranch}>
@@ -162,6 +174,11 @@ export function ManualOverrides() {
               ))}
             </SelectContent>
           </Select>
+          {filterDate && (
+            <Button variant="ghost" size="sm" onClick={() => setFilterDate('')}>
+              Clear Date
+            </Button>
+          )}
         </div>
       </Card>
 
@@ -255,6 +272,33 @@ export function ManualOverrides() {
             </div>
           )}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between pt-4 border-t">
+            <p className="text-sm text-muted-foreground">
+              Page {currentPage} of {totalPages}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage <= 1}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage >= totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Override Dialog */}

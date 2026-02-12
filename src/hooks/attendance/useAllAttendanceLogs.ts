@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 100;
 
 export function useAllAttendanceLogs() {
   const [allLogs, setAllLogs] = useState<any[]>([]);
