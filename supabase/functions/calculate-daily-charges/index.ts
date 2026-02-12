@@ -61,6 +61,31 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Check if charges have already been calculated for this date (prevent duplicates)
+    const { data: existingCharges, error: existingError } = await supabaseClient
+      .from('attendance_charges')
+      .select('id')
+      .eq('charge_date', dateStr)
+      .limit(1);
+
+    if (existingError) {
+      console.error('Error checking existing charges:', existingError);
+    }
+
+    if (existingCharges && existingCharges.length > 0) {
+      console.log(`Charges already calculated for ${dateStr}, skipping to prevent duplicates`);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          date: dateStr,
+          chargesCreated: 0,
+          skipped: true,
+          reason: `Charges already exist for ${dateStr}. Delete existing charges first if you want to recalculate.`,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Get active attendance rules
     const { data: rules, error: rulesError } = await supabaseClient
       .from('attendance_rules')
@@ -77,19 +102,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get escalation rules from localStorage (stored as metadata in a settings table)
-    // For now, we'll use default escalation rules
+    // Get escalation rules
     const escalationRules: EscalationRule[] = [];
 
-    // Get all employees
+    // Get all active employees
     const { data: employees, error: employeesError } = await supabaseClient
       .from('profiles')
-      .select('id')
+      .select('id, first_name, last_name')
       .eq('is_active', true);
 
     if (employeesError) throw employeesError;
 
     const chargesCreated: any[] = [];
+    const notificationsSent: number[] = [];
     const errors: string[] = [];
 
     // Process each employee
@@ -108,7 +133,6 @@ Deno.serve(async (req) => {
 
         // Check for absence (no clock-in)
         if (!logs || logs.length === 0) {
-          // Calculate escalation for absences
           const multiplier = await calculateEscalationMultiplier(
             supabaseClient,
             employee.id,
@@ -119,52 +143,12 @@ Deno.serve(async (req) => {
 
           const chargeAmount = (rules.absence_charge_amount || 0) * multiplier;
 
-          const { data: charge, error: chargeError } = await supabaseClient
-            .from('attendance_charges')
-            .insert({
-              employee_id: employee.id,
-              charge_type: 'absence',
-              charge_amount: chargeAmount,
-              charge_date: dateStr,
-              escalation_multiplier: multiplier,
-              is_escalated: multiplier > 1,
-              status: 'pending',
-            })
-            .select()
-            .single();
-
-          if (chargeError) throw chargeError;
-          chargesCreated.push(charge);
-
-          // Send notification
-          await supabaseClient.from('notifications').insert({
-            user_id: employee.id,
-            type: 'attendance_charge',
-            title: 'Absence Charge Applied',
-            message: `An absence charge of ₦${chargeAmount.toFixed(2)} has been applied for ${dateStr}${multiplier > 1 ? ` (${multiplier}x escalation)` : ''}.`,
-          });
-        } else {
-          // Check for late arrival
-          const log = logs[0];
-          
-          if (log.is_late && log.late_by_minutes && log.late_by_minutes > (rules.grace_period_minutes || 0)) {
-            // Calculate escalation for late arrivals
-            const multiplier = await calculateEscalationMultiplier(
-              supabaseClient,
-              employee.id,
-              'late_arrival',
-              escalationRules,
-              calculationDate
-            );
-
-            const chargeAmount = (rules.late_charge_amount || 0) * multiplier;
-
+          if (chargeAmount > 0) {
             const { data: charge, error: chargeError } = await supabaseClient
               .from('attendance_charges')
               .insert({
                 employee_id: employee.id,
-                attendance_log_id: log.id,
-                charge_type: 'late_arrival',
+                charge_type: 'absence',
                 charge_amount: chargeAmount,
                 charge_date: dateStr,
                 escalation_multiplier: multiplier,
@@ -181,9 +165,101 @@ Deno.serve(async (req) => {
             await supabaseClient.from('notifications').insert({
               user_id: employee.id,
               type: 'attendance_charge',
-              title: 'Late Arrival Charge Applied',
-              message: `A late arrival charge of ₦${chargeAmount.toFixed(2)} has been applied for ${dateStr} (${log.late_by_minutes} minutes late)${multiplier > 1 ? ` with ${multiplier}x escalation` : ''}.`,
+              title: 'Absence Charge Applied',
+              message: `An absence charge of ₦${chargeAmount.toFixed(2)} has been applied for ${dateStr}${multiplier > 1 ? ` (${multiplier}x escalation)` : ''}. You were not clocked in on this day.`,
             });
+          }
+        } else {
+          // Check for late arrival
+          const log = logs[0];
+          
+          if (log.is_late && log.late_by_minutes && log.late_by_minutes > (rules.grace_period_minutes || 0)) {
+            const multiplier = await calculateEscalationMultiplier(
+              supabaseClient,
+              employee.id,
+              'late_arrival',
+              escalationRules,
+              calculationDate
+            );
+
+            const chargeAmount = (rules.late_charge_amount || 0) * multiplier;
+
+            if (chargeAmount > 0) {
+              const { data: charge, error: chargeError } = await supabaseClient
+                .from('attendance_charges')
+                .insert({
+                  employee_id: employee.id,
+                  attendance_log_id: log.id,
+                  charge_type: 'late_arrival',
+                  charge_amount: chargeAmount,
+                  charge_date: dateStr,
+                  escalation_multiplier: multiplier,
+                  is_escalated: multiplier > 1,
+                  status: 'pending',
+                })
+                .select()
+                .single();
+
+              if (chargeError) throw chargeError;
+              chargesCreated.push(charge);
+
+              // Send notification
+              await supabaseClient.from('notifications').insert({
+                user_id: employee.id,
+                type: 'attendance_charge',
+                title: 'Late Arrival Charge Applied',
+                message: `A late arrival charge of ₦${chargeAmount.toFixed(2)} has been applied for ${dateStr} (${log.late_by_minutes} minutes late)${multiplier > 1 ? ` with ${multiplier}x escalation` : ''}.`,
+              });
+            }
+          }
+
+          // Check for early closure / no clock-out
+          if (!log.clock_out_time || log.auto_clocked_out || log.early_closure) {
+            const earlyClosureAmount = rules.early_closure_charge_amount || 0;
+            
+            if (earlyClosureAmount > 0) {
+              // Check if early closure charge already exists for this log
+              const { data: existingEarlyCharge } = await supabaseClient
+                .from('attendance_charges')
+                .select('id')
+                .eq('employee_id', employee.id)
+                .eq('attendance_log_id', log.id)
+                .eq('charge_type', 'early_departure')
+                .limit(1);
+
+              if (!existingEarlyCharge || existingEarlyCharge.length === 0) {
+                const { data: charge, error: chargeError } = await supabaseClient
+                  .from('attendance_charges')
+                  .insert({
+                    employee_id: employee.id,
+                    attendance_log_id: log.id,
+                    charge_type: 'early_departure',
+                    charge_amount: earlyClosureAmount,
+                    charge_date: dateStr,
+                    escalation_multiplier: 1,
+                    is_escalated: false,
+                    status: 'pending',
+                  })
+                  .select()
+                  .single();
+
+                if (chargeError) throw chargeError;
+                chargesCreated.push(charge);
+
+                const reason = !log.clock_out_time 
+                  ? 'You did not clock out' 
+                  : log.auto_clocked_out 
+                    ? 'You were auto-clocked out' 
+                    : 'Early closure detected';
+
+                await supabaseClient.from('notifications').insert({
+                  user_id: employee.id,
+                  type: 'attendance_charge',
+                  title: 'Early Closure Charge Applied',
+                  message: `An early closure charge of ₦${earlyClosureAmount.toFixed(2)} has been applied for ${dateStr}. ${reason}.`,
+                });
+              }
+            }
           }
         }
       } catch (error) {
@@ -192,7 +268,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Charges calculation complete. Created: ${chargesCreated.length}, Errors: ${errors.length}`);
+    console.log(`Charges calculation complete for ${dateStr}. Created: ${chargesCreated.length}, Errors: ${errors.length}`);
 
     return new Response(
       JSON.stringify({
@@ -221,19 +297,16 @@ async function calculateEscalationMultiplier(
   currentDate: Date
 ): Promise<number> {
   try {
-    // Find active rule for this violation type
     const activeRule = escalationRules.find(
       (rule) => rule.violation_type === violationType && rule.is_active
     );
 
     if (!activeRule) return 1.0;
 
-    // Calculate lookback date
     const lookbackDate = new Date(currentDate);
     lookbackDate.setDate(lookbackDate.getDate() - activeRule.lookback_period_days);
     const lookbackDateStr = lookbackDate.toISOString().split('T')[0];
 
-    // Count previous violations in the lookback period
     const { data: previousCharges, error } = await supabaseClient
       .from('attendance_charges')
       .select('*')
@@ -244,9 +317,8 @@ async function calculateEscalationMultiplier(
 
     if (error) throw error;
 
-    const occurrenceCount = (previousCharges?.length || 0) + 1; // +1 for current violation
+    const occurrenceCount = (previousCharges?.length || 0) + 1;
 
-    // Find appropriate tier
     const sortedTiers = [...activeRule.escalation_tiers].sort(
       (a, b) => b.occurrence_count - a.occurrence_count
     );
