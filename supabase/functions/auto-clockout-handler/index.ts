@@ -74,6 +74,7 @@ Deno.serve(async (req) => {
       .is('clock_out_time', null)
       .eq('location_type', 'office')
       .eq('early_closure', false)
+      .or('is_night_shift.is.null,is_night_shift.eq.false')
       .or('overtime_approved.is.null,overtime_approved.eq.false');
 
     if (sessionsError) {

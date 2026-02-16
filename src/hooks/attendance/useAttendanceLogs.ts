@@ -178,7 +178,7 @@ export function useAttendanceLogs() {
       // Fetch attendance rules to calculate lateness
       const { data: rules } = await supabase
         .from('attendance_rules')
-        .select('work_start_time, late_threshold_minutes, grace_period_minutes')
+        .select('work_start_time, late_threshold_minutes, grace_period_minutes, night_shift_start_time, night_shift_end_time')
         .eq('is_active', true)
         .limit(1)
         .single();
@@ -186,23 +186,29 @@ export function useAttendanceLogs() {
       let isLate = false;
       let lateByMinutes = 0;
 
-      if (rules && rules.work_start_time) {
+      if (rules) {
         const now = new Date();
-        const [workStartHour, workStartMin] = rules.work_start_time.split(':').map(Number);
         
-        // Create work start time for today in local time
-        const workStartTime = new Date(now);
-        workStartTime.setHours(workStartHour, workStartMin, 0, 0);
-        
-        // Only grace period is used - anyone clocking in after work_start_time + grace_period is LATE
-        // e.g., work starts 8:00 + 5 min grace = 8:05 deadline, 8:06 is late
-        const gracePeriod = rules.grace_period_minutes || 5;
-        
-        const lateDeadline = new Date(workStartTime.getTime() + gracePeriod * 60 * 1000);
-        
-        if (now > lateDeadline) {
-          isLate = true;
-          lateByMinutes = Math.round((now.getTime() - workStartTime.getTime()) / (60 * 1000));
+        // Use night_shift_start_time for night shift, work_start_time for day shift
+        const isNightShiftMode = params.locationType === 'night_shift' || params.isNightShift;
+        const relevantStartTime = isNightShiftMode 
+          ? (rules.night_shift_start_time || '20:00')
+          : rules.work_start_time;
+
+        if (relevantStartTime) {
+          const [startHour, startMin] = relevantStartTime.split(':').map(Number);
+          
+          // Create expected start time for today in local time
+          const expectedStartTime = new Date(now);
+          expectedStartTime.setHours(startHour, startMin, 0, 0);
+          
+          const gracePeriod = rules.grace_period_minutes || 5;
+          const lateDeadline = new Date(expectedStartTime.getTime() + gracePeriod * 60 * 1000);
+          
+          if (now > lateDeadline) {
+            isLate = true;
+            lateByMinutes = Math.round((now.getTime() - expectedStartTime.getTime()) / (60 * 1000));
+          }
         }
       }
 
