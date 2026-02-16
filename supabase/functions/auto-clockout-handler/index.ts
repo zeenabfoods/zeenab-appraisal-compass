@@ -75,6 +75,28 @@ Deno.serve(async (req) => {
       .or('is_night_shift.is.null,is_night_shift.eq.false')
       .or('overtime_approved.is.null,overtime_approved.eq.false');
 
+    // Find all night-shift employees still clocked in
+    const { data: nightShiftSessions, error: nightError } = await supabaseClient
+      .from('attendance_logs')
+      .select(`
+        id,
+        employee_id,
+        clock_in_time,
+        employee:profiles!attendance_logs_employee_id_fkey(
+          id,
+          first_name,
+          last_name,
+          email
+        )
+      `)
+      .is('clock_out_time', null)
+      .eq('is_night_shift', true)
+      .eq('early_closure', false);
+
+    if (nightError) {
+      console.error('Failed to fetch night shift sessions:', nightError);
+    }
+
     if (sessionsError) {
       console.error('Failed to fetch active sessions:', sessionsError);
       return new Response(
@@ -193,6 +215,51 @@ Deno.serve(async (req) => {
       }
     }
 
+    // At 7 AM: Auto clock-out all night shift staff to prevent overlap with day shift
+    let nightShiftClockouts = 0;
+    const nightShiftEndTime = rules.night_shift_end_time || '07:00:00';
+    const [nsEndHour, nsEndMin] = nightShiftEndTime.split(':').map(Number);
+    const nsEndTimeStr = `${nsEndHour.toString().padStart(2, '0')}:${nsEndMin.toString().padStart(2, '0')}:00`;
+
+    if (currentTime === nsEndTimeStr && nightShiftSessions && nightShiftSessions.length > 0) {
+      const today = new Date().toISOString().split('T')[0];
+      const nightEndDateTime = `${today}T${nightShiftEndTime}`;
+
+      for (const session of nightShiftSessions) {
+        const clockInTime = new Date(session.clock_in_time);
+        const endTime = new Date(nightEndDateTime);
+        const diffMs = endTime.getTime() - clockInTime.getTime();
+        const totalHours = Math.max(0, diffMs / (1000 * 60 * 60));
+
+        const { error: updateError } = await supabaseClient
+          .from('attendance_logs')
+          .update({
+            clock_out_time: nightEndDateTime,
+            total_hours: Number(totalHours.toFixed(2)),
+            auto_clocked_out: true,
+          })
+          .eq('id', session.id);
+
+        if (!updateError) {
+          nightShiftClockouts++;
+          const employee = Array.isArray(session.employee) ? session.employee[0] : session.employee;
+          if (employee) {
+            await supabaseClient
+              .from('notifications')
+              .insert({
+                user_id: session.employee_id,
+                type: 'auto_clock_out',
+                title: '🌅 Night Shift Ended - Auto Clocked Out',
+                message: `Your night shift has ended at ${nightShiftEndTime.substring(0, 5)}. You have been automatically clocked out.`,
+              });
+            console.log(`Night shift auto clocked-out: ${employee.first_name} ${employee.last_name}`);
+          }
+        } else {
+          console.error(`Failed to clock-out night shift employee ${session.employee_id}:`, updateError);
+        }
+      }
+    }
+
     const response = {
       success: true,
       timestamp: now.toISOString(),
@@ -201,7 +268,9 @@ Deno.serve(async (req) => {
       autoClockoutDeadline,
       notificationsSent,
       autoClockouts,
+      nightShiftClockouts,
       activeSessions: activeSessions?.length || 0,
+      nightShiftSessions: nightShiftSessions?.length || 0,
     };
 
     console.log('Handler completed:', response);
