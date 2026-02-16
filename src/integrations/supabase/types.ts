@@ -934,6 +934,8 @@ export type Database = {
         Row: {
           absence_charge_amount: number | null
           allow_multiple_sessions_per_day: boolean
+          auto_clockout_deadline: string | null
+          consecutive_auto_clockout_charge: number | null
           created_at: string | null
           created_by: string | null
           early_closure_charge_amount: number | null
@@ -956,6 +958,8 @@ export type Database = {
         Insert: {
           absence_charge_amount?: number | null
           allow_multiple_sessions_per_day?: boolean
+          auto_clockout_deadline?: string | null
+          consecutive_auto_clockout_charge?: number | null
           created_at?: string | null
           created_by?: string | null
           early_closure_charge_amount?: number | null
@@ -978,6 +982,8 @@ export type Database = {
         Update: {
           absence_charge_amount?: number | null
           allow_multiple_sessions_per_day?: boolean
+          auto_clockout_deadline?: string | null
+          consecutive_auto_clockout_charge?: number | null
           created_at?: string | null
           created_by?: string | null
           early_closure_charge_amount?: number | null
