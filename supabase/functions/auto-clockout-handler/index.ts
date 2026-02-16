@@ -5,11 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface AttendanceRule {
-  work_end_time: string;
-  early_closure_charge_amount: number;
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -29,10 +24,10 @@ Deno.serve(async (req) => {
 
     console.log('Auto-clockout handler started at:', new Date().toISOString());
 
-    // Get active attendance rule to find closing time
+    // Get active attendance rule
     const { data: rules, error: rulesError } = await supabaseClient
       .from('attendance_rules')
-      .select('work_end_time, early_closure_charge_amount')
+      .select('work_end_time, early_closure_charge_amount, auto_clockout_deadline, consecutive_auto_clockout_charge')
       .eq('is_active', true)
       .limit(1)
       .single();
@@ -46,16 +41,19 @@ Deno.serve(async (req) => {
     }
 
     const closingTime = rules.work_end_time || '17:00:00';
+    const autoClockoutDeadline = rules.auto_clockout_deadline || '19:00';
+    const consecutiveCharge = rules.consecutive_auto_clockout_charge || 0;
+    
     const now = new Date();
     const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:00`;
     
-    console.log(`Current time: ${currentTime}, Closing time: ${closingTime}`);
+    console.log(`Current time: ${currentTime}, Closing time: ${closingTime}, Auto-clockout deadline: ${autoClockoutDeadline}`);
 
-    // Calculate 1 minute after closing time
-    const [closeHour, closeMin] = closingTime.split(':').map(Number);
-    const autoClockoutTime = `${closeHour.toString().padStart(2, '0')}:${(closeMin + 1).toString().padStart(2, '0')}:00`;
+    // Normalize deadline to HH:MM:00 format
+    const [deadlineHour, deadlineMin] = autoClockoutDeadline.split(':').map(Number);
+    const deadlineTimeStr = `${deadlineHour.toString().padStart(2, '0')}:${deadlineMin.toString().padStart(2, '0')}:00`;
 
-    // Find all employees still clocked in (office only, and NOT doing overtime)
+    // Find all day-shift employees still clocked in (exclude night shift and overtime)
     const { data: activeSessions, error: sessionsError } = await supabaseClient
       .from('attendance_logs')
       .select(`
@@ -85,16 +83,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Found ${activeSessions?.length || 0} active sessions`);
+    console.log(`Found ${activeSessions?.length || 0} active day-shift sessions`);
 
     let notificationsSent = 0;
     let autoClockouts = 0;
 
-    // At closing time: Send notifications
-    if (currentTime === closingTime && activeSessions && activeSessions.length > 0) {
+    // At closing time: Send reminder notifications
+    if (currentTime === `${closingTime.substring(0, 5)}:00` && activeSessions && activeSessions.length > 0) {
       for (const session of activeSessions) {
         const employee = Array.isArray(session.employee) ? session.employee[0] : session.employee;
-        
         if (employee) {
           const { error: notifError } = await supabaseClient
             .from('notifications')
@@ -102,21 +99,19 @@ Deno.serve(async (req) => {
               user_id: session.employee_id,
               type: 'clock_out_reminder',
               title: '⏰ Closing Time - Clock Out Now',
-              message: `It's ${closingTime} (closing time). Please clock out within 1 minute to avoid early closure charges.`,
+              message: `It's ${closingTime} (closing time). Please clock out before ${autoClockoutDeadline} to avoid being auto-clocked out.`,
             });
 
           if (!notifError) {
             notificationsSent++;
-            console.log(`Notification sent to employee: ${employee.first_name} ${employee.last_name}`);
-          } else {
-            console.error(`Failed to send notification to ${employee.email}:`, notifError);
+            console.log(`Reminder sent to: ${employee.first_name} ${employee.last_name}`);
           }
         }
       }
     }
 
-    // 1 minute after closing time: Auto clock-out
-    if (currentTime === autoClockoutTime && activeSessions && activeSessions.length > 0) {
+    // At auto-clockout deadline (e.g. 7 PM): Auto clock-out remaining staff
+    if (currentTime === deadlineTimeStr && activeSessions && activeSessions.length > 0) {
       const today = new Date().toISOString().split('T')[0];
       const closingDateTime = `${today}T${closingTime}`;
 
@@ -126,7 +121,7 @@ Deno.serve(async (req) => {
         const diffMs = closeTime.getTime() - clockInTime.getTime();
         const totalHours = Math.max(0, diffMs / (1000 * 60 * 60));
 
-        // Auto clock-out at closing time (not current time)
+        // Auto clock-out at closing time (recorded as work_end_time, not deadline)
         const { error: updateError } = await supabaseClient
           .from('attendance_logs')
           .update({
@@ -139,36 +134,58 @@ Deno.serve(async (req) => {
 
         if (!updateError) {
           autoClockouts++;
-          
-          // Create early closure charge
-          const { error: chargeError } = await supabaseClient
-            .from('attendance_charges')
-            .insert({
-              employee_id: session.employee_id,
-              attendance_log_id: session.id,
-              charge_type: 'early_closure',
-              charge_amount: rules.early_closure_charge_amount || 750,
-              charge_date: today,
-              status: 'pending',
-            });
 
-          if (chargeError) {
-            console.error(`Failed to create charge for employee ${session.employee_id}:`, chargeError);
-          }
+          // Check for consecutive auto-clockouts to determine charge
+          const { data: recentLogs } = await supabaseClient
+            .from('attendance_logs')
+            .select('auto_clocked_out')
+            .eq('employee_id', session.employee_id)
+            .eq('auto_clocked_out', true)
+            .neq('id', session.id)
+            .order('clock_in_time', { ascending: false })
+            .limit(1);
 
-          // Send notification about auto clock-out
-          const employee = Array.isArray(session.employee) ? session.employee[0] : session.employee;
-          if (employee) {
+          const previousWasAutoClocked = recentLogs && recentLogs.length > 0;
+
+          if (previousWasAutoClocked && consecutiveCharge > 0) {
+            // 2nd consecutive auto-clockout → apply charge
             await supabaseClient
-              .from('notifications')
+              .from('attendance_charges')
               .insert({
-                user_id: session.employee_id,
-                type: 'auto_clock_out',
-                title: '🔴 Auto Clocked Out - Early Closure',
-                message: `You were automatically clocked out at ${closingTime} for early closure. A charge of ₦${rules.early_closure_charge_amount || 750} has been applied.`,
+                employee_id: session.employee_id,
+                attendance_log_id: session.id,
+                charge_type: 'consecutive_auto_clockout',
+                charge_amount: consecutiveCharge,
+                charge_date: today,
+                status: 'pending',
               });
 
-            console.log(`Auto clocked-out employee: ${employee.first_name} ${employee.last_name}`);
+            const employee = Array.isArray(session.employee) ? session.employee[0] : session.employee;
+            if (employee) {
+              await supabaseClient
+                .from('notifications')
+                .insert({
+                  user_id: session.employee_id,
+                  type: 'auto_clock_out',
+                  title: '🔴 Auto Clocked Out - Consecutive Charge Applied',
+                  message: `You were automatically clocked out at ${autoClockoutDeadline} for the 2nd consecutive time. A charge of ₦${consecutiveCharge} has been applied.`,
+                });
+              console.log(`Consecutive charge applied to: ${employee.first_name} ${employee.last_name}`);
+            }
+          } else {
+            // First auto-clockout → warning only, no charge
+            const employee = Array.isArray(session.employee) ? session.employee[0] : session.employee;
+            if (employee) {
+              await supabaseClient
+                .from('notifications')
+                .insert({
+                  user_id: session.employee_id,
+                  type: 'auto_clock_out',
+                  title: '⚠️ Auto Clocked Out',
+                  message: `You were automatically clocked out at ${autoClockoutDeadline} because you didn't clock out manually. A charge will apply if this happens again consecutively.`,
+                });
+              console.log(`Auto clocked-out (warning): ${employee.first_name} ${employee.last_name}`);
+            }
           }
         } else {
           console.error(`Failed to clock-out employee ${session.employee_id}:`, updateError);
@@ -181,6 +198,7 @@ Deno.serve(async (req) => {
       timestamp: now.toISOString(),
       currentTime,
       closingTime,
+      autoClockoutDeadline,
       notificationsSent,
       autoClockouts,
       activeSessions: activeSessions?.length || 0,

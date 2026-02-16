@@ -29,6 +29,8 @@ export function AttendanceRulesConfig() {
     night_shift_start_time: '22:00',
     night_shift_end_time: '06:00',
     night_shift_rate: '1.2',
+    auto_clockout_deadline: '19:00',
+    consecutive_auto_clockout_charge: '0',
     is_active: true,
     allow_multiple_sessions_per_day: true,
   });
@@ -37,7 +39,7 @@ export function AttendanceRulesConfig() {
     e.preventDefault();
     
     try {
-      const ruleData: TablesInsert<'attendance_rules'> = {
+      const ruleData: any = {
         rule_name: formData.rule_name,
         work_start_time: formData.work_start_time,
         work_end_time: formData.work_end_time,
@@ -52,6 +54,8 @@ export function AttendanceRulesConfig() {
         night_shift_start_time: formData.night_shift_start_time,
         night_shift_end_time: formData.night_shift_end_time,
         night_shift_rate: parseFloat(formData.night_shift_rate),
+        auto_clockout_deadline: formData.auto_clockout_deadline,
+        consecutive_auto_clockout_charge: parseFloat(formData.consecutive_auto_clockout_charge),
         is_active: formData.is_active,
         allow_multiple_sessions_per_day: formData.allow_multiple_sessions_per_day,
       };
@@ -85,6 +89,8 @@ export function AttendanceRulesConfig() {
       night_shift_start_time: '22:00',
       night_shift_end_time: '06:00',
       night_shift_rate: '1.2',
+      auto_clockout_deadline: '19:00',
+      consecutive_auto_clockout_charge: '0',
       is_active: true,
       allow_multiple_sessions_per_day: true,
     });
@@ -107,6 +113,8 @@ export function AttendanceRulesConfig() {
       night_shift_start_time: rule.night_shift_start_time || '22:00',
       night_shift_end_time: rule.night_shift_end_time || '06:00',
       night_shift_rate: rule.night_shift_rate?.toString() || '1.2',
+      auto_clockout_deadline: (rule as any).auto_clockout_deadline || '19:00',
+      consecutive_auto_clockout_charge: ((rule as any).consecutive_auto_clockout_charge || 0).toString(),
       is_active: rule.is_active ?? true,
       allow_multiple_sessions_per_day: rule.allow_multiple_sessions_per_day ?? true,
     });
@@ -175,6 +183,18 @@ export function AttendanceRulesConfig() {
                       required
                     />
                   </div>
+                </div>
+                <div>
+                  <Label htmlFor="auto_clockout_deadline">Auto Clock-Out Deadline</Label>
+                  <Input
+                    id="auto_clockout_deadline"
+                    type="time"
+                    value={formData.auto_clockout_deadline}
+                    onChange={(e) => setFormData({ ...formData, auto_clockout_deadline: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Staff still clocked in after this time will be auto-clocked out (default 7 PM)
+                  </p>
                 </div>
               </div>
 
@@ -253,6 +273,20 @@ export function AttendanceRulesConfig() {
                     />
                     <p className="text-xs text-muted-foreground mt-1">
                       Charge if clocking out before work end time
+                    </p>
+                  </div>
+                  <div>
+                    <Label htmlFor="consecutive_auto_clockout_charge">Consecutive Auto-Clockout Charge</Label>
+                    <Input
+                      id="consecutive_auto_clockout_charge"
+                      type="number"
+                      value={formData.consecutive_auto_clockout_charge}
+                      onChange={(e) => setFormData({ ...formData, consecutive_auto_clockout_charge: e.target.value })}
+                      min="0"
+                      step="0.01"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Charge applied on 2nd consecutive auto-clockout
                     </p>
                   </div>
                 </div>
