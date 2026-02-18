@@ -52,7 +52,11 @@ export function QuestionAssignmentTracker() {
       </div>
 
       <AssignmentStatsCards stats={stats} />
-      <AssignmentTable assignments={assignments} onRefresh={refetch} />
+      <AssignmentTable 
+        assignments={assignments} 
+        onRefresh={refetch} 
+        cycleId={selectedCycleId === 'all' ? undefined : selectedCycleId}
+      />
     </div>
   );
 }

@@ -10,9 +10,10 @@ import { AssignmentRowActions } from './AssignmentRowActions';
 interface AssignmentTableProps {
   assignments: EmployeeAssignment[];
   onRefresh: () => void;
+  cycleId?: string;
 }
 
-export function AssignmentTable({ assignments, onRefresh }: AssignmentTableProps) {
+export function AssignmentTable({ assignments, onRefresh, cycleId }: AssignmentTableProps) {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
@@ -89,6 +90,7 @@ export function AssignmentTable({ assignments, onRefresh }: AssignmentTableProps
                     <AssignmentRowActions
                       employeeId={assignment.employee_id}
                       employeeName={assignment.employee_name}
+                      cycleId={cycleId}
                       onDelete={onRefresh}
                     />
                   </TableCell>

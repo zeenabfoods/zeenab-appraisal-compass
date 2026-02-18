@@ -140,8 +140,22 @@ export function useQuestionAssignmentData(selectedCycleId?: string) {
       });
 
       // Build assignment records
+      // Only include employees who ACTUALLY have question assignments (questions_assigned > 0)
+      // OR have an appraisal that is past the draft stage (meaning they've been actively engaged)
       const employeeAssignments = allEmployees
-        ?.filter(emp => assignmentCounts.has(emp.id) || employeeAppraisalMap.has(emp.id))
+        ?.filter(emp => {
+          const questionCount = assignmentCounts.get(emp.id) || 0;
+          const appraisal = employeeAppraisalMap.get(emp.id);
+          const appraisalStatus = appraisal?.status;
+          
+          // Show if they have questions assigned
+          if (questionCount > 0) return true;
+          
+          // Show if they have an appraisal that's progressed beyond draft
+          if (appraisal && appraisalStatus && appraisalStatus !== 'not_started' && appraisalStatus !== 'draft') return true;
+          
+          return false;
+        })
         .map(emp => {
           const departmentName = emp.department_id ? departmentMap.get(emp.department_id) || 'Unknown Department' : 'No Department';
           const managerName = emp.line_manager_id ? managerMap.get(emp.line_manager_id) || 'Unknown Manager' : 'No Manager';
