@@ -125,6 +125,9 @@ export default function Committee() {
     queryKey: ['completed-committee-appraisals', selectedCycleId],
     queryFn: async () => {
       try {
+        // When a specific cycle is selected, show ALL completed appraisals for that cycle
+        // (regardless of committee_reviewed_at, since cycles can be bulk-completed)
+        // When "All Quarters" is selected, only show those that went through committee
         let query = supabase
           .from('appraisals')
           .select(`
@@ -136,19 +139,24 @@ export default function Committee() {
               position,
               department:departments!profiles_department_id_fkey(name)
             ),
-            cycle:appraisal_cycles(name, year, quarter),
+            cycle:appraisal_cycles(name, year, quarter, status),
             committee_reviewer:profiles!appraisals_committee_reviewed_by_fkey(
               first_name,
               last_name
             )
           `)
           .in('status', ['hr_review', 'completed'])
-          .not('committee_reviewed_at', 'is', null)
-          .order('committee_reviewed_at', { ascending: false })
           .limit(50);
 
         if (selectedCycleId !== 'all') {
-          query = query.eq('cycle_id', selectedCycleId);
+          // For a specific cycle: show all completed appraisals in that cycle
+          query = query.eq('cycle_id', selectedCycleId)
+            .order('overall_score', { ascending: false });
+        } else {
+          // For "All Quarters": only show those that explicitly went through committee
+          query = query
+            .not('committee_reviewed_at', 'is', null)
+            .order('committee_reviewed_at', { ascending: false });
         }
         
         const { data, error } = await query;
@@ -167,11 +175,14 @@ export default function Committee() {
     queryFn: async () => {
       try {
         let pendingQuery = supabase.from('appraisals').select('id').eq('status', 'committee_review');
-        let completedQuery = supabase.from('appraisals').select('id').in('status', ['hr_review', 'completed']).not('committee_reviewed_at', 'is', null);
+        let completedQuery = supabase.from('appraisals').select('id').in('status', ['hr_review', 'completed']);
 
         if (selectedCycleId !== 'all') {
           pendingQuery = pendingQuery.eq('cycle_id', selectedCycleId);
           completedQuery = completedQuery.eq('cycle_id', selectedCycleId);
+        } else {
+          // In "All" mode, only count those that went through committee
+          completedQuery = completedQuery.not('committee_reviewed_at', 'is', null);
         }
 
         const [{ data: pending, error: pendingError }, { data: completed, error: completedError }] = await Promise.all([
