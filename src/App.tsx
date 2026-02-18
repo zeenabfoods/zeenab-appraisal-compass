@@ -33,6 +33,8 @@ import HRAppraisals from "./pages/HRAppraisals";
 import AttendanceDashboard from "./pages/attendance/AttendanceDashboard";
 import InstallApp from "./pages/InstallApp";
 import Recruitment from "./pages/Recruitment";
+import PushBroadcast from "./pages/PushBroadcast";
+
 
 // Create QueryClient with proper configuration
 const queryClient = new QueryClient({
@@ -114,6 +116,7 @@ function App() {
                   <Route path="/training-management" element={<ProtectedRoute><Training /></ProtectedRoute>} />
                   <Route path="/attendance" element={<ProtectedRoute><AttendanceDashboard /></ProtectedRoute>} />
                   <Route path="/recruitment" element={<ProtectedRoute><Recruitment /></ProtectedRoute>} />
+                  <Route path="/push-broadcast" element={<ProtectedRoute><PushBroadcast /></ProtectedRoute>} />
                   <Route path="/install" element={<InstallApp />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
