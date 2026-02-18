@@ -9,18 +9,19 @@ import { useToast } from '@/hooks/use-toast';
 interface AssignmentRowActionsProps {
   employeeId: string;
   employeeName: string;
+  cycleId?: string;
   onDelete: () => void;
 }
 
-export function AssignmentRowActions({ employeeId, employeeName, onDelete }: AssignmentRowActionsProps) {
+export function AssignmentRowActions({ employeeId, employeeName, cycleId, onDelete }: AssignmentRowActionsProps) {
   const { toast } = useToast();
   const [isDeleting, setIsDeleting] = React.useState(false);
 
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
-      // Delete all employee appraisal question assignments
-      const { error: questionsError } = await supabase
+      // Delete question assignments scoped to the current cycle (if provided)
+      let questionsQuery = supabase
         .from('employee_appraisal_questions')
         .update({ 
           deleted_at: new Date().toISOString(),
@@ -28,19 +29,29 @@ export function AssignmentRowActions({ employeeId, employeeName, onDelete }: Ass
         })
         .eq('employee_id', employeeId);
 
+      if (cycleId) {
+        questionsQuery = questionsQuery.eq('cycle_id', cycleId);
+      }
+
+      const { error: questionsError } = await questionsQuery;
       if (questionsError) throw questionsError;
 
-      // Delete the appraisal record
-      const { error: appraisalError } = await supabase
+      // Delete the appraisal record scoped to the current cycle (if provided)
+      let appraisalQuery = supabase
         .from('appraisals')
         .delete()
         .eq('employee_id', employeeId);
 
+      if (cycleId) {
+        appraisalQuery = appraisalQuery.eq('cycle_id', cycleId);
+      }
+
+      const { error: appraisalError } = await appraisalQuery;
       if (appraisalError) throw appraisalError;
 
       toast({
         title: "Success",
-        description: `All assignments for ${employeeName} have been deleted successfully.`
+        description: `Assignments for ${employeeName} have been deleted successfully.`
       });
 
       onDelete();
