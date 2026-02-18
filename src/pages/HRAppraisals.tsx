@@ -11,7 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Users, CheckCircle, Clock, TrendingUp, Eye, AlertTriangle, Lock, Unlock, Calendar, Filter, UserCheck } from 'lucide-react';
+import { Users, CheckCircle, Clock, TrendingUp, Eye, AlertTriangle, Lock, Unlock, Calendar, Filter, UserCheck, Bell } from 'lucide-react';
+import { PushNotificationBroadcast } from '@/components/PushNotificationBroadcast';
 import { useToast } from '@/hooks/use-toast';
 import { CommitteeReviewDetail } from '@/components/CommitteeReviewDetail';
 import { useAuthContext } from '@/components/AuthProvider';
@@ -794,6 +795,16 @@ export default function HRAppraisals() {
             </Card>
           </>
         )}
+
+        {/* ── Push Notification Broadcast ── */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <Bell className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold">Push Notification Broadcast</h2>
+          </div>
+          <PushNotificationBroadcast />
+        </div>
+
       </div>
     </DashboardLayout>
   );

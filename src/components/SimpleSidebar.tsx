@@ -16,6 +16,7 @@ import {
   CheckSquare,
   Clock,
   UserPlus,
+  Send,
 } from "lucide-react"
 
 import { useAuthContext } from "@/components/AuthProvider"
@@ -129,6 +130,11 @@ export function SimpleSidebar() {
         title: "Recruitment",
         url: "/recruitment",
         icon: UserPlus,
+      },
+      {
+        title: "Push Notifications",
+        url: "/push-broadcast",
+        icon: Send,
       },
     ]
 
