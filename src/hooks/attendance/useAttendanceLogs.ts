@@ -305,28 +305,17 @@ export function useAttendanceLogs() {
       let isNightShift = logData?.is_night_shift || false;
       let nightShiftHours = 0;
 
-      // Calculate overtime hours
+      // Calculate overtime hours ONLY if overtime was explicitly approved via the overtime button
+      // Night shift employees: overtime only applies if they continued PAST 7AM AND pressed the overtime button
+      // Day shift employees: overtime only applies if overtime was explicitly approved
       if (logData?.overtime_approved && logData?.overtime_start_time) {
-        // For approved overtime, calculate from overtime_start_time
+        // Only count overtime from the explicit overtime_start_time (when button was pressed)
         const overtimeStartTime = new Date(logData.overtime_start_time);
         const clockOutTimeDate = new Date(clockOutTime);
         const overtimeMs = clockOutTimeDate.getTime() - overtimeStartTime.getTime();
         overtimeHours = Math.max(0, overtimeMs / (1000 * 60 * 60));
-      } else if (isNightShift && rules?.work_start_time) {
-        // For night shift employees, overtime starts when they cross into day shift hours
-        const clockOutTimeDate = new Date(clockOutTime);
-        const [workStartH, workStartM] = rules.work_start_time.split(':').map(Number);
-        
-        // Create day shift start time for clock-out day
-        const dayShiftStart = new Date(clockOutTimeDate);
-        dayShiftStart.setHours(workStartH, workStartM, 0, 0);
-        
-        // Check if clock-out is after day shift start time
-        if (clockOutTimeDate > dayShiftStart) {
-          const overtimeMs = clockOutTimeDate.getTime() - dayShiftStart.getTime();
-          overtimeHours = Math.max(0, overtimeMs / (1000 * 60 * 60));
-        }
       }
+      // NO automatic overtime calculation - it must always be explicitly started via the overtime button
 
       // Calculate overtime amount based on position and day type
       if (overtimeHours > 0 && employeeProfile?.position) {
