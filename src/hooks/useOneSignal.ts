@@ -154,6 +154,23 @@ export function useOneSignal() {
             console.log('[OneSignal] Permission changed:', granted);
             setIsSubscribed(granted);
           });
+
+          // Auto-prompt: if not yet decided, request permission automatically
+          if (!permission && Notification.permission === 'default') {
+            const dismissed = localStorage.getItem('push_prompt_dismissed');
+            const today = new Date().toDateString();
+            // Only auto-prompt if never dismissed or dismissed on a different day
+            if (!dismissed || dismissed !== today) {
+              console.log('[OneSignal] Auto-prompting for notification permission...');
+              try {
+                await OneSignal.Notifications.requestPermission();
+                const newPermission = await OneSignal.Notifications.permission;
+                setIsSubscribed(newPermission);
+              } catch (promptError) {
+                console.log('[OneSignal] Auto-prompt failed (non-critical):', promptError);
+              }
+            }
+          }
         } catch (initError) {
           console.error('[OneSignal] Error in init callback:', initError);
           setIsInitialized(true);

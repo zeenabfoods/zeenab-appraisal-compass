@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import { OneSignalInitializer } from "@/components/OneSignalInitializer";
 import { PWAUpdateHandler } from "@/components/PWAUpdateHandler";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -86,6 +87,7 @@ function App() {
           <Sonner />
           <BrowserRouter>
             <AuthProvider>
+              <OneSignalInitializer />
               <PWAInstallPrompt />
               <PWAUpdateHandler />
               <div className="pwa-safe-area">
