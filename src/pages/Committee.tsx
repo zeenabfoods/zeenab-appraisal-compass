@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { CommitteeReviewDetail } from '@/components/CommitteeReviewDetail';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -19,33 +19,6 @@ export default function Committee() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        setRecalculating(true);
-        toast({ title: 'Refreshing scores', description: 'Recalculating performance scores...' });
-        const result = await PerformanceCalculationService.recalculateAllScores();
-        if (!cancelled) {
-          toast({
-            title: 'Scores updated',
-            description: `Updated ${result.success} appraisal(s). ${result.failed ? result.failed + ' failed' : 'All successful'}.`,
-            variant: result.failed ? 'destructive' : 'default'
-          });
-          // Refetch lists to reflect updated overall_score
-          queryClient.invalidateQueries({ queryKey: ['committee-appraisals'] });
-          queryClient.invalidateQueries({ queryKey: ['committee-stats'] });
-        }
-      } catch (err: any) {
-        if (!cancelled) {
-          toast({ title: 'Recalculation failed', description: err?.message || 'Please try again.', variant: 'destructive' });
-        }
-      } finally {
-        if (!cancelled) setRecalculating(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
 
   console.log('🏛️ Committee page: Rendering with SINGLE header only via DashboardLayout');
 
