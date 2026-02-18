@@ -1,0 +1,1 @@
+UPDATE profiles SET role = 'manager' WHERE id = '14085962-62dd-4d01-a9ed-d4dc43cfc7e5';
