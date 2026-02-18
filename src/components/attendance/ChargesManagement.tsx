@@ -7,11 +7,13 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAttendanceCharges } from '@/hooks/attendance/useAttendanceCharges';
-import { DollarSign, Download, Filter, CheckCircle, XCircle, AlertCircle, Trash2 } from 'lucide-react';
+import { DollarSign, Download, Filter, CheckCircle, XCircle, AlertCircle, Trash2, Moon } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { ShiftAssignmentManager } from './ShiftAssignmentManager';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -185,6 +187,24 @@ export function ChargesManagement() {
           </Button>
         </div>
       </div>
+
+      <Tabs defaultValue="charges">
+        <TabsList>
+          <TabsTrigger value="charges">
+            <DollarSign className="h-4 w-4 mr-1.5" />
+            Charges
+          </TabsTrigger>
+          <TabsTrigger value="shifts">
+            <Moon className="h-4 w-4 mr-1.5" />
+            Shift Assignments
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="shifts" className="mt-4">
+          <ShiftAssignmentManager />
+        </TabsContent>
+
+        <TabsContent value="charges" className="mt-4 space-y-6">
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -434,6 +454,10 @@ export function ChargesManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
+

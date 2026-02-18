@@ -2143,6 +2143,60 @@ export type Database = {
           },
         ]
       }
+      shift_assignments: {
+        Row: {
+          assigned_by: string | null
+          created_at: string
+          employee_id: string
+          end_date: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          shift_type: string
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          created_at?: string
+          employee_id: string
+          end_date: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          shift_type: string
+          start_date: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_by?: string | null
+          created_at?: string
+          employee_id?: string
+          end_date?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          shift_type?: string
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       training_assignments: {
         Row: {
           assigned_at: string
