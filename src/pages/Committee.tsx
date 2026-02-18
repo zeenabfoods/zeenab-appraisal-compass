@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 export default function Committee() {
   const [selectedAppraisalId, setSelectedAppraisalId] = useState<string>('');
   const [recalculating, setRecalculating] = useState(false);
+  const [selectedCycleId, setSelectedCycleId] = useState<string>('all');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -48,13 +49,27 @@ export default function Committee() {
 
   console.log('🏛️ Committee page: Rendering with SINGLE header only via DashboardLayout');
 
+  // Fetch available cycles for the quarter switcher
+  const { data: cycles } = useQuery({
+    queryKey: ['committee-cycles'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('appraisal_cycles')
+        .select('id, name, quarter, year, status')
+        .order('year', { ascending: false })
+        .order('quarter', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
   const { data: committeeAppraisals, isLoading, error } = useQuery({
-    queryKey: ['committee-appraisals'],
+    queryKey: ['committee-appraisals', selectedCycleId],
     queryFn: async () => {
       console.log('🔍 Fetching committee appraisals...');
       
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('appraisals')
           .select(`
             *,
@@ -82,6 +97,12 @@ export default function Committee() {
           `)
           .eq('status', 'committee_review')
           .order('manager_reviewed_at', { ascending: false });
+
+        if (selectedCycleId !== 'all') {
+          query = query.eq('cycle_id', selectedCycleId);
+        }
+        
+        const { data, error } = await query;
         
         if (error) {
           console.error('❌ Error fetching committee appraisals:', error);
@@ -89,8 +110,6 @@ export default function Committee() {
         }
         
         console.log('✅ Committee appraisals fetched:', data?.length || 0);
-        
-        // Return data as-is - overall_score is calculated by PerformanceCalculationService
         return data || [];
       } catch (err: any) {
         console.error('❌ Committee appraisals query failed:', err);
@@ -101,14 +120,12 @@ export default function Committee() {
     retryDelay: 1000
   });
 
-  // Fetch completed appraisals for reference
+  // Fetch completed appraisals for reference, filtered by cycle
   const { data: completedAppraisals } = useQuery({
-    queryKey: ['completed-committee-appraisals'],
+    queryKey: ['completed-committee-appraisals', selectedCycleId],
     queryFn: async () => {
-      console.log('🔍 Fetching completed committee appraisals...');
-      
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('appraisals')
           .select(`
             *,
@@ -128,14 +145,14 @@ export default function Committee() {
           .in('status', ['hr_review', 'completed'])
           .not('committee_reviewed_at', 'is', null)
           .order('committee_reviewed_at', { ascending: false })
-          .limit(20);
-        
-        if (error) {
-          console.error('❌ Error fetching completed appraisals:', error);
-          throw error;
+          .limit(50);
+
+        if (selectedCycleId !== 'all') {
+          query = query.eq('cycle_id', selectedCycleId);
         }
         
-        console.log('✅ Completed committee appraisals fetched:', data?.length || 0);
+        const { data, error } = await query;
+        if (error) throw error;
         return data || [];
       } catch (err: any) {
         console.error('❌ Completed appraisals query failed:', err);
@@ -146,35 +163,29 @@ export default function Committee() {
   });
 
   const { data: committeeStats } = useQuery({
-    queryKey: ['committee-stats'],
+    queryKey: ['committee-stats', selectedCycleId],
     queryFn: async () => {
-      console.log('📊 Fetching committee statistics...');
-      
       try {
-        const { data: pending, error: pendingError } = await supabase
-          .from('appraisals')
-          .select('id')
-          .eq('status', 'committee_review');
+        let pendingQuery = supabase.from('appraisals').select('id').eq('status', 'committee_review');
+        let completedQuery = supabase.from('appraisals').select('id').in('status', ['hr_review', 'completed']).not('committee_reviewed_at', 'is', null);
 
-        const { data: completed, error: completedError } = await supabase
-          .from('appraisals')
-          .select('id')
-          .eq('status', 'hr_review');
-
-        if (pendingError || completedError) {
-          console.error('❌ Error fetching committee stats:', pendingError || completedError);
-          throw pendingError || completedError;
+        if (selectedCycleId !== 'all') {
+          pendingQuery = pendingQuery.eq('cycle_id', selectedCycleId);
+          completedQuery = completedQuery.eq('cycle_id', selectedCycleId);
         }
 
-        const stats = {
+        const [{ data: pending, error: pendingError }, { data: completed, error: completedError }] = await Promise.all([
+          pendingQuery,
+          completedQuery
+        ]);
+
+        if (pendingError || completedError) throw pendingError || completedError;
+
+        return {
           pending: pending?.length || 0,
           completed: completed?.length || 0
         };
-        
-        console.log('📊 Committee stats:', stats);
-        return stats;
       } catch (err: any) {
-        console.error('❌ Committee stats query failed:', err);
         return { pending: 0, completed: 0 };
       }
     },
@@ -329,35 +340,79 @@ export default function Committee() {
   return (
     <DashboardLayout pageTitle="Committee Review" showSearch={false}>
       <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-gray-600">Review appraisals that require committee attention</p>
-            </div>
-            
-            <div className="flex gap-4 items-center">
-              <div className="bg-orange-50 p-3 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <Clock className="h-5 w-5 text-orange-600" />
-                  <div>
-                    <p className="text-sm text-orange-600">Pending Review</p>
-                    <p className="text-xl font-bold text-orange-800">{committeeStats?.pending || 0}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-green-50 p-3 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                  <div>
-                    <p className="text-sm text-green-600">Completed</p>
-                    <p className="text-xl font-bold text-green-800">{committeeStats?.completed || 0}</p>
-                  </div>
-                </div>
-              </div>
-              <Button onClick={handleRecalculateScores} disabled={recalculating} variant="default">
-                {recalculating ? 'Updating scores...' : 'Refresh scores'}
-              </Button>
-            </div>
+        <div className="flex flex-wrap justify-between items-start gap-4">
+          <div>
+            <p className="text-muted-foreground">Review appraisals that require committee attention</p>
           </div>
+          
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Quarter / Cycle Switcher */}
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Select
+                value={selectedCycleId}
+                onValueChange={(val) => {
+                  setSelectedCycleId(val);
+                  setSelectedAppraisalId('');
+                }}
+              >
+                <SelectTrigger className="w-56">
+                  <SelectValue placeholder="Select quarter..." />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-50">
+                  <SelectItem value="all">All Quarters</SelectItem>
+                  {cycles?.map(cycle => (
+                    <SelectItem key={cycle.id} value={cycle.id}>
+                      {cycle.name} — Q{cycle.quarter} {cycle.year}
+                      {cycle.status === 'active' ? ' ✦' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="bg-orange-50 p-3 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Clock className="h-5 w-5 text-orange-600" />
+                <div>
+                  <p className="text-sm text-orange-600">Pending Review</p>
+                  <p className="text-xl font-bold text-orange-800">{committeeStats?.pending || 0}</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-green-50 p-3 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                <div>
+                  <p className="text-sm text-green-600">Completed</p>
+                  <p className="text-xl font-bold text-green-800">{committeeStats?.completed || 0}</p>
+                </div>
+              </div>
+            </div>
+            <Button onClick={handleRecalculateScores} disabled={recalculating} variant="default">
+              {recalculating ? 'Updating scores...' : 'Refresh scores'}
+            </Button>
+          </div>
+        </div>
+
+        {/* Active cycle label */}
+        {selectedCycleId !== 'all' && cycles && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span>Showing:</span>
+            <span className="font-semibold text-foreground">
+              {(() => {
+                const c = cycles.find(x => x.id === selectedCycleId);
+                return c ? `${c.name} (Q${c.quarter} ${c.year})` : '';
+              })()}
+            </span>
+            {cycles.find(x => x.id === selectedCycleId)?.status === 'active' && (
+              <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700 font-medium">Active</span>
+            )}
+            {cycles.find(x => x.id === selectedCycleId)?.status === 'completed' && (
+              <span className="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700 font-medium">Completed</span>
+            )}
+          </div>
+        )}
 
         {selectedAppraisalId ? (
           <div className="space-y-4">
@@ -505,13 +560,17 @@ export default function Committee() {
             ) : (
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-12">
-                  <Users className="h-12 w-12 text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Committee Reviews</h3>
-                  <p className="text-gray-600 text-center">
-                    There are no appraisals pending committee review at this time.
+                  <Users className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">No Committee Reviews</h3>
+                  <p className="text-muted-foreground text-center">
+                    {selectedCycleId !== 'all'
+                      ? `No appraisals are pending committee review for the selected quarter.`
+                      : `There are no appraisals pending committee review at this time.`}
                     <br />
-                    <span className="text-sm text-gray-500 mt-2 block">
-                      Appraisals will appear here after managers complete their reviews.
+                    <span className="text-sm text-muted-foreground mt-2 block">
+                      {selectedCycleId !== 'all'
+                        ? 'Try switching to a different quarter using the dropdown above, or check if Q3 data is available.'
+                        : 'Appraisals will appear here after managers complete their reviews.'}
                     </span>
                   </p>
                 </CardContent>
