@@ -79,14 +79,33 @@ export function EmployeeQuestionManager() {
 
   const fetchAllQuestions = async () => {
     try {
-      const { data, error } = await supabase
-        .from('appraisal_questions')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order');
+      // Use pagination to avoid Supabase's default row limit
+      const allData: Question[] = [];
+      let offset = 0;
+      const batchSize = 1000;
+      let hasMore = true;
 
-      if (error) throw error;
-      setAllQuestions(data || []);
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('appraisal_questions')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order')
+          .range(offset, offset + batchSize - 1);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          allData.push(...(data as Question[]));
+          offset += batchSize;
+          hasMore = data.length === batchSize;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      console.log(`Fetched ${allData.length} questions from question pool`);
+      setAllQuestions(allData);
     } catch (error) {
       console.error('Error fetching all questions:', error);
     }

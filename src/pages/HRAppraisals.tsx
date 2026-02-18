@@ -6,10 +6,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Users, CheckCircle, Clock, TrendingUp, Eye, AlertTriangle, Lock, Unlock } from 'lucide-react';
+import { Users, CheckCircle, Clock, TrendingUp, Eye, AlertTriangle, Lock, Unlock, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { CommitteeReviewDetail } from '@/components/CommitteeReviewDetail';
 import { useAuthContext } from '@/components/AuthProvider';
@@ -17,11 +18,26 @@ import { PendingAppraisalsTable } from '@/components/PendingAppraisalsTable';
 
 export default function HRAppraisals() {
   const [selectedAppraisalId, setSelectedAppraisalId] = useState<string>('');
+  const [completedCycleFilter, setCompletedCycleFilter] = useState<string>('all');
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { profile } = useAuthContext();
 
   console.log('🏛️ HR Appraisals page: Rendering');
+
+  // Fetch all cycles for the selector dropdown
+  const { data: allCycles = [] } = useQuery({
+    queryKey: ['all-appraisal-cycles'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('appraisal_cycles')
+        .select('id, name, quarter, year, status')
+        .order('year', { ascending: false })
+        .order('quarter', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    }
+  });
 
   // Fetch global submission lock settings
   const { data: settings, isLoading: settingsLoading } = useQuery({
@@ -117,14 +133,14 @@ export default function HRAppraisals() {
     retryDelay: 1000
   });
 
-  // Fetch completed appraisals for reference
+  // Fetch completed appraisals - filtered by selected cycle
   const { data: completedAppraisals } = useQuery({
-    queryKey: ['completed-hr-appraisals'],
+    queryKey: ['completed-hr-appraisals', completedCycleFilter],
     queryFn: async () => {
-      console.log('🔍 Fetching completed HR appraisals...');
+      console.log('🔍 Fetching completed HR appraisals, cycle filter:', completedCycleFilter);
       
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('appraisals')
           .select(`
             *,
@@ -138,8 +154,13 @@ export default function HRAppraisals() {
             cycle:appraisal_cycles(name, year, quarter)
           `)
           .eq('status', 'completed')
-          .order('completed_at', { ascending: false })
-          .limit(20);
+          .order('completed_at', { ascending: false });
+
+        if (completedCycleFilter !== 'all') {
+          query = query.eq('cycle_id', completedCycleFilter);
+        }
+        
+        const { data, error } = await query;
         
         if (error) {
           console.error('❌ Error fetching completed appraisals:', error);
@@ -468,15 +489,45 @@ export default function HRAppraisals() {
             )}
 
             {/* Completed Appraisals Reference */}
-            {completedAppraisals && completedAppraisals.length > 0 && (
-              <Card>
-                <CardHeader>
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between flex-wrap gap-3">
                   <CardTitle className="flex items-center gap-2">
                     <CheckCircle className="h-5 w-5" />
-                    Completed Appraisals ({completedAppraisals.length})
+                    Completed Appraisals ({completedAppraisals?.length || 0})
                   </CardTitle>
-                </CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-gray-500" />
+                    <Select value={completedCycleFilter} onValueChange={setCompletedCycleFilter}>
+                      <SelectTrigger className="w-56">
+                        <SelectValue placeholder="Filter by quarter" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Quarters</SelectItem>
+                        {allCycles.map(cycle => (
+                          <SelectItem key={cycle.id} value={cycle.id}>
+                            Q{cycle.quarter} {cycle.year} — {cycle.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardHeader>
+
                 <CardContent>
+                  {(!completedAppraisals || completedAppraisals.length === 0) ? (
+                    <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+                      <CheckCircle className="h-10 w-10 mb-3" />
+                      <p className="font-medium">No completed appraisals</p>
+                      <p className="text-sm mt-1">
+                        {completedCycleFilter !== 'all' 
+                          ? 'No completed appraisals found for this quarter.' 
+                          : 'No completed appraisals yet.'}
+                      </p>
+                    </div>
+                  ) : (
+
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -548,12 +599,14 @@ export default function HRAppraisals() {
                       ))}
                     </TableBody>
                   </Table>
+                  )}
                 </CardContent>
+
               </Card>
-            )}
           </>
         )}
       </div>
     </DashboardLayout>
   );
 }
+

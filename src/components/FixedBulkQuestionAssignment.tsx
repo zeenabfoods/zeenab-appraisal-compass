@@ -52,12 +52,20 @@ export function FixedBulkQuestionAssignment({
   const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
   const [isAssigning, setIsAssigning] = useState(false);
   const [activeCycle, setActiveCycle] = useState<any>(null);
+  // Only assignments for the ACTIVE cycle - not previous quarters
+  const [activeCycleAssignedIds, setActiveCycleAssignedIds] = useState<string[]>([]);
 
-  const assignedQuestionIds = assignedQuestions.map(q => q.id);
+  const assignedQuestionIds = activeCycleAssignedIds;
 
   useEffect(() => {
     fetchActiveCycle();
   }, []);
+
+  useEffect(() => {
+    if (activeCycle && employeeId) {
+      fetchActiveCycleAssignments();
+    }
+  }, [activeCycle, employeeId]);
 
   const fetchActiveCycle = async () => {
     try {
@@ -85,6 +93,24 @@ export function FixedBulkQuestionAssignment({
         description: "Failed to fetch active appraisal cycle",
         variant: "destructive"
       });
+    }
+  };
+
+  // Fetch only assignments for the ACTIVE cycle so Q3 assignments don't hide questions for Q4
+  const fetchActiveCycleAssignments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('employee_appraisal_questions')
+        .select('question_id')
+        .eq('employee_id', employeeId)
+        .eq('cycle_id', activeCycle.id)
+        .eq('is_active', true)
+        .is('deleted_at', null);
+
+      if (error) throw error;
+      setActiveCycleAssignedIds((data || []).map((d: any) => d.question_id));
+    } catch (err) {
+      console.error('Error fetching active cycle assignments:', err);
     }
   };
 
