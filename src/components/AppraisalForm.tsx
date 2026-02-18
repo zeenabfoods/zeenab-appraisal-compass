@@ -108,13 +108,13 @@ export function AppraisalForm({ appraisalId: propsAppraisalId }: AppraisalFormPr
     queryFn: async () => {
       const { data, error } = await supabase
         .from('appraisal_settings')
-        .select('submission_locked')
+        .select('submission_locked, manager_submission_locked')
         .limit(1)
         .single();
       
       if (error) {
         console.error('Error fetching submission settings:', error);
-        return { submission_locked: false }; // Default to unlocked on error
+        return { submission_locked: false, manager_submission_locked: false }; // Default to unlocked on error
       }
       
       return data;
@@ -553,8 +553,21 @@ useEffect(() => {
   const handleSubmit = async () => {
     if (isReadOnly) return;
     
-    // Check if submissions are locked globally
-    if (submissionSettings?.submission_locked) {
+    // Determine if this is a manager submission
+    const isManagerSubmission = isManagerReviewer && appraisalData?.status === 'submitted';
+
+    // Check manager lock for manager submissions
+    if (isManagerSubmission && submissionSettings?.manager_submission_locked) {
+      toast({
+        title: "Manager Review Not Allowed",
+        description: "Manager appraisal reviews are currently locked. Deadline has been met, please contact HR.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check staff lock for employee submissions (not applicable to managers submitting reviews)
+    if (!isManagerSubmission && submissionSettings?.submission_locked) {
       toast({
         title: "Submission Not Allowed",
         description: "Appraisal submission is not allowed. Deadline has been met, please contact HR.",
@@ -570,9 +583,6 @@ useEffect(() => {
       // Ensure responses are saved before submission
       await saveResponses();
 
-      // Determine the submission type based on user role and current status
-      const isManagerSubmission = isManagerReviewer && appraisalData?.status === 'submitted';
-      
       let updateData: any;
       let successMessage: string;
       let navigationPath: string;
