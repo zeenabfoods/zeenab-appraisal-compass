@@ -284,6 +284,9 @@ export type Database = {
           id: string
           locked_at: string | null
           locked_by: string | null
+          manager_locked_at: string | null
+          manager_locked_by: string | null
+          manager_submission_locked: boolean
           submission_locked: boolean
           updated_at: string
         }
@@ -292,6 +295,9 @@ export type Database = {
           id?: string
           locked_at?: string | null
           locked_by?: string | null
+          manager_locked_at?: string | null
+          manager_locked_by?: string | null
+          manager_submission_locked?: boolean
           submission_locked?: boolean
           updated_at?: string
         }
@@ -300,6 +306,9 @@ export type Database = {
           id?: string
           locked_at?: string | null
           locked_by?: string | null
+          manager_locked_at?: string | null
+          manager_locked_by?: string | null
+          manager_submission_locked?: boolean
           submission_locked?: boolean
           updated_at?: string
         }
@@ -307,6 +316,13 @@ export type Database = {
           {
             foreignKeyName: "appraisal_settings_locked_by_fkey"
             columns: ["locked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appraisal_settings_manager_locked_by_fkey"
+            columns: ["manager_locked_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
