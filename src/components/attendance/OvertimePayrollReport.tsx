@@ -122,6 +122,7 @@ export function OvertimePayrollReport() {
         .select('*');
 
       // Helper to get rate based on position and day
+      // ONLY factory positions (Operator, Helper) receive overtime pay
       const getRateForLog = (position: string, clockInTime: Date): number => {
         const dayOfWeek = getDay(clockInTime);
         let dayType: 'weekday' | 'saturday' | 'sunday';
@@ -134,19 +135,13 @@ export function OvertimePayrollReport() {
           dayType = 'weekday';
         }
 
-        const normalizedPosition = position?.toLowerCase() || '';
-        let matchedPosition = 'Helper';
-
-        if (normalizedPosition.includes('operator')) {
-          matchedPosition = 'Operator';
-        }
-
+        // Exact match against configured overtime_rates table — no fallback
         const rate = overtimeRates?.find(
-          r => r.position_name === matchedPosition && r.day_type === dayType
+          r => r.position_name.toLowerCase() === position?.toLowerCase()?.trim() && r.day_type === dayType
         );
 
-        // Use configured rates: Operator weekday=1000, Helper weekday=800, etc.
-        return rate?.rate_amount || (matchedPosition === 'Operator' ? 1000 : 800);
+        // Return 0 if no rate configured for this position (non-factory workers)
+        return rate?.rate_amount || 0;
       };
 
       // Fetch attendance logs with all relevant data
@@ -258,7 +253,7 @@ export function OvertimePayrollReport() {
       });
 
       return Array.from(employeeMap.values())
-        .filter(item => item.total_overtime_hours > 0 || item.night_shift_hours > 0)
+        .filter(item => item.overtime_amount > 0 || item.night_shift_hours > 0)
         .sort((a, b) => b.total_payment - a.total_payment);
     },
   });
