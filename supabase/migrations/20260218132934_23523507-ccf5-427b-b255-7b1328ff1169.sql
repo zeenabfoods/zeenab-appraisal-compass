@@ -1,0 +1,1 @@
+UPDATE appraisal_settings SET submission_locked = false, locked_at = NULL, locked_by = NULL, updated_at = now() WHERE id = '3adf4d81-1554-401b-afe3-c62f22cb3b6a';
