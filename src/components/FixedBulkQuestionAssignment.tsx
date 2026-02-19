@@ -160,11 +160,11 @@ export function FixedBulkQuestionAssignment({
     setIsAssigning(true);
     
     try {
-      // Step 1: Check for existing assignments to avoid duplicates
-      console.log('Checking for existing assignments...');
+      // Step 1: Check for ALL existing records (including soft-deleted) to handle re-assignment
+      console.log('Checking for existing assignments (including deleted)...');
       const { data: existingAssignments, error: checkError } = await supabase
         .from('employee_appraisal_questions')
-        .select('question_id')
+        .select('question_id, id, deleted_at, is_active')
         .eq('employee_id', employeeId)
         .eq('cycle_id', activeCycle.id)
         .in('question_id', selectedQuestions);
@@ -174,13 +174,19 @@ export function FixedBulkQuestionAssignment({
         throw checkError;
       }
 
+      // Separate soft-deleted (need restore) vs active (already assigned) vs brand new
+      const softDeletedRecords = existingAssignments?.filter(a => a.deleted_at !== null) || [];
+      const activeRecords = existingAssignments?.filter(a => a.deleted_at === null && a.is_active) || [];
       const existingQuestionIds = existingAssignments?.map(a => a.question_id) || [];
+      const softDeletedQuestionIds = softDeletedRecords.map(a => a.question_id);
+      const activeQuestionIds = activeRecords.map(a => a.question_id);
       const newQuestionIds = selectedQuestions.filter(id => !existingQuestionIds.includes(id));
 
-      console.log('Existing assignments:', existingQuestionIds);
-      console.log('New questions to assign:', newQuestionIds);
+      console.log('Soft-deleted (to restore):', softDeletedQuestionIds.length);
+      console.log('Already active:', activeQuestionIds.length);
+      console.log('Brand new:', newQuestionIds.length);
 
-      if (newQuestionIds.length === 0) {
+      if (newQuestionIds.length === 0 && softDeletedQuestionIds.length === 0) {
         toast({
           title: "No New Questions to Assign",
           description: "All selected questions are already assigned to this employee for the current cycle.",
@@ -188,6 +194,21 @@ export function FixedBulkQuestionAssignment({
         });
         setIsAssigning(false);
         return;
+      }
+
+      // Restore soft-deleted assignments
+      if (softDeletedRecords.length > 0) {
+        const softDeletedIds = softDeletedRecords.map(a => a.id);
+        const { error: restoreError } = await supabase
+          .from('employee_appraisal_questions')
+          .update({ deleted_at: null, is_active: true, assigned_by: profile?.id, assigned_at: new Date().toISOString() })
+          .in('id', softDeletedIds);
+
+        if (restoreError) {
+          console.error('Error restoring deleted assignments:', restoreError);
+          throw restoreError;
+        }
+        console.log(`Restored ${softDeletedRecords.length} previously deleted assignments`);
       }
 
       // Step 2: Create or get existing appraisal for this employee and cycle
@@ -291,9 +312,10 @@ export function FixedBulkQuestionAssignment({
         console.error('Error creating employee notification:', empNotifError);
       }
 
-      const message = existingQuestionIds.length > 0 
-        ? `${newQuestionIds.length} new questions assigned successfully. ${existingQuestionIds.length} questions were already assigned.`
-        : `${newQuestionIds.length} questions have been assigned to ${employeeName}. Questions remain available in the question bank for future use.`;
+      const totalAssigned = newQuestionIds.length + softDeletedQuestionIds.length;
+      const message = activeQuestionIds.length > 0
+        ? `${totalAssigned} question(s) assigned successfully. ${activeQuestionIds.length} were already active.`
+        : `${totalAssigned} question(s) have been assigned to ${employeeName}.`;
 
       toast({
         title: "Questions Assigned Successfully",
