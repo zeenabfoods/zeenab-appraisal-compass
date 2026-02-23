@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { format, startOfMonth, endOfMonth, subMonths, parseISO, startOfDay, endOfDay } from 'date-fns';
+import { format, subMonths } from 'date-fns';
 import { Calendar, MapPin, Clock, Filter, User, Building, Download, Search, Trash2, Moon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,7 +20,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ApiDemoModeSettings } from './ApiDemoModeSettings';
 
 export function HRAttendanceView() {
-  const { allLogs, loading, deleteLog, currentPage, totalPages, totalCount, goToPage, pageSize } = useAllAttendanceLogs();
   const [searchQuery, setSearchQuery] = useState('');
   const [locationFilter, setLocationFilter] = useState<string>('all');
   const [geofenceFilter, setGeofenceFilter] = useState<string>('all');
@@ -31,6 +30,19 @@ export function HRAttendanceView() {
   const [shiftFilter, setShiftFilter] = useState<string>('all');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+
+  // Pass filters to hook for server-side filtering
+  const { allLogs, loading, deleteLog, currentPage, totalPages, totalCount, goToPage, pageSize } = useAllAttendanceLogs({
+    branchId: branchFilter,
+    departmentFilter,
+    employeeFilter,
+    monthFilter,
+    startDate,
+    endDate,
+    locationFilter,
+    shiftFilter,
+    searchQuery,
+  });
 
   // Generate month options (current month + last 11 months)
   const monthOptions = useMemo(() => {
@@ -66,61 +78,15 @@ export function HRAttendanceView() {
     fetchFilterOptions();
   }, []);
 
+  // Only geofence filter remains client-side (simple boolean, not worth server roundtrip)
   const filteredLogs = useMemo(() => {
+    if (geofenceFilter === 'all') return allLogs;
     return allLogs.filter((log: any) => {
-      // Search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const employeeName = `${log.employee?.first_name} ${log.employee?.last_name}`.toLowerCase();
-        const email = log.employee?.email?.toLowerCase() || '';
-        const department = log.employee?.department?.toLowerCase() || '';
-        
-        if (!employeeName.includes(query) && !email.includes(query) && !department.includes(query)) {
-          return false;
-        }
-      }
-
-      // Employee filter
-      if (employeeFilter !== 'all' && log.employee?.id !== employeeFilter) return false;
-
-      // Date range filter
-      if (startDate) {
-        const logDate = startOfDay(new Date(log.clock_in_time));
-        const filterStartDate = startOfDay(parseISO(startDate));
-        if (logDate < filterStartDate) return false;
-      }
-      if (endDate) {
-        const logDate = endOfDay(new Date(log.clock_in_time));
-        const filterEndDate = endOfDay(parseISO(endDate));
-        if (logDate > filterEndDate) return false;
-      }
-
-      // Month filter
-      if (monthFilter !== 'all') {
-        const logDate = new Date(log.clock_in_time);
-        const selectedMonth = new Date(monthFilter + '-01');
-        const monthStart = startOfMonth(selectedMonth);
-        const monthEnd = endOfMonth(selectedMonth);
-        
-        if (logDate < monthStart || logDate > monthEnd) {
-          return false;
-        }
-      }
-
-      // Other filters
-      if (locationFilter !== 'all' && log.location_type !== locationFilter) return false;
-      if (geofenceFilter === 'inside' && !log.within_geofence_at_clock_in) return false;
-      if (geofenceFilter === 'outside' && log.within_geofence_at_clock_in) return false;
-      if (branchFilter !== 'all' && log.branch?.name !== branchFilter) return false;
-      if (departmentFilter !== 'all' && log.employee?.department !== departmentFilter) return false;
-      
-      // Shift filter (day shift vs night shift)
-      if (shiftFilter === 'night' && !log.is_night_shift) return false;
-      if (shiftFilter === 'day' && log.is_night_shift) return false;
-
+      if (geofenceFilter === 'inside') return log.within_geofence_at_clock_in;
+      if (geofenceFilter === 'outside') return !log.within_geofence_at_clock_in;
       return true;
     });
-  }, [allLogs, searchQuery, locationFilter, geofenceFilter, branchFilter, departmentFilter, monthFilter, employeeFilter, shiftFilter, startDate, endDate]);
+  }, [allLogs, geofenceFilter]);
 
   // Calculate statistics
   const stats = useMemo(() => {
@@ -362,7 +328,7 @@ export function HRAttendanceView() {
                 <SelectContent>
                   <SelectItem value="all">All Branches</SelectItem>
                   {dbBranches.map((branch) => (
-                    <SelectItem key={branch.id} value={branch.name}>
+                    <SelectItem key={branch.id} value={branch.id}>
                       {branch.name}
                     </SelectItem>
                   ))}
