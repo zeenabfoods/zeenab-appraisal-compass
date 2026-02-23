@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth, endOfMonth, subMonths, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { Calendar, MapPin, Clock, Filter, User, Building, Download, Search, Trash2, Moon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,27 +45,26 @@ export function HRAttendanceView() {
     return months;
   }, []);
 
-  // Extract unique values for filters
-  const { uniqueBranches, uniqueDepartments, uniqueEmployees } = useMemo(() => {
-    const branches = new Set<string>();
-    const departments = new Set<string>();
-    const employees = new Map<string, { id: string; name: string }>();
+  // Fetch filter options from database directly (not from paginated logs)
+  const [dbBranches, setDbBranches] = useState<Array<{ id: string; name: string }>>([]);
+  const [dbDepartments, setDbDepartments] = useState<Array<{ id: string; name: string }>>([]);
+  const [dbEmployees, setDbEmployees] = useState<Array<{ id: string; name: string }>>([]);
 
-    allLogs.forEach((log: any) => {
-      if (log.branch?.name) branches.add(log.branch.name);
-      if (log.employee?.department) departments.add(log.employee.department);
-      if (log.employee?.id) {
-        const name = `${log.employee.first_name} ${log.employee.last_name}`;
-        employees.set(log.employee.id, { id: log.employee.id, name });
+  useEffect(() => {
+    const fetchFilterOptions = async () => {
+      const [branchesRes, departmentsRes, employeesRes] = await Promise.all([
+        supabase.from('attendance_branches').select('id, name').eq('is_active', true).order('name'),
+        supabase.from('departments').select('id, name').eq('is_active', true).order('name'),
+        supabase.from('profiles').select('id, first_name, last_name, department').eq('is_active', true).order('first_name'),
+      ]);
+      if (branchesRes.data) setDbBranches(branchesRes.data);
+      if (departmentsRes.data) setDbDepartments(departmentsRes.data);
+      if (employeesRes.data) {
+        setDbEmployees(employeesRes.data.map(e => ({ id: e.id, name: `${e.first_name} ${e.last_name}` })));
       }
-    });
-
-    return {
-      uniqueBranches: Array.from(branches),
-      uniqueDepartments: Array.from(departments),
-      uniqueEmployees: Array.from(employees.values()).sort((a, b) => a.name.localeCompare(b.name)),
     };
-  }, [allLogs]);
+    fetchFilterOptions();
+  }, []);
 
   const filteredLogs = useMemo(() => {
     return allLogs.filter((log: any) => {
@@ -279,7 +279,7 @@ export function HRAttendanceView() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Employees</SelectItem>
-                  {uniqueEmployees.map((emp) => (
+                  {dbEmployees.map((emp) => (
                     <SelectItem key={emp.id} value={emp.id}>
                       {emp.name}
                     </SelectItem>
@@ -325,9 +325,9 @@ export function HRAttendanceView() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Departments</SelectItem>
-                  {uniqueDepartments.map((dept) => (
-                    <SelectItem key={dept} value={dept}>
-                      {dept}
+                  {dbDepartments.map((dept) => (
+                    <SelectItem key={dept.id} value={dept.name}>
+                      {dept.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -361,9 +361,9 @@ export function HRAttendanceView() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Branches</SelectItem>
-                  {uniqueBranches.map((branch) => (
-                    <SelectItem key={branch} value={branch}>
-                      {branch}
+                  {dbBranches.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.name}>
+                      {branch.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
