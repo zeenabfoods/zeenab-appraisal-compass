@@ -120,6 +120,9 @@ function App() {
                   <Route path="/attendance" element={<ProtectedRoute><AttendanceDashboard /></ProtectedRoute>} />
                   <Route path="/recruitment" element={<ProtectedRoute><Recruitment /></ProtectedRoute>} />
                   <Route path="/push-broadcast" element={<ProtectedRoute><PushBroadcast /></ProtectedRoute>} />
+                  <Route path="/department-rating" element={<ProtectedRoute><DepartmentRating /></ProtectedRoute>} />
+                  <Route path="/department-rating-management" element={<ProtectedRoute><DepartmentRatingManagement /></ProtectedRoute>} />
+                  <Route path="/department-rating-scores" element={<ProtectedRoute><DepartmentRatingScores /></ProtectedRoute>} />
                   <Route path="/install" element={<InstallApp />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>

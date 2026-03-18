@@ -138,6 +138,16 @@ export function SimpleSidebar() {
         icon: UserPlus,
       },
       {
+        title: "Dept Rating Setup",
+        url: "/department-rating-management",
+        icon: Star,
+      },
+      {
+        title: "Dept Rating Scores",
+        url: "/department-rating-scores",
+        icon: BarChart3,
+      },
+      {
         title: "Push Notifications",
         url: "/push-broadcast",
         icon: Send,
