@@ -17,6 +17,7 @@ import {
   Clock,
   UserPlus,
   Send,
+  Star,
 } from "lucide-react"
 
 import { useAuthContext } from "@/components/AuthProvider"
