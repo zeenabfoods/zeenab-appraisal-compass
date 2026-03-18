@@ -18,6 +18,8 @@ import {
   UserPlus,
   ChevronLeft,
   ChevronRight,
+  Star,
+  Send,
 } from "lucide-react"
 
 import { useAuthContext } from "@/components/AuthProvider"
