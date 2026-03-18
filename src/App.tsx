@@ -34,6 +34,9 @@ import AttendanceDashboard from "./pages/attendance/AttendanceDashboard";
 import InstallApp from "./pages/InstallApp";
 import Recruitment from "./pages/Recruitment";
 import PushBroadcast from "./pages/PushBroadcast";
+import DepartmentRating from "./pages/DepartmentRating";
+import DepartmentRatingManagement from "./pages/DepartmentRatingManagement";
+import DepartmentRatingScores from "./pages/DepartmentRatingScores";
 
 
 // Create QueryClient with proper configuration
