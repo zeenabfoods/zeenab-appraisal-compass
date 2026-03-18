@@ -299,6 +299,8 @@ export function useDepartmentRatingMutations() {
   return {
     createCycle,
     updateCycleStatus,
+    updateCycle,
+    deleteCycle,
     createQuestion,
     deleteQuestion,
     assignQuestionsToDepartment,
