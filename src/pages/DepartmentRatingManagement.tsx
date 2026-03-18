@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
@@ -19,7 +20,7 @@ import {
   useDepartmentRatingMutations
 } from '@/hooks/useDepartmentRatings';
 import {
-  Plus, Trash2, Calendar, FileText, Building2, CheckCircle, Play, Square, Settings2
+  Plus, Trash2, Calendar, FileText, Building2, CheckCircle, Play, Square, Settings2, Pencil
 } from 'lucide-react';
 
 export default function DepartmentRatingManagement() {
@@ -46,6 +47,17 @@ export default function DepartmentRatingManagement() {
   const [cycleStart, setCycleStart] = useState('');
   const [cycleEnd, setCycleEnd] = useState('');
 
+  // Edit cycle
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editCycleId, setEditCycleId] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editStart, setEditStart] = useState('');
+  const [editEnd, setEditEnd] = useState('');
+
+  // Delete confirmation
+  const [deleteCycleId, setDeleteCycleId] = useState<string | null>(null);
+
   // Question form
   const [showQuestionForm, setShowQuestionForm] = useState(false);
   const [questionText, setQuestionText] = useState('');
@@ -70,6 +82,38 @@ export default function DepartmentRatingManagement() {
       onSuccess: () => {
         setShowCycleForm(false);
         setCycleName(''); setCycleDesc(''); setCycleStart(''); setCycleEnd('');
+      }
+    });
+  };
+
+  const handleEditCycle = (cycle: any) => {
+    setEditCycleId(cycle.id);
+    setEditName(cycle.name);
+    setEditDesc(cycle.description || '');
+    setEditStart(cycle.start_date);
+    setEditEnd(cycle.end_date);
+    setShowEditForm(true);
+  };
+
+  const handleUpdateCycle = () => {
+    if (!editName || !editStart || !editEnd) return;
+    mutations.updateCycle.mutate({
+      id: editCycleId,
+      name: editName,
+      description: editDesc || undefined,
+      start_date: editStart,
+      end_date: editEnd,
+    }, {
+      onSuccess: () => setShowEditForm(false)
+    });
+  };
+
+  const handleDeleteCycle = () => {
+    if (!deleteCycleId) return;
+    mutations.deleteCycle.mutate(deleteCycleId, {
+      onSuccess: () => {
+        setDeleteCycleId(null);
+        if (selectedCycleId === deleteCycleId) setSelectedCycleId('');
       }
     });
   };
@@ -120,8 +164,8 @@ export default function DepartmentRatingManagement() {
       <div className="space-y-6">
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Department Rating Management</h1>
-            <p className="text-gray-600">Create rating cycles, questions, and assign them to departments</p>
+            <h1 className="text-2xl font-bold text-foreground">Department Rating Management</h1>
+            <p className="text-muted-foreground">Create rating cycles, questions, and assign them to departments</p>
           </div>
           <Button onClick={() => setShowCycleForm(true)} className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600">
             <Plus className="h-4 w-4 mr-2" /> New Rating Cycle
@@ -137,11 +181,11 @@ export default function DepartmentRatingManagement() {
               <Textarea placeholder="Description (optional)" value={cycleDesc} onChange={e => setCycleDesc(e.target.value)} />
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Start Date</label>
+                  <label className="text-sm font-medium text-muted-foreground">Start Date</label>
                   <Input type="date" value={cycleStart} onChange={e => setCycleStart(e.target.value)} />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700">End Date</label>
+                  <label className="text-sm font-medium text-muted-foreground">End Date</label>
                   <Input type="date" value={cycleEnd} onChange={e => setCycleEnd(e.target.value)} />
                 </div>
               </div>
@@ -152,6 +196,48 @@ export default function DepartmentRatingManagement() {
           </DialogContent>
         </Dialog>
 
+        {/* Edit Cycle Dialog */}
+        <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Edit Rating Cycle</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              <Input placeholder="Cycle name" value={editName} onChange={e => setEditName(e.target.value)} />
+              <Textarea placeholder="Description (optional)" value={editDesc} onChange={e => setEditDesc(e.target.value)} />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Start Date</label>
+                  <Input type="date" value={editStart} onChange={e => setEditStart(e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">End Date</label>
+                  <Input type="date" value={editEnd} onChange={e => setEditEnd(e.target.value)} />
+                </div>
+              </div>
+              <Button onClick={handleUpdateCycle} disabled={mutations.updateCycle.isPending} className="w-full">
+                {mutations.updateCycle.isPending ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation */}
+        <AlertDialog open={!!deleteCycleId} onOpenChange={(open) => !open && setDeleteCycleId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Rating Cycle?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete this cycle along with all its questions, assignments, and employee ratings. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteCycle} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                {mutations.deleteCycle.isPending ? 'Deleting...' : 'Delete'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         {/* Cycles List */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {cyclesLoading ? (
@@ -160,7 +246,7 @@ export default function DepartmentRatingManagement() {
             </div>
           ) : cycles.length === 0 ? (
             <Card className="col-span-full">
-              <CardContent className="flex flex-col items-center justify-center py-12 text-gray-500">
+              <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                 <Calendar className="h-12 w-12 mb-4 opacity-50" />
                 <p>No rating cycles created yet</p>
               </CardContent>
@@ -179,11 +265,11 @@ export default function DepartmentRatingManagement() {
                 {cycle.description && <CardDescription>{cycle.description}</CardDescription>}
               </CardHeader>
               <CardContent>
-                <div className="text-sm text-gray-500 space-y-1">
+                <div className="text-sm text-muted-foreground space-y-1">
                   <div>{new Date(cycle.start_date).toLocaleDateString()} — {new Date(cycle.end_date).toLocaleDateString()}</div>
                 </div>
                 {selectedCycleId === cycle.id && (
-                  <div className="flex gap-2 mt-3">
+                  <div className="flex flex-wrap gap-2 mt-3">
                     {cycle.status === 'draft' && (
                       <Button size="sm" variant="outline" onClick={e => { e.stopPropagation(); mutations.updateCycleStatus.mutate({ id: cycle.id, status: 'active' }); }}>
                         <Play className="h-3 w-3 mr-1" /> Activate
@@ -191,9 +277,20 @@ export default function DepartmentRatingManagement() {
                     )}
                     {cycle.status === 'active' && (
                       <Button size="sm" variant="outline" onClick={e => { e.stopPropagation(); mutations.updateCycleStatus.mutate({ id: cycle.id, status: 'completed' }); }}>
-                        <Square className="h-3 w-3 mr-1" /> Complete
+                        <CheckCircle className="h-3 w-3 mr-1" /> Complete
                       </Button>
                     )}
+                    {cycle.status === 'completed' && (
+                      <Button size="sm" variant="outline" onClick={e => { e.stopPropagation(); mutations.updateCycleStatus.mutate({ id: cycle.id, status: 'draft' }); }}>
+                        <Square className="h-3 w-3 mr-1" /> Reopen
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" onClick={e => { e.stopPropagation(); handleEditCycle(cycle); }}>
+                      <Pencil className="h-3 w-3 mr-1" /> Edit
+                    </Button>
+                    <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={e => { e.stopPropagation(); setDeleteCycleId(cycle.id); }}>
+                      <Trash2 className="h-3 w-3 mr-1" /> Delete
+                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -218,16 +315,16 @@ export default function DepartmentRatingManagement() {
               </CardHeader>
               <CardContent>
                 {questions.length === 0 ? (
-                  <p className="text-gray-400 text-center py-4">No questions yet. Add some!</p>
+                  <p className="text-muted-foreground text-center py-4">No questions yet. Add some!</p>
                 ) : (
                   <div className="space-y-3">
                     {questions.map((q, idx) => (
-                      <div key={q.id} className="flex items-start justify-between gap-3 p-3 bg-gray-50 rounded-lg">
+                      <div key={q.id} className="flex items-start justify-between gap-3 p-3 bg-muted rounded-lg">
                         <div className="flex-1">
                           <p className="text-sm font-medium">{idx + 1}. {q.question_text}</p>
                           <Badge variant="outline" className="mt-1 text-xs">{q.question_category}</Badge>
                         </div>
-                        <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-700"
+                        <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive"
                           onClick={() => mutations.deleteQuestion.mutate({ id: q.id, cycleId: selectedCycleId })}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -252,13 +349,13 @@ export default function DepartmentRatingManagement() {
               </CardHeader>
               <CardContent>
                 {departments.length === 0 ? (
-                  <p className="text-gray-400 text-center py-4">No departments found</p>
+                  <p className="text-muted-foreground text-center py-4">No departments found</p>
                 ) : (
                   <div className="space-y-3">
                     {departments.map(dept => {
                       const deptAssignments = getAssignmentsForDept(dept.id);
                       return (
-                        <div key={dept.id} className="p-3 bg-gray-50 rounded-lg">
+                        <div key={dept.id} className="p-3 bg-muted rounded-lg">
                           <div className="flex items-center justify-between">
                             <span className="font-medium text-sm">{dept.name}</span>
                             <Badge variant={deptAssignments.length > 0 ? 'default' : 'outline'}>
@@ -270,9 +367,9 @@ export default function DepartmentRatingManagement() {
                               {deptAssignments.map(a => {
                                 const q = questions.find(q => q.id === a.question_id);
                                 return q ? (
-                                  <div key={a.id} className="flex items-center justify-between text-xs text-gray-600">
+                                  <div key={a.id} className="flex items-center justify-between text-xs text-muted-foreground">
                                     <span className="truncate flex-1">• {q.question_text}</span>
-                                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-red-400"
+                                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive"
                                       onClick={() => mutations.removeAssignment.mutate({ id: a.id, cycleId: selectedCycleId })}>
                                       <Trash2 className="h-3 w-3" />
                                     </Button>
@@ -329,11 +426,11 @@ export default function DepartmentRatingManagement() {
                 </SelectContent>
               </Select>
               <div className="space-y-2 max-h-60 overflow-y-auto">
-                <p className="text-sm font-medium text-gray-700">Select questions:</p>
+                <p className="text-sm font-medium text-muted-foreground">Select questions:</p>
                 {questions.map(q => {
                   const alreadyAssigned = assignments.some(a => a.department_id === assignDeptId && a.question_id === q.id);
                   return (
-                    <label key={q.id} className={`flex items-start gap-3 p-2 rounded cursor-pointer hover:bg-gray-50 ${alreadyAssigned ? 'opacity-50' : ''}`}>
+                    <label key={q.id} className={`flex items-start gap-3 p-2 rounded cursor-pointer hover:bg-muted ${alreadyAssigned ? 'opacity-50' : ''}`}>
                       <Checkbox
                         checked={selectedQuestionIds.includes(q.id)}
                         disabled={alreadyAssigned}
@@ -343,7 +440,7 @@ export default function DepartmentRatingManagement() {
                           );
                         }}
                       />
-                      <span className="text-sm">{q.question_text} {alreadyAssigned && <span className="text-xs text-gray-400">(assigned)</span>}</span>
+                      <span className="text-sm">{q.question_text} {alreadyAssigned && <span className="text-xs text-muted-foreground">(assigned)</span>}</span>
                     </label>
                   );
                 })}
