@@ -1372,6 +1372,187 @@ export type Database = {
           },
         ]
       }
+      department_rating_assignments: {
+        Row: {
+          created_at: string
+          cycle_id: string
+          department_id: string
+          id: string
+          question_id: string
+        }
+        Insert: {
+          created_at?: string
+          cycle_id: string
+          department_id: string
+          id?: string
+          question_id: string
+        }
+        Update: {
+          created_at?: string
+          cycle_id?: string
+          department_id?: string
+          id?: string
+          question_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "department_rating_assignments_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "department_rating_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "department_rating_assignments_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "department_rating_assignments_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "department_rating_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      department_rating_cycles: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          end_date: string
+          id: string
+          name: string
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date: string
+          id?: string
+          name: string
+          start_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string
+          id?: string
+          name?: string
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      department_rating_questions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          cycle_id: string
+          id: string
+          is_active: boolean | null
+          question_category: string | null
+          question_text: string
+          sort_order: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          cycle_id: string
+          id?: string
+          is_active?: boolean | null
+          question_category?: string | null
+          question_text: string
+          sort_order?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          cycle_id?: string
+          id?: string
+          is_active?: boolean | null
+          question_category?: string | null
+          question_text?: string
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "department_rating_questions_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "department_rating_cycles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      department_ratings: {
+        Row: {
+          comment: string | null
+          created_at: string
+          cycle_id: string
+          department_id: string
+          employee_id: string
+          id: string
+          question_id: string
+          rating: number
+          updated_at: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          cycle_id: string
+          department_id: string
+          employee_id: string
+          id?: string
+          question_id: string
+          rating: number
+          updated_at?: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          cycle_id?: string
+          department_id?: string
+          employee_id?: string
+          id?: string
+          question_id?: string
+          rating?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "department_ratings_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "department_rating_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "department_ratings_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "department_ratings_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "department_rating_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       departments: {
         Row: {
           created_at: string

@@ -29,7 +29,8 @@ import {
   Star,
   RefreshCw,
   Building2,
-  UserCheck
+  UserCheck,
+  ChevronRight
 } from 'lucide-react';
 
 interface AppraisalCycle {
@@ -380,6 +381,23 @@ export function Dashboard() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Rate Departments Card */}
+      {currentProfile && (
+        <Card className="backdrop-blur-md bg-gradient-to-r from-orange-50 to-amber-50 border-orange-200 shadow-lg cursor-pointer hover:shadow-xl transition-all"
+          onClick={() => navigate('/department-rating')}>
+          <CardContent className="flex items-center gap-4 py-5">
+            <div className="h-12 w-12 rounded-xl bg-orange-100 flex items-center justify-center">
+              <Star className="h-6 w-6 text-orange-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-900">🏢 Rate Departments</h3>
+              <p className="text-sm text-gray-600">Share your feedback on how departments are performing</p>
+            </div>
+            <ChevronRight className="h-5 w-5 text-gray-400" />
+          </CardContent>
+        </Card>
       )}
 
       {/* Show assigned questions for employees */}
