@@ -231,6 +231,41 @@ export function useDepartmentRatingMutations() {
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' })
   });
 
+  const deleteCycle = useMutation({
+    mutationFn: async (cycleId: string) => {
+      // Delete ratings first
+      await supabase.from('department_ratings').delete().eq('cycle_id', cycleId);
+      // Delete assignments
+      await supabase.from('department_rating_assignments').delete().eq('cycle_id', cycleId);
+      // Delete questions
+      await supabase.from('department_rating_questions').delete().eq('cycle_id', cycleId);
+      // Delete cycle
+      const { error } = await supabase.from('department_rating_cycles').delete().eq('id', cycleId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['department-rating-cycles'] });
+      queryClient.invalidateQueries({ queryKey: ['active-department-rating-cycle'] });
+      toast({ title: 'Success', description: 'Rating cycle deleted' });
+    },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' })
+  });
+
+  const updateCycle = useMutation({
+    mutationFn: async ({ id, ...updates }: { id: string; name?: string; description?: string; start_date?: string; end_date?: string }) => {
+      const { error } = await supabase
+        .from('department_rating_cycles')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['department-rating-cycles'] });
+      toast({ title: 'Success', description: 'Cycle updated' });
+    },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' })
+  });
+
   const removeAssignment = useMutation({
     mutationFn: async ({ id, cycleId }: { id: string; cycleId: string }) => {
       const { error } = await supabase
