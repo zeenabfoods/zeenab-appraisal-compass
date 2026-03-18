@@ -57,6 +57,11 @@ export function SimpleSidebar() {
         icon: ClipboardList,
       },
       {
+        title: "Rate Departments",
+        url: "/department-rating",
+        icon: Star,
+      },
+      {
         title: "Smart Attendance",
         url: "/attendance",
         icon: Clock,
