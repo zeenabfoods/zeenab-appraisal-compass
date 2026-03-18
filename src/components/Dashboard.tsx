@@ -29,7 +29,8 @@ import {
   Star,
   RefreshCw,
   Building2,
-  UserCheck
+  UserCheck,
+  ChevronRight
 } from 'lucide-react';
 
 interface AppraisalCycle {
