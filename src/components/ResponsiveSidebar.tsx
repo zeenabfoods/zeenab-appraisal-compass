@@ -18,6 +18,8 @@ import {
   UserPlus,
   ChevronLeft,
   ChevronRight,
+  Star,
+  Send,
 } from "lucide-react"
 
 import { useAuthContext } from "@/components/AuthProvider"
@@ -80,6 +82,11 @@ export function ResponsiveSidebar() {
         title: "My Appraisals",
         url: "/my-appraisals",
         icon: ClipboardList,
+      },
+      {
+        title: "Rate Departments",
+        url: "/department-rating",
+        icon: Star,
       },
       {
         title: "Smart Attendance",
@@ -151,6 +158,21 @@ export function ResponsiveSidebar() {
         title: "Recruitment",
         url: "/recruitment",
         icon: UserPlus,
+      },
+      {
+        title: "Dept Rating Setup",
+        url: "/department-rating-management",
+        icon: Star,
+      },
+      {
+        title: "Dept Rating Scores",
+        url: "/department-rating-scores",
+        icon: BarChart3,
+      },
+      {
+        title: "Push Notifications",
+        url: "/push-broadcast",
+        icon: Send,
       },
     ]
 
