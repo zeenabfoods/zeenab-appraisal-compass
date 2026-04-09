@@ -44,7 +44,7 @@ export default function DepartmentRatingScores() {
   const [raterFilter, setRaterFilter] = useState<'all' | 'rated' | 'not_rated'>('all');
   const { data: questions = [] } = useRatingQuestions(selectedCycleId);
   const { data: assignments = [] } = useRatingAssignments(selectedCycleId);
-  const { data: allRatings = [] } = useAllDepartmentRatings(selectedCycleId);
+  const { data: allRatings = [], isLoading: ratingsLoading } = useAllDepartmentRatings(selectedCycleId);
 
   const { data: departments = [] } = useQuery({
     queryKey: ['departments-active'],
