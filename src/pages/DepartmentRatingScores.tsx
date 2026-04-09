@@ -40,6 +40,8 @@ function getBand(score: number) {
 export default function DepartmentRatingScores() {
   const { data: cycles = [] } = useDepartmentRatingCycles();
   const [selectedCycleId, setSelectedCycleId] = useState<string>('');
+  const [raterSearch, setRaterSearch] = useState('');
+  const [raterFilter, setRaterFilter] = useState<'all' | 'rated' | 'not_rated'>('all');
   const { data: questions = [] } = useRatingQuestions(selectedCycleId);
   const { data: assignments = [] } = useRatingAssignments(selectedCycleId);
   const { data: allRatings = [] } = useAllDepartmentRatings(selectedCycleId);
