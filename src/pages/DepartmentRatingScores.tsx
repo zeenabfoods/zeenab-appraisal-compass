@@ -427,6 +427,90 @@ export default function DepartmentRatingScores() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Rater Tracking Table */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Employee Rating Tracker
+                    <Badge variant="outline" className="ml-2">
+                      {raterTrackingData.filter(r => r.hasRated).length} rated / {raterTrackingData.length} total
+                    </Badge>
+                  </CardTitle>
+                  <Button onClick={exportRaterCSV} variant="outline" size="sm" className="gap-2">
+                    <Download className="h-4 w-4" />
+                    Export CSV
+                  </Button>
+                </div>
+                <div className="flex items-center gap-3 mt-3 flex-wrap">
+                  <div className="relative flex-1 min-w-[200px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by name, email, or department..."
+                      value={raterSearch}
+                      onChange={e => setRaterSearch(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  <Select value={raterFilter} onValueChange={(v: 'all' | 'rated' | 'not_rated') => setRaterFilter(v)}>
+                    <SelectTrigger className="w-[160px]">
+                      <Filter className="h-4 w-4 mr-2" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Employees</SelectItem>
+                      <SelectItem value="rated">Rated</SelectItem>
+                      <SelectItem value="not_rated">Not Rated</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/50">
+                        <th className="text-left p-3 font-semibold">S/N</th>
+                        <th className="text-left p-3 font-semibold">Name</th>
+                        <th className="text-left p-3 font-semibold">Email</th>
+                        <th className="text-left p-3 font-semibold">Department</th>
+                        <th className="text-left p-3 font-semibold">Position</th>
+                        <th className="text-center p-3 font-semibold">Status</th>
+                        <th className="text-center p-3 font-semibold">Responses</th>
+                        <th className="text-center p-3 font-semibold">Depts Rated</th>
+                        <th className="text-left p-3 font-semibold">Last Rated</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredRaterData.map((r, idx) => (
+                        <tr key={r.id} className="border-b hover:bg-muted/30">
+                          <td className="p-3 text-muted-foreground">{idx + 1}</td>
+                          <td className="p-3 font-medium">{r.name}</td>
+                          <td className="p-3 text-muted-foreground">{r.email}</td>
+                          <td className="p-3">{r.department}</td>
+                          <td className="p-3 text-muted-foreground">{r.position}</td>
+                          <td className="p-3 text-center">
+                            <Badge variant={r.hasRated ? 'default' : 'destructive'} className={r.hasRated ? 'bg-green-500' : ''}>
+                              {r.hasRated ? 'Rated' : 'Not Rated'}
+                            </Badge>
+                          </td>
+                          <td className="p-3 text-center font-medium">{r.totalResponses}</td>
+                          <td className="p-3 text-center font-medium">{r.departmentsRated}</td>
+                          <td className="p-3 text-muted-foreground text-xs">
+                            {r.lastRatedAt ? new Date(r.lastRatedAt).toLocaleDateString() : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredRaterData.length === 0 && (
+                        <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">No employees found</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
           </>
         )}
       </div>
