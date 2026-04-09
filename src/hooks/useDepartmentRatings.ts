@@ -131,26 +131,45 @@ export function useAllDepartmentRatings(cycleId: string | undefined) {
     queryKey: ['all-department-ratings', cycleId],
     queryFn: async () => {
       if (!cycleId) return [];
-      // Paginate to avoid Supabase's 1000-row default limit
-      const allData: DepartmentRating[] = [];
+      
+      // First get the total count to know how many pages we need
+      const { count, error: countError } = await supabase
+        .from('department_ratings')
+        .select('*', { count: 'exact', head: true })
+        .eq('cycle_id', cycleId);
+      if (countError) throw countError;
+      
+      const totalCount = count || 0;
+      if (totalCount === 0) return [];
+      
+      // Fetch all pages in parallel for speed
       const pageSize = 1000;
-      let from = 0;
-      let hasMore = true;
-      while (hasMore) {
-        const { data, error } = await supabase
-          .from('department_ratings')
-          .select('*')
-          .eq('cycle_id', cycleId)
-          .range(from, from + pageSize - 1);
-        if (error) throw error;
-        if (data && data.length > 0) {
-          allData.push(...(data as DepartmentRating[]));
-          from += pageSize;
-          hasMore = data.length === pageSize;
-        } else {
-          hasMore = false;
+      const totalPages = Math.ceil(totalCount / pageSize);
+      const pagePromises = [];
+      
+      for (let page = 0; page < totalPages; page++) {
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
+        pagePromises.push(
+          supabase
+            .from('department_ratings')
+            .select('*')
+            .eq('cycle_id', cycleId)
+            .range(from, to)
+        );
+      }
+      
+      const results = await Promise.all(pagePromises);
+      const allData: DepartmentRating[] = [];
+      
+      for (const result of results) {
+        if (result.error) throw result.error;
+        if (result.data) {
+          allData.push(...(result.data as DepartmentRating[]));
         }
       }
+      
+      console.log(`[DeptRatings] Loaded ${allData.length} of ${totalCount} ratings across ${totalPages} pages`);
       return allData;
     },
     enabled: !!cycleId
