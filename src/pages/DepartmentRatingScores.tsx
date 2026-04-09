@@ -156,6 +156,65 @@ export default function DepartmentRatingScores() {
     return Object.entries(bands).map(([name, value]) => ({ name, value }));
   }, [departmentScores]);
 
+  // Rater tracking data
+  const raterTrackingData = useMemo(() => {
+    const raterIds = new Set(allRatings.map(r => r.employee_id));
+    return allProfiles.map(p => {
+      const dept = departments.find(d => d.id === p.department_id);
+      const employeeRatings = allRatings.filter(r => r.employee_id === p.id);
+      const deptRated = [...new Set(employeeRatings.map(r => r.department_id))].length;
+      const lastRatedAt = employeeRatings.length > 0
+        ? employeeRatings.reduce((latest, r) => r.created_at > latest ? r.created_at : latest, employeeRatings[0].created_at)
+        : null;
+      return {
+        id: p.id,
+        name: `${p.first_name} ${p.last_name}`.trim(),
+        email: p.email || '',
+        department: dept?.name || 'Unassigned',
+        position: p.position || '',
+        hasRated: raterIds.has(p.id),
+        totalResponses: employeeRatings.length,
+        departmentsRated: deptRated,
+        lastRatedAt
+      };
+    });
+  }, [allProfiles, allRatings, departments]);
+
+  const filteredRaterData = useMemo(() => {
+    return raterTrackingData.filter(r => {
+      const matchesSearch = !raterSearch || 
+        r.name.toLowerCase().includes(raterSearch.toLowerCase()) ||
+        r.email.toLowerCase().includes(raterSearch.toLowerCase()) ||
+        r.department.toLowerCase().includes(raterSearch.toLowerCase());
+      const matchesFilter = raterFilter === 'all' || 
+        (raterFilter === 'rated' && r.hasRated) ||
+        (raterFilter === 'not_rated' && !r.hasRated);
+      return matchesSearch && matchesFilter;
+    });
+  }, [raterTrackingData, raterSearch, raterFilter]);
+
+  const exportRaterCSV = useCallback(() => {
+    const headers = ['Name', 'Email', 'Department', 'Position', 'Status', 'Total Responses', 'Departments Rated', 'Last Rated'];
+    const rows = filteredRaterData.map(r => [
+      r.name,
+      r.email,
+      r.department,
+      r.position,
+      r.hasRated ? 'Rated' : 'Not Rated',
+      r.totalResponses.toString(),
+      r.departmentsRated.toString(),
+      r.lastRatedAt ? new Date(r.lastRatedAt).toLocaleString() : 'N/A'
+    ]);
+    const csv = [headers, ...rows].map(row => row.map(c => `"${c}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `rater-tracking-${selectedCycle?.name || 'cycle'}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [filteredRaterData, selectedCycle]);
+
   const selectedCycle = cycles.find(c => c.id === selectedCycleId);
 
   return (
