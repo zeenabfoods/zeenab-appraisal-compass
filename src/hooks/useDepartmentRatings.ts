@@ -131,12 +131,27 @@ export function useAllDepartmentRatings(cycleId: string | undefined) {
     queryKey: ['all-department-ratings', cycleId],
     queryFn: async () => {
       if (!cycleId) return [];
-      const { data, error } = await supabase
-        .from('department_ratings')
-        .select('*')
-        .eq('cycle_id', cycleId);
-      if (error) throw error;
-      return data as DepartmentRating[];
+      // Paginate to avoid Supabase's 1000-row default limit
+      const allData: DepartmentRating[] = [];
+      const pageSize = 1000;
+      let from = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('department_ratings')
+          .select('*')
+          .eq('cycle_id', cycleId)
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        if (data && data.length > 0) {
+          allData.push(...(data as DepartmentRating[]));
+          from += pageSize;
+          hasMore = data.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+      }
+      return allData;
     },
     enabled: !!cycleId
   });

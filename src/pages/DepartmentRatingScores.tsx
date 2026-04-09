@@ -1,10 +1,12 @@
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -18,7 +20,7 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   PieChart, Pie, Cell
 } from 'recharts';
-import { Building2, TrendingUp, Users, Award, Star, BarChart3, Target } from 'lucide-react';
+import { Building2, TrendingUp, Users, Award, Star, BarChart3, Target, Download, Search, Filter } from 'lucide-react';
 
 const COLORS = ['#F97316', '#10B981', '#3B82F6', '#8B5CF6', '#EF4444', '#F59E0B', '#06B6D4', '#EC4899'];
 const BAND_COLORS: Record<string, string> = {
@@ -38,6 +40,8 @@ function getBand(score: number) {
 export default function DepartmentRatingScores() {
   const { data: cycles = [] } = useDepartmentRatingCycles();
   const [selectedCycleId, setSelectedCycleId] = useState<string>('');
+  const [raterSearch, setRaterSearch] = useState('');
+  const [raterFilter, setRaterFilter] = useState<'all' | 'rated' | 'not_rated'>('all');
   const { data: questions = [] } = useRatingQuestions(selectedCycleId);
   const { data: assignments = [] } = useRatingAssignments(selectedCycleId);
   const { data: allRatings = [] } = useAllDepartmentRatings(selectedCycleId);
@@ -48,6 +52,19 @@ export default function DepartmentRatingScores() {
       const { data, error } = await supabase.from('departments').select('*').eq('is_active', true).order('name');
       if (error) throw error;
       return data;
+    }
+  });
+
+  const { data: allProfiles = [] } = useQuery({
+    queryKey: ['all-profiles-for-rating-tracker'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email, department_id, position')
+        .eq('is_active', true)
+        .order('first_name');
+      if (error) throw error;
+      return data || [];
     }
   });
 
@@ -139,7 +156,66 @@ export default function DepartmentRatingScores() {
     return Object.entries(bands).map(([name, value]) => ({ name, value }));
   }, [departmentScores]);
 
+  // Rater tracking data
+  const raterTrackingData = useMemo(() => {
+    const raterIds = new Set(allRatings.map(r => r.employee_id));
+    return allProfiles.map(p => {
+      const dept = departments.find(d => d.id === p.department_id);
+      const employeeRatings = allRatings.filter(r => r.employee_id === p.id);
+      const deptRated = [...new Set(employeeRatings.map(r => r.department_id))].length;
+      const lastRatedAt = employeeRatings.length > 0
+        ? employeeRatings.reduce((latest, r) => r.created_at > latest ? r.created_at : latest, employeeRatings[0].created_at)
+        : null;
+      return {
+        id: p.id,
+        name: `${p.first_name} ${p.last_name}`.trim(),
+        email: p.email || '',
+        department: dept?.name || 'Unassigned',
+        position: p.position || '',
+        hasRated: raterIds.has(p.id),
+        totalResponses: employeeRatings.length,
+        departmentsRated: deptRated,
+        lastRatedAt
+      };
+    });
+  }, [allProfiles, allRatings, departments]);
+
+  const filteredRaterData = useMemo(() => {
+    return raterTrackingData.filter(r => {
+      const matchesSearch = !raterSearch || 
+        r.name.toLowerCase().includes(raterSearch.toLowerCase()) ||
+        r.email.toLowerCase().includes(raterSearch.toLowerCase()) ||
+        r.department.toLowerCase().includes(raterSearch.toLowerCase());
+      const matchesFilter = raterFilter === 'all' || 
+        (raterFilter === 'rated' && r.hasRated) ||
+        (raterFilter === 'not_rated' && !r.hasRated);
+      return matchesSearch && matchesFilter;
+    });
+  }, [raterTrackingData, raterSearch, raterFilter]);
+
   const selectedCycle = cycles.find(c => c.id === selectedCycleId);
+
+  const exportRaterCSV = useCallback(() => {
+    const headers = ['Name', 'Email', 'Department', 'Position', 'Status', 'Total Responses', 'Departments Rated', 'Last Rated'];
+    const rows = filteredRaterData.map(r => [
+      r.name,
+      r.email,
+      r.department,
+      r.position,
+      r.hasRated ? 'Rated' : 'Not Rated',
+      r.totalResponses.toString(),
+      r.departmentsRated.toString(),
+      r.lastRatedAt ? new Date(r.lastRatedAt).toLocaleString() : 'N/A'
+    ]);
+    const csv = [headers, ...rows].map(row => row.map(c => `"${c}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `rater-tracking-${selectedCycle?.name || 'cycle'}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [filteredRaterData, selectedCycle]);
 
   return (
     <DashboardLayout>
@@ -351,6 +427,90 @@ export default function DepartmentRatingScores() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Rater Tracking Table */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Employee Rating Tracker
+                    <Badge variant="outline" className="ml-2">
+                      {raterTrackingData.filter(r => r.hasRated).length} rated / {raterTrackingData.length} total
+                    </Badge>
+                  </CardTitle>
+                  <Button onClick={exportRaterCSV} variant="outline" size="sm" className="gap-2">
+                    <Download className="h-4 w-4" />
+                    Export CSV
+                  </Button>
+                </div>
+                <div className="flex items-center gap-3 mt-3 flex-wrap">
+                  <div className="relative flex-1 min-w-[200px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by name, email, or department..."
+                      value={raterSearch}
+                      onChange={e => setRaterSearch(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  <Select value={raterFilter} onValueChange={(v: 'all' | 'rated' | 'not_rated') => setRaterFilter(v)}>
+                    <SelectTrigger className="w-[160px]">
+                      <Filter className="h-4 w-4 mr-2" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Employees</SelectItem>
+                      <SelectItem value="rated">Rated</SelectItem>
+                      <SelectItem value="not_rated">Not Rated</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/50">
+                        <th className="text-left p-3 font-semibold">S/N</th>
+                        <th className="text-left p-3 font-semibold">Name</th>
+                        <th className="text-left p-3 font-semibold">Email</th>
+                        <th className="text-left p-3 font-semibold">Department</th>
+                        <th className="text-left p-3 font-semibold">Position</th>
+                        <th className="text-center p-3 font-semibold">Status</th>
+                        <th className="text-center p-3 font-semibold">Responses</th>
+                        <th className="text-center p-3 font-semibold">Depts Rated</th>
+                        <th className="text-left p-3 font-semibold">Last Rated</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredRaterData.map((r, idx) => (
+                        <tr key={r.id} className="border-b hover:bg-muted/30">
+                          <td className="p-3 text-muted-foreground">{idx + 1}</td>
+                          <td className="p-3 font-medium">{r.name}</td>
+                          <td className="p-3 text-muted-foreground">{r.email}</td>
+                          <td className="p-3">{r.department}</td>
+                          <td className="p-3 text-muted-foreground">{r.position}</td>
+                          <td className="p-3 text-center">
+                            <Badge variant={r.hasRated ? 'default' : 'destructive'} className={r.hasRated ? 'bg-green-500' : ''}>
+                              {r.hasRated ? 'Rated' : 'Not Rated'}
+                            </Badge>
+                          </td>
+                          <td className="p-3 text-center font-medium">{r.totalResponses}</td>
+                          <td className="p-3 text-center font-medium">{r.departmentsRated}</td>
+                          <td className="p-3 text-muted-foreground text-xs">
+                            {r.lastRatedAt ? new Date(r.lastRatedAt).toLocaleDateString() : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredRaterData.length === 0 && (
+                        <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">No employees found</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
           </>
         )}
       </div>
