@@ -268,7 +268,8 @@ export default function DepartmentRatingScores() {
                   <BarChart3 className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{allRatings.length}</div>
+                  <div className="text-2xl font-bold">{ratingsLoading ? '...' : allRatings.length}</div>
+                  {ratingsLoading && <p className="text-xs text-muted-foreground">Loading all pages...</p>}
                 </CardContent>
               </Card>
               <Card>
@@ -277,8 +278,10 @@ export default function DepartmentRatingScores() {
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{responseRate}%</div>
-                  <p className="text-xs text-muted-foreground">{[...new Set(allRatings.map(r => r.employee_id))].length} of {totalEmployees} employees</p>
+                  <div className="text-2xl font-bold">{ratingsLoading ? '...' : `${responseRate}%`}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {ratingsLoading ? 'Loading ratings data...' : `${[...new Set(allRatings.map(r => r.employee_id))].length} of ${totalEmployees} employees`}
+                  </p>
                 </CardContent>
               </Card>
             </div>
