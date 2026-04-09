@@ -55,6 +55,19 @@ export default function DepartmentRatingScores() {
     }
   });
 
+  const { data: allProfiles = [] } = useQuery({
+    queryKey: ['all-profiles-for-rating-tracker'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email, department_id, position')
+        .eq('is_active', true)
+        .order('first_name');
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
   const { data: totalEmployees = 0 } = useQuery({
     queryKey: ['total-active-employees'],
     queryFn: async () => {
