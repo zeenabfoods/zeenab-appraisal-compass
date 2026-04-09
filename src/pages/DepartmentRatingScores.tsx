@@ -193,6 +193,8 @@ export default function DepartmentRatingScores() {
     });
   }, [raterTrackingData, raterSearch, raterFilter]);
 
+  const selectedCycle = cycles.find(c => c.id === selectedCycleId);
+
   const exportRaterCSV = useCallback(() => {
     const headers = ['Name', 'Email', 'Department', 'Position', 'Status', 'Total Responses', 'Departments Rated', 'Last Rated'];
     const rows = filteredRaterData.map(r => [
@@ -214,8 +216,6 @@ export default function DepartmentRatingScores() {
     a.click();
     URL.revokeObjectURL(url);
   }, [filteredRaterData, selectedCycle]);
-
-  const selectedCycle = cycles.find(c => c.id === selectedCycleId);
 
   return (
     <DashboardLayout>
