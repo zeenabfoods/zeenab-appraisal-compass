@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,18 +15,41 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 
 export function ManualOverrides() {
-  const { allLogs, loading, refetch, currentPage, totalPages, goToPage } = useAllAttendanceLogs();
   const { profile } = useAuth();
-  const [selectedLog, setSelectedLog] = useState<typeof allLogs[0] | null>(null);
+  const [selectedLog, setSelectedLog] = useState<any | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterBranch, setFilterBranch] = useState<string>('all');
   const [filterDate, setFilterDate] = useState<string>('');
+  const [resolvedEmployeeIds, setResolvedEmployeeIds] = useState<string[] | undefined>(undefined);
   const [overrideData, setOverrideData] = useState({
     clock_in_time: '',
     clock_out_time: '',
     override_reason: '',
     location_type: '',
+  });
+
+  // Resolve name search to employee IDs server-side (debounced)
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q) {
+      setResolvedEmployeeIds(undefined);
+      return;
+    }
+    const handle = setTimeout(async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id')
+        .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%`);
+      setResolvedEmployeeIds((data || []).map((r: any) => r.id));
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [searchQuery]);
+
+  const { allLogs, loading, refetch, currentPage, totalPages, goToPage } = useAllAttendanceLogs({
+    startDate: filterDate || undefined,
+    endDate: filterDate || undefined,
+    employeeIds: resolvedEmployeeIds,
   });
 
   const branches = useMemo(() => {
@@ -38,18 +61,12 @@ export function ManualOverrides() {
 
   const filteredLogs = useMemo(() => {
     return allLogs.filter((log) => {
-      const matchesSearch = !searchQuery || 
-        log.employee?.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        log.employee?.last_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        log.employee?.department?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesBranch = filterBranch === 'all' || log.branch?.name === filterBranch;
-      const matchesDate = !filterDate || 
-        format(new Date(log.clock_in_time), 'yyyy-MM-dd') === filterDate;
-      return matchesSearch && matchesBranch && matchesDate;
+      return matchesBranch;
     });
-  }, [allLogs, searchQuery, filterBranch, filterDate]);
+  }, [allLogs, filterBranch]);
 
-  const handleEditClick = (log: typeof allLogs[0]) => {
+  const handleEditClick = (log: any) => {
     setSelectedLog(log);
     setOverrideData({
       clock_in_time: log.clock_in_time ? format(new Date(log.clock_in_time), "yyyy-MM-dd'T'HH:mm") : '',
