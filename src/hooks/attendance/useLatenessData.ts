@@ -111,6 +111,10 @@ export function useLatenessData() {
         .select('id, first_name, last_name, department_id')
         .eq('is_active', true);
 
+      if (employeeFilter !== 'all') {
+        allEmployeesQuery = allEmployeesQuery.eq('id', employeeFilter);
+      }
+
       const { data: allEmployeesData } = await allEmployeesQuery;
 
       // Get employee details for those who clocked in
