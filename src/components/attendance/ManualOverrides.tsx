@@ -377,6 +377,22 @@ export function ManualOverrides() {
                     onChange={(e) => setOverrideData({ ...overrideData, clock_in_time: e.target.value })}
                     required
                   />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 text-xs"
+                    onClick={() => {
+                      const base = new Date(selectedLog.clock_in_time);
+                      base.setHours(7, 56, 0, 0);
+                      setOverrideData({
+                        ...overrideData,
+                        clock_in_time: format(base, "yyyy-MM-dd'T'HH:mm"),
+                      });
+                    }}
+                  >
+                    Mark as On Time (07:56 AM)
+                  </Button>
                 </div>
 
                 <div>
