@@ -73,37 +73,30 @@ export function useLatenessData() {
       const lateThreshold = rulesData?.late_threshold_minutes || 15;
       const gracePeriod = rulesData?.grace_period_minutes || 0;
 
-      // First get attendance logs with employee and branch info
-      let query = supabase
-        .from('attendance_logs')
-        .select(`
-          id,
-          employee_id,
-          clock_in_time,
-          clock_out_time,
-          is_late,
-          late_by_minutes,
-          branch_id
-        `)
-        .order('clock_in_time', { ascending: false });
+      // Fetch ALL attendance logs in batches to bypass Supabase's 1000-row default cap
+      const BATCH = 1000;
+      let from = 0;
+      const logsData: any[] = [];
+      while (true) {
+        let q = supabase
+          .from('attendance_logs')
+          .select(`id, employee_id, clock_in_time, clock_out_time, is_late, late_by_minutes, branch_id`)
+          .order('clock_in_time', { ascending: false })
+          .range(from, from + BATCH - 1);
 
-      if (startDate && endDate) {
-        query = query
-          .gte('clock_in_time', `${startDate}T00:00:00`)
-          .lte('clock_in_time', `${endDate}T23:59:59`);
+        if (startDate && endDate) {
+          q = q.gte('clock_in_time', `${startDate}T00:00:00`).lte('clock_in_time', `${endDate}T23:59:59`);
+        }
+        if (employeeFilter !== 'all') q = q.eq('employee_id', employeeFilter);
+        if (branchFilter !== 'all') q = q.eq('branch_id', branchFilter);
+
+        const { data: batch, error: logsError } = await q;
+        if (logsError) throw logsError;
+        if (!batch || batch.length === 0) break;
+        logsData.push(...batch);
+        if (batch.length < BATCH) break;
+        from += BATCH;
       }
-
-      if (employeeFilter !== 'all') {
-        query = query.eq('employee_id', employeeFilter);
-      }
-
-      if (branchFilter !== 'all') {
-        query = query.eq('branch_id', branchFilter);
-      }
-
-      const { data: logsData, error: logsError } = await query;
-
-      if (logsError) throw logsError;
 
       // Get ALL active employees to calculate absences
       let allEmployeesQuery = supabase
