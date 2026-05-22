@@ -10,6 +10,7 @@ export interface EmployeeUpdateData {
   position?: string;
   department_id?: string | null;
   line_manager_id?: string | null;
+  is_active?: boolean;
 }
 
 export interface ExtendedProfile extends Profile {

@@ -160,6 +160,24 @@ export function EmployeeDialog({
             </div>
           </div>
           
+          <div className="space-y-2">
+            <Label htmlFor="status">Employment Status</Label>
+            <Select
+              value={newEmployee.is_active === false ? 'inactive' : 'active'}
+              onValueChange={(value) =>
+                setNewEmployee({ ...newEmployee, is_active: value === 'active' })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Deactivated</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="flex gap-2 pt-4">
             <Button 
               type="submit" 

@@ -103,7 +103,8 @@ export default function EmployeeManagement() {
     role: 'staff',
     position: '',
     department_id: null,
-    line_manager_id: null
+    line_manager_id: null,
+    is_active: true
   });
 
   const resetForm = () => {
@@ -114,7 +115,8 @@ export default function EmployeeManagement() {
       role: 'staff',
       position: '',
       department_id: null,
-      line_manager_id: null
+      line_manager_id: null,
+      is_active: true
     });
     setEditingEmployee(null);
   };
@@ -128,7 +130,8 @@ export default function EmployeeManagement() {
       role: employee.role,
       position: employee.position || '',
       department_id: employee.department_id,
-      line_manager_id: employee.line_manager_id
+      line_manager_id: employee.line_manager_id,
+      is_active: employee.is_active ?? true
     });
     setDialogOpen(true);
   };
@@ -153,7 +156,8 @@ export default function EmployeeManagement() {
           role: newEmployee.role,
           position: newEmployee.position,
           department_id: newEmployee.department_id,
-          line_manager_id: newEmployee.line_manager_id
+          line_manager_id: newEmployee.line_manager_id,
+          is_active: newEmployee.is_active
         })
         .eq('id', editingEmployee.id);
 
