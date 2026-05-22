@@ -93,6 +93,25 @@ export function ManualOverrides() {
         totalHours = diffMs / (1000 * 60 * 60);
       }
 
+      // Recalculate lateness using active attendance rules so Lateness Tracking reflects the override
+      const { data: rulesData } = await supabase
+        .from('attendance_rules')
+        .select('work_start_time, grace_period_minutes')
+        .eq('is_active', true)
+        .limit(1)
+        .single();
+
+      const workStartTime = rulesData?.work_start_time || '08:00:00';
+      const gracePeriod = rulesData?.grace_period_minutes ?? 0;
+      const [wh, wm] = workStartTime.split(':').map(Number);
+      const workStart = new Date(clockInTime);
+      workStart.setHours(wh, wm, 0, 0);
+      const lateDeadline = new Date(workStart.getTime() + gracePeriod * 60 * 1000);
+      const isLateNew = clockInTime > lateDeadline;
+      const lateByMinutesNew = isLateNew
+        ? Math.round((clockInTime.getTime() - lateDeadline.getTime()) / 60000)
+        : 0;
+
       // Update the attendance log
       const { error: updateError } = await supabase
         .from('attendance_logs')
@@ -101,6 +120,8 @@ export function ManualOverrides() {
           clock_out_time: clockOutTime?.toISOString() || null,
           total_hours: totalHours,
           location_type: overrideData.location_type,
+          is_late: isLateNew,
+          late_by_minutes: lateByMinutesNew,
           updated_at: new Date().toISOString(),
         })
         .eq('id', selectedLog.id);
