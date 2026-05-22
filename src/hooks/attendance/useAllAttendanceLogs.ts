@@ -9,6 +9,7 @@ export interface AttendanceLogFilters {
   branchId?: string;
   departmentFilter?: string;
   employeeFilter?: string;
+  employeeIds?: string[];
   monthFilter?: string;
   startDate?: string;
   endDate?: string;
@@ -55,6 +56,9 @@ export function useAllAttendanceLogs(filters: AttendanceLogFilters = {}) {
       // Server-side filters
       if (filters.employeeFilter && filters.employeeFilter !== 'all') {
         query = query.eq('employee_id', filters.employeeFilter);
+      }
+      if (filters.employeeIds && filters.employeeIds.length > 0) {
+        query = query.in('employee_id', filters.employeeIds);
       }
       if (filters.branchId && filters.branchId !== 'all') {
         query = query.eq('branch_id', filters.branchId);
