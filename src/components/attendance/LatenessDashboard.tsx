@@ -294,6 +294,19 @@ export function LatenessDashboard() {
         </div>
         
         <div className="mt-4 flex justify-end">
+          <Button
+            onClick={() => {
+              setEmployeeFilter('all');
+              setDepartmentFilter('all');
+              setBranchFilter('all');
+              setStatusFilter('all');
+              setDateFilter('month');
+            }}
+            variant="ghost"
+            className="mr-2"
+          >
+            Reset Filters
+          </Button>
           <Button onClick={exportToCSV} variant="outline" className="gap-2">
             <Download className="h-4 w-4" />
             Export CSV
