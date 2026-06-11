@@ -19,14 +19,27 @@ interface PerformanceCalculationResult {
 }
 
 export class PerformanceCalculationService {
-  // Section caps based on your specifications
-  private static readonly SECTION_CAPS = {
+  // Section caps based on your specifications.
+  // IMPORTANT: order matters — more specific keys must be checked BEFORE
+  // shorter/legacy substrings (e.g. "Operational Performance" must match
+  // before the legacy "Operational" key).
+  private static readonly SECTION_CAPS: Record<string, number> = {
+    // New 4-section model (2026+)
+    'Operational Performance': 60,
+    'Results Delivery': 60,
+    'Behaviour, Conduct': 20,
+    'Conduct & Communication': 20,
+    'Leadership, Initiative': 10,
+    'Decision-Making': 10,
+    'Compliance & Continuous': 10,
+    'Continuous Improvement': 10,
+    // Legacy 3-section model (kept for historical cycles)
     'Financial': 50,
     'Sales': 50,
     'Operational': 35,
     'Efficiency': 35,
     'Behavioral': 15,
-    'Behavioural': 15, // British spelling
+    'Behavioural': 15,
     'Soft Skills': 15,
   };
 
