@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { CalendarIcon, Users, Clock, AlertCircle, XCircle, TrendingDown, Download } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -128,10 +128,18 @@ export function LatenessDashboard() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `lateness-report${statusLabel}-${format(selectedDate, 'yyyy-MM-dd')}.csv`;
+    const periodLabel =
+      dateFilter === 'day'
+        ? format(selectedDate, 'yyyy-MM-dd')
+        : dateFilter === 'week'
+        ? `week-${format(startOfWeek(selectedDate), 'yyyy-MM-dd')}`
+        : dateFilter === 'month'
+        ? format(selectedDate, 'yyyy-MM')
+        : 'all-time';
+    link.download = `lateness-report${statusLabel}-${periodLabel}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-    toast.success(`Exported ${records.length} ${statusFilter !== 'all' ? statusFilter : ''} records`);
+    toast.success(`Exported ${records.length} ${statusFilter !== 'all' ? statusFilter : ''} records (${periodLabel})`);
   };
 
   const statCards = [
@@ -211,12 +219,20 @@ export function LatenessDashboard() {
           </div>
 
           <div>
-            <label className="text-sm font-medium mb-2 block">Select Date</label>
+            <label className="text-sm font-medium mb-2 block">
+              {dateFilter === 'month' ? 'Select Month' : dateFilter === 'week' ? 'Select Week' : dateFilter === 'all' ? 'Date (ignored)' : 'Select Date'}
+            </label>
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-start text-left">
+                <Button variant="outline" className="w-full justify-start text-left" disabled={dateFilter === 'all'}>
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {format(selectedDate, 'MMM dd, yyyy')}
+                  {dateFilter === 'month'
+                    ? format(selectedDate, 'MMMM yyyy')
+                    : dateFilter === 'week'
+                    ? `${format(startOfWeek(selectedDate), 'MMM dd')} – ${format(endOfWeek(selectedDate), 'MMM dd, yyyy')}`
+                    : dateFilter === 'all'
+                    ? 'All time'
+                    : format(selectedDate, 'MMM dd, yyyy')}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0">
@@ -309,7 +325,13 @@ export function LatenessDashboard() {
           </Button>
           <Button onClick={exportToCSV} variant="outline" className="gap-2">
             <Download className="h-4 w-4" />
-            Export CSV
+            {dateFilter === 'month'
+              ? `Export ${format(selectedDate, 'MMMM yyyy')}`
+              : dateFilter === 'week'
+              ? 'Export Week'
+              : dateFilter === 'all'
+              ? 'Export All Time'
+              : `Export ${format(selectedDate, 'MMM dd')}`}
           </Button>
         </div>
       </Card>
