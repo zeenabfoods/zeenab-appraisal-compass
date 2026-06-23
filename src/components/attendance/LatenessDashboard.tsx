@@ -91,7 +91,15 @@ export function LatenessDashboard() {
     }
 
     const headers = ['Employee', 'Department', 'Branch', 'Clock In', 'Clock Out', 'Late By (mins)', 'Status'];
-    const rows = records.map((record) => {
+    // Group by employee, then sort each employee's records by date ascending
+    const sortedRecords = [...records].sort((a, b) => {
+      const nameCmp = a.employee_name.localeCompare(b.employee_name);
+      if (nameCmp !== 0) return nameCmp;
+      const aTime = a.clock_in_time ? new Date(a.clock_in_time).getTime() : 0;
+      const bTime = b.clock_in_time ? new Date(b.clock_in_time).getTime() : 0;
+      return aTime - bTime;
+    });
+    const rows = sortedRecords.map((record) => {
       let clockInDisplay = 'N/A';
       let clockOutDisplay = 'N/A';
       
