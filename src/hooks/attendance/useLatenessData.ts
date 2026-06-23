@@ -36,7 +36,7 @@ export function useLatenessData() {
     averageLateMinutes: 0,
   });
   const [loading, setLoading] = useState(true);
-  const [dateFilter, setDateFilter] = useState<'day' | 'week' | 'month' | 'all'>('week');
+  const [dateFilter, setDateFilter] = useState<'day' | 'week' | 'month' | 'all'>('month');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [employeeFilter, setEmployeeFilter] = useState<string>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
