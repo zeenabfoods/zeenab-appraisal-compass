@@ -18,6 +18,31 @@ export interface AttendanceLogFilters {
   searchQuery?: string;
 }
 
+const buildNoAttendanceRow = (profile: any) => ({
+  id: `no-attendance-${profile.id}`,
+  employee_id: profile.id,
+  employee: {
+    id: profile.id,
+    first_name: profile.first_name,
+    last_name: profile.last_name,
+    department: profile.department,
+    position: profile.position,
+    email: profile.email,
+  },
+  branch: null,
+  clock_in_time: null,
+  clock_out_time: null,
+  total_hours: null,
+  location_type: null,
+  within_geofence_at_clock_in: null,
+  geofence_distance_at_clock_in: null,
+  field_work_location: null,
+  field_work_reason: null,
+  clock_in_latitude: null,
+  clock_in_longitude: null,
+  isPlaceholder: true,
+});
+
 export function useAllAttendanceLogs(filters: AttendanceLogFilters = {}) {
   const [allLogs, setAllLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,15 +62,17 @@ export function useAllAttendanceLogs(filters: AttendanceLogFilters = {}) {
       // Resolve search query to employee IDs server-side so search works across ALL records,
       // not just the current page. Matches first/last name, email, or department.
       let searchEmployeeIds: string[] | null = null;
+      let searchedProfiles: any[] = [];
       if (filters.searchQuery && filters.searchQuery.trim()) {
         const q = filters.searchQuery.trim();
         const { data: matches, error: searchErr } = await supabase
           .from('profiles')
-          .select('id')
+          .select('id, first_name, last_name, department, position, email')
           .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%,department.ilike.%${q}%`)
           .limit(1000);
         if (searchErr) throw searchErr;
-        searchEmployeeIds = (matches || []).map((m: any) => m.id);
+        searchedProfiles = matches || [];
+        searchEmployeeIds = searchedProfiles.map((m: any) => m.id);
         if (searchEmployeeIds.length === 0) {
           setAllLogs([]);
           setTotalCount(0);
@@ -54,6 +81,16 @@ export function useAllAttendanceLogs(filters: AttendanceLogFilters = {}) {
           setLoading(false);
           return;
         }
+      }
+
+      if ((!filters.searchQuery || !filters.searchQuery.trim()) && filters.employeeFilter && filters.employeeFilter !== 'all') {
+        const { data: employeeProfile, error: employeeErr } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, department, position, email')
+          .eq('id', filters.employeeFilter)
+          .maybeSingle();
+        if (employeeErr) throw employeeErr;
+        searchedProfiles = employeeProfile ? [employeeProfile] : [];
       }
 
       let query = supabase
@@ -125,10 +162,29 @@ export function useAllAttendanceLogs(filters: AttendanceLogFilters = {}) {
         filtered = filtered.filter((log: any) => log.employee?.department === filters.departmentFilter);
       }
 
+      const canShowNoAttendanceRows =
+        page === 1 &&
+        searchedProfiles.length > 0 &&
+        (!filters.branchId || filters.branchId === 'all') &&
+        (!filters.locationFilter || filters.locationFilter === 'all') &&
+        (!filters.shiftFilter || filters.shiftFilter === 'all');
+
+      if (canShowNoAttendanceRows) {
+        const returnedEmployeeIds = new Set(filtered.map((log: any) => log.employee_id));
+        const noAttendanceRows = searchedProfiles
+          .filter((profile: any) => !returnedEmployeeIds.has(profile.id))
+          .filter((profile: any) => !filters.departmentFilter || filters.departmentFilter === 'all' || profile.department === filters.departmentFilter)
+          .map(buildNoAttendanceRow);
+
+        filtered = [...filtered, ...noAttendanceRows];
+        if (count !== null) setTotalCount(count + noAttendanceRows.length);
+      } else if (count !== null) {
+        setTotalCount(count);
+      }
+
       setAllLogs(filtered);
       setHasMore((data?.length || 0) === PAGE_SIZE);
       setCurrentPage(page);
-      if (count !== null) setTotalCount(count);
     } catch (error) {
       console.error('Error fetching all attendance logs:', error);
       toast.error('Failed to load attendance data');
