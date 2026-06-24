@@ -34,6 +34,28 @@ export function useAllAttendanceLogs(filters: AttendanceLogFilters = {}) {
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
+      // Resolve search query to employee IDs server-side so search works across ALL records,
+      // not just the current page. Matches first/last name, email, or department.
+      let searchEmployeeIds: string[] | null = null;
+      if (filters.searchQuery && filters.searchQuery.trim()) {
+        const q = filters.searchQuery.trim();
+        const { data: matches, error: searchErr } = await supabase
+          .from('profiles')
+          .select('id')
+          .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%,department.ilike.%${q}%`)
+          .limit(1000);
+        if (searchErr) throw searchErr;
+        searchEmployeeIds = (matches || []).map((m: any) => m.id);
+        if (searchEmployeeIds.length === 0) {
+          setAllLogs([]);
+          setTotalCount(0);
+          setHasMore(false);
+          setCurrentPage(page);
+          setLoading(false);
+          return;
+        }
+      }
+
       let query = supabase
         .from('attendance_logs')
         .select(`
@@ -59,6 +81,9 @@ export function useAllAttendanceLogs(filters: AttendanceLogFilters = {}) {
       }
       if (filters.employeeIds && filters.employeeIds.length > 0) {
         query = query.in('employee_id', filters.employeeIds);
+      }
+      if (searchEmployeeIds) {
+        query = query.in('employee_id', searchEmployeeIds);
       }
       if (filters.branchId && filters.branchId !== 'all') {
         query = query.eq('branch_id', filters.branchId);
@@ -98,15 +123,6 @@ export function useAllAttendanceLogs(filters: AttendanceLogFilters = {}) {
       // Client-side filters for joined fields (department, search)
       if (filters.departmentFilter && filters.departmentFilter !== 'all') {
         filtered = filtered.filter((log: any) => log.employee?.department === filters.departmentFilter);
-      }
-      if (filters.searchQuery) {
-        const q = filters.searchQuery.toLowerCase();
-        filtered = filtered.filter((log: any) => {
-          const name = `${log.employee?.first_name} ${log.employee?.last_name}`.toLowerCase();
-          const email = log.employee?.email?.toLowerCase() || '';
-          const dept = log.employee?.department?.toLowerCase() || '';
-          return name.includes(q) || email.includes(q) || dept.includes(q);
-        });
       }
 
       setAllLogs(filtered);
