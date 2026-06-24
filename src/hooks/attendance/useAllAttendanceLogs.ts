@@ -155,7 +155,7 @@ export function useAllAttendanceLogs(filters: AttendanceLogFilters = {}) {
 
       if (error) throw error;
       
-      let filtered = data || [];
+      let filtered: any[] = data || [];
 
       // Client-side filters for joined fields (department, search)
       if (filters.departmentFilter && filters.departmentFilter !== 'all') {
