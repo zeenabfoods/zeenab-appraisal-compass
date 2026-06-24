@@ -120,7 +120,7 @@ export function HRAttendanceView() {
       log.employee?.department || '',
       format(new Date(log.clock_in_time), 'yyyy-MM-dd'),
       format(new Date(log.clock_in_time), 'HH:mm:ss'),
-      log.clock_out_time ? format(new Date(log.clock_out_time), 'HH:mm:ss') : 'Active',
+      log.isPlaceholder ? '-' : log.clock_out_time ? format(new Date(log.clock_out_time), 'HH:mm:ss') : 'Active',
       log.total_hours?.toFixed(2) || '',
       log.branch?.name || '',
       log.location_type,
@@ -420,20 +420,22 @@ export function HRAttendanceView() {
                       </TableCell>
                       <TableCell>
                         <div className="font-medium text-sm">
-                          {format(new Date(log.clock_in_time), 'MMM dd')}
+                          {log.clock_in_time ? format(new Date(log.clock_in_time), 'MMM dd') : '-'}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {format(new Date(log.clock_in_time), 'EEE')}
+                          {log.clock_in_time ? format(new Date(log.clock_in_time), 'EEE') : 'No record'}
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1 text-sm">
-                          <Clock className="h-3 w-3 text-muted-foreground" />
-                          {format(new Date(log.clock_in_time), 'h:mm a')}
+                          {!log.isPlaceholder && <Clock className="h-3 w-3 text-muted-foreground" />}
+                          {log.clock_in_time ? format(new Date(log.clock_in_time), 'h:mm a') : '-'}
                         </div>
                       </TableCell>
                       <TableCell>
-                        {log.clock_out_time ? (
+                        {log.isPlaceholder ? (
+                          <span className="text-muted-foreground text-sm">-</span>
+                        ) : log.clock_out_time ? (
                           <div className="flex items-center gap-1 text-sm">
                             <Clock className="h-3 w-3 text-muted-foreground" />
                             {format(new Date(log.clock_out_time), 'h:mm a')}
@@ -452,7 +454,9 @@ export function HRAttendanceView() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {log.branch ? (
+                        {log.isPlaceholder ? (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        ) : log.branch ? (
                           <div className="flex items-center gap-1.5">
                             <Building className="h-3 w-3 text-muted-foreground" />
                             <div>
@@ -465,7 +469,9 @@ export function HRAttendanceView() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          {log.location_type === 'office' ? (
+                          {log.isPlaceholder ? (
+                            <span className="text-sm text-muted-foreground">-</span>
+                          ) : log.location_type === 'office' ? (
                             <>
                               <MapPin className="h-3 w-3 text-blue-500" />
                               <span className="text-sm">Office</span>
@@ -520,7 +526,9 @@ export function HRAttendanceView() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {log.within_geofence_at_clock_in ? (
+                        {log.isPlaceholder ? (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        ) : log.within_geofence_at_clock_in ? (
                           <Badge variant="default" className="bg-green-500 hover:bg-green-600 text-xs">
                             Inside
                           </Badge>
@@ -536,18 +544,22 @@ export function HRAttendanceView() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            if (confirm('Are you sure you want to delete this attendance record?')) {
-                              deleteLog(log.id);
-                            }
-                          }}
-                          className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {log.isPlaceholder ? (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              if (confirm('Are you sure you want to delete this attendance record?')) {
+                                deleteLog(log.id);
+                              }
+                            }}
+                            className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
