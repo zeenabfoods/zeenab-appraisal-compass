@@ -24,6 +24,7 @@ export interface Profile {
 // Allowed email domains
 const ALLOWED_DOMAINS = [
   '@cnthlimited.com',
+  '@cnthltd.com',
   '@nigerianexportershub.com',
   '@zeenabgroup.com',
   '@zeenabfoods.com',
