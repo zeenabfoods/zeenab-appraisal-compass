@@ -337,15 +337,15 @@ export function LatenessDashboard() {
           >
             Reset Filters
           </Button>
-          <Button onClick={exportToCSV} variant="outline" className="gap-2">
+          <Button onClick={() => { void exportToCSV(); }} variant="outline" className="gap-2">
             <Download className="h-4 w-4" />
             {dateFilter === 'month'
-              ? `Export ${format(selectedDate, 'MMMM yyyy')}`
+              ? `Export Locked ${format(selectedDate, 'MMMM yyyy')}`
               : dateFilter === 'week'
-              ? 'Export Week'
+              ? 'Export Locked Week'
               : dateFilter === 'all'
-              ? 'Export All Time'
-              : `Export ${format(selectedDate, 'MMM dd')}`}
+              ? 'Export Locked (All Time)'
+              : `Export Locked ${format(selectedDate, 'MMM dd')}`}
           </Button>
         </div>
       </Card>
