@@ -361,14 +361,14 @@ export function OvertimePayrollReport() {
     }
   };
 
-  const exportToCSV = () => {
+  const exportToCSV = async () => {
     if (!filteredData || filteredData.length === 0) {
       toast.error('No data to export');
       return;
     }
 
     const { startDate, endDate } = getDateRange();
-    const filename = `overtime-report-${startDate}-to-${endDate}.csv`;
+    const filename = `overtime-report-${startDate}-to-${endDate}`;
 
     const headers = [
       'Employee ID',
@@ -384,39 +384,38 @@ export function OvertimePayrollReport() {
       'Total Payment (₦)',
     ];
 
-    const csvContent = [
-      headers.join(','),
-      ...filteredData.map((item) =>
-        [
-          item.employee_id,
-          `"${item.employee_name}"`,
-          `"${item.department}"`,
-          `"${item.position}"`,
-          item.shift_type,
-          item.regular_hours.toFixed(2),
-          item.total_overtime_hours.toFixed(2),
-          item.night_shift_hours.toFixed(2),
-          item.days_with_overtime,
-          item.overtime_amount.toFixed(2),
-          item.total_payment.toFixed(2),
-        ].join(',')
-      ),
-      '',
-      `Total Overtime Hours,${totalOvertimeHours.toFixed(2)}`,
-      `Total Payment,₦${totalPayment.toFixed(2)}`,
-    ].join('\n');
+    const rows: (string | number)[][] = filteredData.map((item) => [
+      item.employee_id,
+      item.employee_name,
+      item.department,
+      item.position,
+      item.shift_type,
+      Number(item.regular_hours.toFixed(2)),
+      Number(item.total_overtime_hours.toFixed(2)),
+      Number(item.night_shift_hours.toFixed(2)),
+      item.days_with_overtime,
+      Number(item.overtime_amount.toFixed(2)),
+      Number(item.total_payment.toFixed(2)),
+    ]);
+    rows.push([]);
+    rows.push(['', '', '', '', '', '', 'Total Overtime Hours', '', '', '', Number(totalOvertimeHours.toFixed(2))]);
+    rows.push(['', '', '', '', '', '', 'Total Payment (₦)', '', '', '', Number(totalPayment.toFixed(2))]);
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-
-    toast.success('Report exported successfully');
+    try {
+      const { exportLockedXlsx } = await import('@/utils/lockedExcelExport');
+      await exportLockedXlsx({
+        filename,
+        sheetName: 'Overtime Report',
+        title: `Overtime Payroll — ${startDate} to ${endDate}`,
+        headers,
+        rows,
+        meta: { From: startDate, To: endDate },
+      });
+      toast.success('Locked report exported successfully');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to export locked file');
+    }
   };
 
   const months = [
