@@ -19,6 +19,7 @@ import { useAllAttendanceLogs } from '@/hooks/attendance/useAllAttendanceLogs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ApiDemoModeSettings } from './ApiDemoModeSettings';
 import { toast } from 'sonner';
+import ExcelJS from 'exceljs';
 
 export function HRAttendanceView() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -210,31 +211,44 @@ export function HRAttendanceView() {
         empMap.get(empId)!.records.push(log);
       }
 
-      // Build CSV grouped by branch, then employee
+      // Build protected XLSX workbook grouped by branch → employee
       const headers = ['Date', 'Day', 'Clock In', 'Clock Out', 'Hours', 'Location', 'Geofence', 'Distance (m)', 'Field Location', 'Field Reason', 'GPS'];
-      const lines: string[] = [];
-      const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-
       const periodLabel = monthFilter !== 'all'
         ? format(new Date(monthFilter + '-01'), 'MMMM yyyy')
         : (startDate || endDate) ? `${startDate || '...'} to ${endDate || '...'}` : 'All periods';
-      lines.push(esc(`Attendance Report — ${periodLabel}`));
-      lines.push(esc(`Total records: ${logs.length}`));
-      lines.push('');
+
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'Zeenab HR System';
+      workbook.created = new Date();
+      const sheet = workbook.addWorksheet('Attendance Report');
+
+      // Title rows
+      sheet.addRow([`Attendance Report — ${periodLabel}`]);
+      sheet.getRow(1).font = { bold: true, size: 14 };
+      sheet.addRow([`Total records: ${logs.length}`]);
+      sheet.addRow([`Generated: ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')}`]);
+      sheet.addRow([]);
 
       const branchNames = Array.from(branchMap.keys()).sort();
       for (const branchName of branchNames) {
-        lines.push(esc(`BRANCH: ${branchName}`));
+        const bRow = sheet.addRow([`BRANCH: ${branchName}`]);
+        bRow.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
+        bRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF6B35' } };
+
         const empMap = branchMap.get(branchName)!;
         const employees = Array.from(empMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 
         for (const emp of employees) {
           const totalHours = emp.records.reduce((s, r) => s + (r.total_hours || 0), 0);
           const daysPresent = emp.records.filter(r => r.clock_in_time).length;
-          lines.push('');
-          lines.push([esc(`Employee: ${emp.name}`), esc(`Email: ${emp.email}`), esc(`Dept: ${emp.department}`), esc(`Position: ${emp.position}`)].join(','));
-          lines.push([esc(`Days present: ${daysPresent}`), esc(`Total hours: ${totalHours.toFixed(2)}`)].join(','));
-          lines.push(headers.map(esc).join(','));
+          sheet.addRow([]);
+          const eRow = sheet.addRow([`Employee: ${emp.name}`, `Email: ${emp.email}`, `Dept: ${emp.department}`, `Position: ${emp.position}`]);
+          eRow.font = { bold: true };
+          eRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2E5' } };
+          sheet.addRow([`Days present: ${daysPresent}`, `Total hours: ${totalHours.toFixed(2)}`]);
+          const hRow = sheet.addRow(headers);
+          hRow.font = { bold: true };
+          hRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEEEEE' } };
 
           const sorted = emp.records.slice().sort((a, b) =>
             new Date(a.clock_in_time || 0).getTime() - new Date(b.clock_in_time || 0).getTime()
@@ -242,12 +256,12 @@ export function HRAttendanceView() {
           for (const log of sorted) {
             const ci = log.clock_in_time ? new Date(log.clock_in_time) : null;
             const co = log.clock_out_time ? new Date(log.clock_out_time) : null;
-            lines.push([
+            sheet.addRow([
               ci ? format(ci, 'yyyy-MM-dd') : '-',
               ci ? format(ci, 'EEE') : '-',
               ci ? format(ci, 'HH:mm:ss') : '-',
               log.isPlaceholder ? '-' : co ? format(co, 'HH:mm:ss') : 'Active',
-              log.total_hours?.toFixed(2) || '',
+              log.total_hours ? Number(log.total_hours.toFixed(2)) : '',
               log.location_type || '-',
               log.isPlaceholder ? '-' : log.within_geofence_at_clock_in ? 'Inside' : 'Outside',
               log.geofence_distance_at_clock_in ?? '',
@@ -256,25 +270,69 @@ export function HRAttendanceView() {
               log.clock_in_latitude && log.clock_in_longitude
                 ? `${log.clock_in_latitude.toFixed(6)}, ${log.clock_in_longitude.toFixed(6)}`
                 : '',
-            ].map(esc).join(','));
+            ]);
           }
         }
-        lines.push('');
-        lines.push('');
+        sheet.addRow([]);
       }
 
-      const csvContent = lines.join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      // Column widths
+      [12, 6, 10, 10, 8, 10, 10, 12, 20, 20, 24].forEach((w, i) => { sheet.getColumn(i + 1).width = w; });
+
+      // Compute SHA-256 integrity hash over the full data payload
+      const payload = JSON.stringify(logs.map((l: any) => ({
+        id: l.id, e: l.employee_id, ci: l.clock_in_time, co: l.clock_out_time,
+        h: l.total_hours, b: l.branch_id, lt: l.location_type,
+      })));
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(payload));
+      const hashHex = Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+      // Integrity sheet
+      const integrity = workbook.addWorksheet('Integrity');
+      integrity.addRow(['Field', 'Value']);
+      integrity.getRow(1).font = { bold: true };
+      integrity.addRow(['Generated At', format(new Date(), 'yyyy-MM-dd HH:mm:ss')]);
+      integrity.addRow(['Period', periodLabel]);
+      integrity.addRow(['Total Records', logs.length]);
+      integrity.addRow(['Branches', branchNames.length]);
+      integrity.addRow(['SHA-256 Hash', hashHex]);
+      integrity.addRow(['Notice', 'This file is read-only. Any modification will invalidate the hash above.']);
+      integrity.getColumn(1).width = 18;
+      integrity.getColumn(2).width = 80;
+
+      // Lock both sheets (read-only). Password required to unlock in Excel.
+      const LOCK_PASSWORD = 'ZeenabHR-Locked-2026';
+      await sheet.protect(LOCK_PASSWORD, {
+        selectLockedCells: true,
+        selectUnlockedCells: true,
+        formatCells: false,
+        formatColumns: false,
+        formatRows: false,
+        insertRows: false,
+        insertColumns: false,
+        deleteRows: false,
+        deleteColumns: false,
+        sort: false,
+        autoFilter: false,
+        pivotTables: false,
+      });
+      await integrity.protect(LOCK_PASSWORD, {
+        selectLockedCells: true,
+        selectUnlockedCells: true,
+      });
+
+      const buf = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       const fileName = monthFilter !== 'all'
-        ? `attendance-report-${monthFilter}-by-branch.csv`
-        : `attendance-report-${format(new Date(), 'yyyy-MM-dd')}-by-branch.csv`;
+        ? `attendance-report-${monthFilter}-by-branch.xlsx`
+        : `attendance-report-${format(new Date(), 'yyyy-MM-dd')}-by-branch.xlsx`;
       a.download = fileName;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success(`Exported ${logs.length} records across ${branchNames.length} branch(es).`);
+      toast.success(`Exported ${logs.length} locked records across ${branchNames.length} branch(es).`);
     } catch (err: any) {
       console.error('Export failed:', err);
       toast.error('Failed to export attendance report');
