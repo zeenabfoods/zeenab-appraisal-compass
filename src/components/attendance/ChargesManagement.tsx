@@ -14,6 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { ShiftAssignmentManager } from './ShiftAssignmentManager';
+import { exportLockedXlsx } from '@/utils/lockedExcelExport';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -131,7 +132,6 @@ export function ChargesManagement() {
     
     const data = await getMonthlyReport(month, year);
     
-    // Create CSV
     const headers = ['Employee', 'Department', 'Charge Type', 'Amount (₦)', 'Date', 'Status'];
     const rows = data.map((charge) => [
       `${charge.employee?.first_name} ${charge.employee?.last_name}`,
@@ -141,14 +141,21 @@ export function ChargesManagement() {
       format(new Date(charge.charge_date), 'yyyy-MM-dd'),
       charge.status,
     ]);
-    
-    const csv = [headers, ...rows].map((row) => row.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `attendance-charges-${year}-${month}.csv`;
-    a.click();
+
+    try {
+      await exportLockedXlsx({
+        filename: `attendance-charges-${year}-${month}`,
+        sheetName: 'Charges',
+        title: `Attendance Charges — ${year}-${month}`,
+        headers,
+        rows,
+        meta: { Month: `${year}-${month}` },
+      });
+      toast.success('Exported locked charges report');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to export locked file');
+    }
   };
 
   const getStatusBadge = (status: string) => {
