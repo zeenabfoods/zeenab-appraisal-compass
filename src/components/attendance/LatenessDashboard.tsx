@@ -12,6 +12,7 @@ import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-f
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { exportLockedXlsx } from '@/utils/lockedExcelExport';
 
 export function LatenessDashboard() {
   const {
@@ -84,7 +85,7 @@ export function LatenessDashboard() {
     }
   };
 
-  const exportToCSV = () => {
+  const exportToCSV = async () => {
     if (records.length === 0) {
       toast.error('No records to export');
       return;
@@ -131,11 +132,6 @@ export function LatenessDashboard() {
     });
 
     const statusLabel = statusFilter !== 'all' ? `-${statusFilter}` : '';
-    const csvContent = [headers, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
     const periodLabel =
       dateFilter === 'day'
         ? format(selectedDate, 'yyyy-MM-dd')
@@ -144,10 +140,20 @@ export function LatenessDashboard() {
         : dateFilter === 'month'
         ? format(selectedDate, 'yyyy-MM')
         : 'all-time';
-    link.download = `lateness-report${statusLabel}-${periodLabel}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-    toast.success(`Exported ${records.length} ${statusFilter !== 'all' ? statusFilter : ''} records (${periodLabel})`);
+    try {
+      await exportLockedXlsx({
+        filename: `lateness-report${statusLabel}-${periodLabel}`,
+        sheetName: 'Lateness Report',
+        title: `Lateness Report — ${periodLabel}${statusFilter !== 'all' ? ` (${statusFilter})` : ''}`,
+        headers,
+        rows,
+        meta: { Period: periodLabel, StatusFilter: statusFilter },
+      });
+      toast.success(`Exported locked file with ${records.length} record(s) (${periodLabel})`);
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to export locked file');
+    }
   };
 
   const statCards = [
