@@ -482,9 +482,9 @@ export function OvertimePayrollReport() {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-              <Button onClick={exportToCSV} size="sm" disabled={!filteredData || filteredData.length === 0}>
+              <Button onClick={() => { void exportToCSV(); }} size="sm" disabled={!filteredData || filteredData.length === 0}>
                 <Download className="w-4 h-4 mr-2" />
-                Export CSV
+                Export Locked XLSX
               </Button>
             </div>
           </div>
