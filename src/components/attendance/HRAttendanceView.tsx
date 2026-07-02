@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { format, subMonths } from 'date-fns';
+import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { Calendar, MapPin, Clock, Filter, User, Building, Download, Search, Trash2, Moon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,7 @@ import {
 import { useAllAttendanceLogs } from '@/hooks/attendance/useAllAttendanceLogs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ApiDemoModeSettings } from './ApiDemoModeSettings';
+import { toast } from 'sonner';
 
 export function HRAttendanceView() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -111,39 +112,175 @@ export function HRAttendanceView() {
     };
   }, [filteredLogs]);
 
-  const handleExport = () => {
-    // Prepare CSV data
-    const headers = ['Employee', 'Email', 'Department', 'Date', 'Clock In', 'Clock Out', 'Hours', 'Branch', 'Location', 'Geofence Status', 'Distance (m)', 'Field Location', 'Field Reason', 'GPS Coordinates'];
-    const rows = filteredLogs.map((log: any) => [
-      `${log.employee?.first_name} ${log.employee?.last_name}`,
-      log.employee?.email || '',
-      log.employee?.department || '',
-      log.clock_in_time ? format(new Date(log.clock_in_time), 'yyyy-MM-dd') : '-',
-      log.clock_in_time ? format(new Date(log.clock_in_time), 'HH:mm:ss') : '-',
-      log.isPlaceholder ? '-' : log.clock_out_time ? format(new Date(log.clock_out_time), 'HH:mm:ss') : 'Active',
-      log.total_hours?.toFixed(2) || '',
-      log.branch?.name || '',
-      log.location_type || '-',
-      log.isPlaceholder ? '-' : log.within_geofence_at_clock_in ? 'Inside' : 'Outside',
-      log.geofence_distance_at_clock_in || '',
-      log.field_work_location || '',
-      log.field_work_reason || '',
-      log.clock_in_latitude && log.clock_in_longitude 
-        ? `${log.clock_in_latitude.toFixed(6)}, ${log.clock_in_longitude.toFixed(6)}` 
-        : '',
-    ]);
+  const [exporting, setExporting] = useState(false);
 
-    const csvContent = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const fileName = monthFilter !== 'all' 
-      ? `attendance-report-${monthFilter}.csv`
-      : `attendance-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    a.download = fileName;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      toast.info('Preparing full export — this may take a moment...');
+
+      // Resolve search -> employee ids (mirrors hook logic)
+      let searchEmployeeIds: string[] | null = null;
+      if (searchQuery && searchQuery.trim()) {
+        const q = searchQuery.trim();
+        const { data: matches } = await supabase
+          .from('profiles')
+          .select('id')
+          .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%,department.ilike.%${q}%`)
+          .limit(1000);
+        searchEmployeeIds = (matches || []).map((m: any) => m.id);
+        if (searchEmployeeIds.length === 0) {
+          toast.warning('No employees match the search.');
+          setExporting(false);
+          return;
+        }
+      }
+
+      // Fetch ALL matching logs in batches (bypass 1000-row cap)
+      const BATCH = 1000;
+      let from = 0;
+      const all: any[] = [];
+      while (true) {
+        let q = supabase
+          .from('attendance_logs')
+          .select(`
+            *,
+            employee:profiles!attendance_logs_employee_id_fkey(id, first_name, last_name, department, position, email),
+            branch:attendance_branches!attendance_logs_branch_id_fkey(id, name, address)
+          `)
+          .order('clock_in_time', { ascending: true })
+          .range(from, from + BATCH - 1);
+
+        if (employeeFilter && employeeFilter !== 'all') q = q.eq('employee_id', employeeFilter);
+        if (searchEmployeeIds) q = q.in('employee_id', searchEmployeeIds);
+        if (branchFilter && branchFilter !== 'all') q = q.eq('branch_id', branchFilter);
+        if (locationFilter && locationFilter !== 'all') q = q.eq('location_type', locationFilter);
+        if (shiftFilter === 'night') q = q.eq('is_night_shift', true);
+        else if (shiftFilter === 'day') q = q.eq('is_night_shift', false);
+        if (startDate) q = q.gte('clock_in_time', `${startDate}T00:00:00`);
+        if (endDate) q = q.lte('clock_in_time', `${endDate}T23:59:59`);
+        if (monthFilter && monthFilter !== 'all') {
+          const sel = new Date(monthFilter + '-01');
+          q = q.gte('clock_in_time', startOfMonth(sel).toISOString())
+               .lte('clock_in_time', endOfMonth(sel).toISOString());
+        }
+
+        const { data, error } = await q;
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < BATCH) break;
+        from += BATCH;
+      }
+
+      // Client-side filters (department, geofence)
+      let logs = all;
+      if (departmentFilter && departmentFilter !== 'all') {
+        logs = logs.filter((l: any) => l.employee?.department === departmentFilter);
+      }
+      if (geofenceFilter !== 'all') {
+        logs = logs.filter((l: any) =>
+          geofenceFilter === 'inside' ? l.within_geofence_at_clock_in : !l.within_geofence_at_clock_in
+        );
+      }
+
+      if (logs.length === 0) {
+        toast.warning('No records match the current filters.');
+        setExporting(false);
+        return;
+      }
+
+      // Group: branch -> employee -> records
+      const branchMap = new Map<string, Map<string, { name: string; email: string; department: string; position: string; records: any[] }>>();
+      for (const log of logs) {
+        const branchName = log.branch?.name || 'No Branch';
+        const empId = log.employee_id;
+        const empName = `${log.employee?.first_name || ''} ${log.employee?.last_name || ''}`.trim() || 'Unknown';
+        if (!branchMap.has(branchName)) branchMap.set(branchName, new Map());
+        const empMap = branchMap.get(branchName)!;
+        if (!empMap.has(empId)) {
+          empMap.set(empId, {
+            name: empName,
+            email: log.employee?.email || '',
+            department: log.employee?.department || '',
+            position: log.employee?.position || '',
+            records: [],
+          });
+        }
+        empMap.get(empId)!.records.push(log);
+      }
+
+      // Build CSV grouped by branch, then employee
+      const headers = ['Date', 'Day', 'Clock In', 'Clock Out', 'Hours', 'Location', 'Geofence', 'Distance (m)', 'Field Location', 'Field Reason', 'GPS'];
+      const lines: string[] = [];
+      const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+
+      const periodLabel = monthFilter !== 'all'
+        ? format(new Date(monthFilter + '-01'), 'MMMM yyyy')
+        : (startDate || endDate) ? `${startDate || '...'} to ${endDate || '...'}` : 'All periods';
+      lines.push(esc(`Attendance Report — ${periodLabel}`));
+      lines.push(esc(`Total records: ${logs.length}`));
+      lines.push('');
+
+      const branchNames = Array.from(branchMap.keys()).sort();
+      for (const branchName of branchNames) {
+        lines.push(esc(`BRANCH: ${branchName}`));
+        const empMap = branchMap.get(branchName)!;
+        const employees = Array.from(empMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+        for (const emp of employees) {
+          const totalHours = emp.records.reduce((s, r) => s + (r.total_hours || 0), 0);
+          const daysPresent = emp.records.filter(r => r.clock_in_time).length;
+          lines.push('');
+          lines.push([esc(`Employee: ${emp.name}`), esc(`Email: ${emp.email}`), esc(`Dept: ${emp.department}`), esc(`Position: ${emp.position}`)].join(','));
+          lines.push([esc(`Days present: ${daysPresent}`), esc(`Total hours: ${totalHours.toFixed(2)}`)].join(','));
+          lines.push(headers.map(esc).join(','));
+
+          const sorted = emp.records.slice().sort((a, b) =>
+            new Date(a.clock_in_time || 0).getTime() - new Date(b.clock_in_time || 0).getTime()
+          );
+          for (const log of sorted) {
+            const ci = log.clock_in_time ? new Date(log.clock_in_time) : null;
+            const co = log.clock_out_time ? new Date(log.clock_out_time) : null;
+            lines.push([
+              ci ? format(ci, 'yyyy-MM-dd') : '-',
+              ci ? format(ci, 'EEE') : '-',
+              ci ? format(ci, 'HH:mm:ss') : '-',
+              log.isPlaceholder ? '-' : co ? format(co, 'HH:mm:ss') : 'Active',
+              log.total_hours?.toFixed(2) || '',
+              log.location_type || '-',
+              log.isPlaceholder ? '-' : log.within_geofence_at_clock_in ? 'Inside' : 'Outside',
+              log.geofence_distance_at_clock_in ?? '',
+              log.field_work_location || '',
+              log.field_work_reason || '',
+              log.clock_in_latitude && log.clock_in_longitude
+                ? `${log.clock_in_latitude.toFixed(6)}, ${log.clock_in_longitude.toFixed(6)}`
+                : '',
+            ].map(esc).join(','));
+          }
+        }
+        lines.push('');
+        lines.push('');
+      }
+
+      const csvContent = lines.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const fileName = monthFilter !== 'all'
+        ? `attendance-report-${monthFilter}-by-branch.csv`
+        : `attendance-report-${format(new Date(), 'yyyy-MM-dd')}-by-branch.csv`;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`Exported ${logs.length} records across ${branchNames.length} branch(es).`);
+    } catch (err: any) {
+      console.error('Export failed:', err);
+      toast.error('Failed to export attendance report');
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -219,9 +356,9 @@ export function HRAttendanceView() {
               <CardTitle>All Employee Attendance</CardTitle>
               <CardDescription>View and manage attendance records for all employees</CardDescription>
             </div>
-            <Button onClick={handleExport} variant="outline" size="sm">
+            <Button onClick={handleExport} variant="outline" size="sm" disabled={exporting}>
               <Download className="h-4 w-4 mr-2" />
-              Export CSV
+              {exporting ? 'Exporting...' : 'Export CSV'}
             </Button>
           </div>
         </CardHeader>
