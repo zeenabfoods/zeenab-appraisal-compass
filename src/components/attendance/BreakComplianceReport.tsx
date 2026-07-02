@@ -241,7 +241,7 @@ export function BreakComplianceReport() {
     return true;
   });
 
-  const exportToCSV = () => {
+  const exportToCSV = async () => {
     if (filteredCompliance.length === 0) {
       toast.error('No data to export');
       return;
@@ -260,18 +260,21 @@ export function BreakComplianceReport() {
       getStatusText(item),
     ]);
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `break_compliance_${format(date, 'yyyy-MM-dd')}.csv`;
-    link.click();
-    
-    toast.success('CSV exported successfully');
+    try {
+      const { exportLockedXlsx } = await import('@/utils/lockedExcelExport');
+      await exportLockedXlsx({
+        filename: `break_compliance_${format(date, 'yyyy-MM-dd')}`,
+        sheetName: 'Break Compliance',
+        title: `Break Compliance — ${format(date, 'yyyy-MM-dd')}`,
+        headers,
+        rows,
+        meta: { Date: format(date, 'yyyy-MM-dd') },
+      });
+      toast.success('Locked report exported successfully');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to export locked file');
+    }
   };
 
   return (
