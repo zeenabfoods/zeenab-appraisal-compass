@@ -324,9 +324,9 @@ export function BreakComplianceReport() {
               </SelectContent>
             </Select>
 
-            <Button variant="outline" onClick={exportToCSV} className="gap-2">
+            <Button variant="outline" onClick={() => { void exportToCSV(); }} className="gap-2">
               <Download className="h-4 w-4" />
-              Export CSV
+              Export Locked XLSX
             </Button>
           </div>
         </CardContent>
