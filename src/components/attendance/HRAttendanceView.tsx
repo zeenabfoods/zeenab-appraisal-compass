@@ -416,7 +416,7 @@ export function HRAttendanceView() {
             </div>
             <Button onClick={handleExport} variant="outline" size="sm" disabled={exporting}>
               <Download className="h-4 w-4 mr-2" />
-              {exporting ? 'Exporting...' : 'Export CSV'}
+              {exporting ? 'Exporting...' : 'Export Locked XLSX'}
             </Button>
           </div>
         </CardHeader>
