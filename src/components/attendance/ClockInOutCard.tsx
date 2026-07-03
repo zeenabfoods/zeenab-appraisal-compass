@@ -1055,6 +1055,29 @@ export function ClockInOutCard() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deviceViolationOpen} onOpenChange={setDeviceViolationOpen}>
+        <AlertDialogContent className="border-red-500/50">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600 flex items-center gap-2">
+              <AlertCircle className="w-5 h-5" />
+              Multiple Device Detected — Policy Violation
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-base leading-relaxed pt-2">
+              {deviceViolationMessage}
+              <br /><br />
+              <span className="text-sm text-muted-foreground">
+                This incident has been logged and HR has been notified. If you recently changed your phone, please contact HR to reset your registered device.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction className="bg-red-600 hover:bg-red-700">
+              Understood
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
