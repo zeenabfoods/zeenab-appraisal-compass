@@ -296,6 +296,8 @@ export default function AttendanceDashboard() {
           return <EmployeeNotificationSubscribe />;
         case 'weekend-schedule':
           return <WeekendScheduleView />;
+        case 'device-lock':
+          return <DeviceLockManagement />;
         default:
           return renderOverviewContent();
       }
