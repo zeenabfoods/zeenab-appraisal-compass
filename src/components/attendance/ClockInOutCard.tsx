@@ -10,6 +10,7 @@ import { useBranches } from '@/hooks/attendance/useBranches';
 import { useAttendanceRules } from '@/hooks/attendance/useAttendanceRules';
 import { useApiDemoMode } from '@/hooks/attendance/useApiDemoMode';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +33,8 @@ export function ClockInOutCard() {
   const [isStartingOvertime, setIsStartingOvertime] = useState(false);
   const [isTransitioningToField, setIsTransitioningToField] = useState(false);
   const [showFieldTransitionDialog, setShowFieldTransitionDialog] = useState(false);
+  const [deviceViolationOpen, setDeviceViolationOpen] = useState(false);
+  const [deviceViolationMessage, setDeviceViolationMessage] = useState('');
   
   const { branches } = useBranches();
   const { isClocked, todayLog, clockIn, clockOut, loading: logsLoading, isClockingIn, refetch: refetchLogs } = useAttendanceLogs();
@@ -132,6 +135,46 @@ export function ClockInOutCard() {
       
       if (deviceComparison.similarityScore === 0) {
         storeDeviceFingerprint(fingerprint);
+      }
+
+      // Server-side device lock: enforce one device per employee
+      try {
+        const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-clock-device', {
+          body: {
+            fingerprint_hash: fingerprint.id,
+            device_label: `${fingerprint.platform} · ${fingerprint.userAgent}`.slice(0, 300),
+            action: 'clock_in',
+          },
+        });
+
+        if (verifyError) {
+          console.error('Device verification error:', verifyError);
+          toast.error('Device Verification Failed', {
+            description: 'Unable to verify your device. Please try again.',
+          });
+          return { passed: false, warnings: ['Device verification error'] };
+        }
+
+        if (verifyData && verifyData.allowed === false) {
+          setDeviceViolationMessage(
+            verifyData.message ||
+              'This account is registered to a different device. Clock-in from this device is not permitted. HR has been notified.'
+          );
+          setDeviceViolationOpen(true);
+          return { passed: false, warnings: ['Device mismatch'] };
+        }
+
+        if (verifyData && verifyData.registered) {
+          toast.success('Device Registered', {
+            description: 'This device has been registered as your official clock-in device.',
+          });
+        }
+      } catch (e) {
+        console.error('Device verification exception:', e);
+        toast.error('Device Verification Failed', {
+          description: 'Unable to verify your device. Please try again.',
+        });
+        return { passed: false, warnings: ['Device verification exception'] };
       }
 
       if (latitude && longitude) {
@@ -1012,6 +1055,29 @@ export function ClockInOutCard() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deviceViolationOpen} onOpenChange={setDeviceViolationOpen}>
+        <AlertDialogContent className="border-red-500/50">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600 flex items-center gap-2">
+              <AlertCircle className="w-5 h-5" />
+              Multiple Device Detected — Policy Violation
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-base leading-relaxed pt-2">
+              {deviceViolationMessage}
+              <br /><br />
+              <span className="text-sm text-muted-foreground">
+                This incident has been logged and HR has been notified. If you recently changed your phone, please contact HR to reset your registered device.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction className="bg-red-600 hover:bg-red-700">
+              Understood
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
