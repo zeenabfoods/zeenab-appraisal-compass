@@ -32,6 +32,8 @@ export function ClockInOutCard() {
   const [isStartingOvertime, setIsStartingOvertime] = useState(false);
   const [isTransitioningToField, setIsTransitioningToField] = useState(false);
   const [showFieldTransitionDialog, setShowFieldTransitionDialog] = useState(false);
+  const [deviceViolationOpen, setDeviceViolationOpen] = useState(false);
+  const [deviceViolationMessage, setDeviceViolationMessage] = useState('');
   
   const { branches } = useBranches();
   const { isClocked, todayLog, clockIn, clockOut, loading: logsLoading, isClockingIn, refetch: refetchLogs } = useAttendanceLogs();
