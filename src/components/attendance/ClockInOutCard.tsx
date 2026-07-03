@@ -10,6 +10,7 @@ import { useBranches } from '@/hooks/attendance/useBranches';
 import { useAttendanceRules } from '@/hooks/attendance/useAttendanceRules';
 import { useApiDemoMode } from '@/hooks/attendance/useApiDemoMode';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
