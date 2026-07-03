@@ -1591,6 +1591,47 @@ export type Database = {
           },
         ]
       }
+      device_violation_logs: {
+        Row: {
+          action_blocked: string
+          attempted_at: string
+          attempted_fingerprint_hash: string
+          attempted_ip: string | null
+          created_at: string
+          id: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action_blocked: string
+          attempted_at?: string
+          attempted_fingerprint_hash: string
+          attempted_ip?: string | null
+          created_at?: string
+          id?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action_blocked?: string
+          attempted_at?: string
+          attempted_fingerprint_hash?: string
+          attempted_ip?: string | null
+          created_at?: string
+          id?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_violation_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       disciplinary_panels: {
         Row: {
           created_at: string
@@ -1770,6 +1811,59 @@ export type Database = {
             columns: ["section_id"]
             isOneToOne: false
             referencedRelation: "appraisal_question_sections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_trusted_devices: {
+        Row: {
+          created_at: string
+          device_fingerprint_hash: string
+          device_label: string | null
+          id: string
+          is_active: boolean
+          last_seen_at: string
+          last_seen_ip: string | null
+          registered_at: string
+          registered_ip: string | null
+          reset_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_fingerprint_hash: string
+          device_label?: string | null
+          id?: string
+          is_active?: boolean
+          last_seen_at?: string
+          last_seen_ip?: string | null
+          registered_at?: string
+          registered_ip?: string | null
+          reset_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          device_fingerprint_hash?: string
+          device_label?: string | null
+          id?: string
+          is_active?: boolean
+          last_seen_at?: string
+          last_seen_ip?: string | null
+          registered_at?: string
+          registered_ip?: string | null
+          reset_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_trusted_devices_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
