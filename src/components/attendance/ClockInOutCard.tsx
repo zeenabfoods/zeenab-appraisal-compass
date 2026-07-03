@@ -136,6 +136,46 @@ export function ClockInOutCard() {
         storeDeviceFingerprint(fingerprint);
       }
 
+      // Server-side device lock: enforce one device per employee
+      try {
+        const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-clock-device', {
+          body: {
+            fingerprint_hash: fingerprint.id,
+            device_label: `${fingerprint.platform} · ${fingerprint.userAgent}`.slice(0, 300),
+            action: 'clock_in',
+          },
+        });
+
+        if (verifyError) {
+          console.error('Device verification error:', verifyError);
+          toast.error('Device Verification Failed', {
+            description: 'Unable to verify your device. Please try again.',
+          });
+          return { passed: false, warnings: ['Device verification error'] };
+        }
+
+        if (verifyData && verifyData.allowed === false) {
+          setDeviceViolationMessage(
+            verifyData.message ||
+              'This account is registered to a different device. Clock-in from this device is not permitted. HR has been notified.'
+          );
+          setDeviceViolationOpen(true);
+          return { passed: false, warnings: ['Device mismatch'] };
+        }
+
+        if (verifyData && verifyData.registered) {
+          toast.success('Device Registered', {
+            description: 'This device has been registered as your official clock-in device.',
+          });
+        }
+      } catch (e) {
+        console.error('Device verification exception:', e);
+        toast.error('Device Verification Failed', {
+          description: 'Unable to verify your device. Please try again.',
+        });
+        return { passed: false, warnings: ['Device verification exception'] };
+      }
+
       if (latitude && longitude) {
         const locationCheck = await detectLocationSpoofing(
           latitude,
