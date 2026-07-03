@@ -34,6 +34,7 @@ import { OvertimeRatesConfig } from '@/components/attendance/OvertimeRatesConfig
 import { OvertimeHistory } from '@/components/attendance/OvertimeHistory';
 import { AttendanceAdminManager } from '@/components/attendance/AttendanceAdminManager';
 import { AttendanceAuditLogs } from '@/components/attendance/AttendanceAuditLogs';
+import { DeviceLockManagement } from '@/components/attendance/DeviceLockManagement';
 import { WeekendWorkPrompt } from '@/components/attendance/WeekendWorkPrompt';
 import { WeekendScheduleView } from '@/components/attendance/WeekendScheduleView';
 import { useWeekendWorkSchedule } from '@/hooks/attendance/useWeekendWorkSchedule';
@@ -91,6 +92,7 @@ export default function AttendanceDashboard() {
     { id: 'push-notifications', label: 'Push Notifications', icon: Bell },
     { id: 'audit-logs', label: 'Audit Logs', icon: ScrollText },
     { id: 'hr-security', label: 'Security Dashboard', icon: Shield },
+    { id: 'device-lock', label: 'Device Lock', icon: Smartphone },
     { id: 'eye-service', label: 'Eye Service', icon: Eye },
   ];
 
@@ -122,6 +124,7 @@ export default function AttendanceDashboard() {
     { id: 'audit-logs', label: 'Audit Logs', icon: ScrollText },
     { id: 'security', label: 'My Security', icon: Shield },
     { id: 'hr-security', label: 'Security Dashboard', icon: Shield },
+    { id: 'device-lock', label: 'Device Lock', icon: Smartphone },
     { id: 'eye-service', label: 'Eye Service', icon: Eye },
   ];
 
