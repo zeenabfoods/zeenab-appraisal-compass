@@ -1,75 +1,134 @@
-# Device Lock for Clock-In — Execution Plan
+# Gate Pass Feature — Implementation Plan
 
-## Goal
-Prevent employees from sharing login credentials so a friend can clock in for them. Each account will be bound to one trusted device. Any clock-in attempt from a different device is blocked with a **"Multiple Device Detected — Violation"** warning and logged for HR review.
-
-Note on "phone IP": mobile IPs change constantly (Wi-Fi ↔ mobile data, carrier NAT). Binding to IP alone would lock out legitimate users several times a day. We will bind to a **device fingerprint** (already generated in `src/utils/deviceFingerprinting.ts`) and also record the IP for the audit trail. This is the industry-standard approach.
+**Module placement:** Attendance module (new sidebar item "Gate Pass"), alongside Breaks & Field Work.
 
 ---
 
-## How it will work (user-facing)
+## 1. Roles & Flow
 
-1. **First clock-in ever** → device is auto-registered as the employee's trusted device. A toast confirms: *"This device has been registered as your official clock-in device."*
-2. **Subsequent clock-ins from the same device** → normal flow.
-3. **Clock-in attempt from a different device** → clock-in is **blocked**, a red alert dialog appears:
-   > ⚠️ **Multiple Device Detected — Policy Violation**
-   > This account is registered to a different device. Clock-in is not permitted from this device. HR has been notified.
-4. The violation is written to `attendance_audit_logs` and a notification is sent to HR.
-5. **HR override**: HR can reset an employee's trusted device from the HR dashboard (e.g. legitimate phone replacement). The next clock-in re-registers the new device.
+```
+Employee raises request
+        ↓
+Line Manager approves/rejects   (skippable via HR setting)
+        ↓
+HR approves/rejects → pass code generated (WORD-WORD-##)
+        ↓
+Security sees "Approved / Awaiting Exit"
+        ↓
+Security enters code at gate → validates → logs EXIT
+        ↓
+Employee returns → Security marks "Returned" → logs RE-ENTRY
+        ↓
+System links exit/re-entry to attendance_logs (no lateness charge)
+```
 
----
-
-## Technical execution
-
-### 1. Database (migration)
-New table `employee_trusted_devices`:
-- `user_id` (FK profiles, unique)
-- `device_fingerprint_hash` (text, SHA-256 from existing utility)
-- `device_label` (user-agent summary for HR display)
-- `registered_ip` (text)
-- `registered_at`, `last_seen_at`, `last_seen_ip`
-- `is_active` (bool), `reset_count` (int)
-- RLS + GRANTs per project rules; HR can SELECT/UPDATE all, employee can SELECT own only.
-
-New table `device_violation_logs`:
-- `user_id`, `attempted_fingerprint_hash`, `attempted_ip`, `user_agent`, `attempted_at`, `action_blocked` (`clock_in` / `clock_out`).
-
-### 2. Edge function `verify-clock-device` (verify_jwt = true)
-- Input: `{ fingerprint_hash, action }`
-- Reads `employee_trusted_devices` for the caller.
-  - No record → register this device, return `{ allowed: true, registered: true }`.
-  - Match → update `last_seen_*`, return `{ allowed: true }`.
-  - Mismatch → insert into `device_violation_logs`, notify HR, return `{ allowed: false, reason: "device_mismatch" }`.
-- Captures IP from request headers server-side (client can't spoof it).
-
-### 3. Frontend clock-in flow
-- In `ClockInOutCard` (and long-press fingerprint path): before writing to `attendance_logs`, call `verify-clock-device`.
-- If blocked → show red AlertDialog with the violation message, play alert sound, do NOT proceed.
-- If allowed → proceed with existing geofence + clock-in logic.
-- Reuse existing `generateDeviceFingerprint()` — no new fingerprinting code needed.
-
-### 4. HR dashboard additions (attendance module)
-- New "Device Management" tab under HR view showing:
-  - Employee | Registered Device | Registered On | Last Seen | IP | **Reset Device** button
-  - **Violations log** table (who tried, when, from what device/IP)
-- Reset button clears the trusted device so the next clock-in re-registers.
-
-### 5. Notifications
-- HR gets in-app notification on each violation (reuse existing notifications system).
+Overdue returns trigger both **alerts** and **charges** (per your call).
 
 ---
 
-## What we intentionally will NOT do
-- **Not** bind to IP alone — mobile IPs change and would cause false lockouts.
-- **Not** block login itself — the account can still sign in anywhere (e.g. desktop to view payslips); only **clock-in/out** is device-locked.
-- **Not** touch the geofence, break, or overtime logic.
+## 2. New Sidebar Items
+
+- **Employees / Managers / HR:** "Gate Pass" → request form + history
+- **HR:** "Gate Pass Admin" → all requests, approve/reject, create security accounts
+- **Security role:** dedicated `/security` dashboard (mobile-first, only 3 tabs: Pending HR, Approved/Awaiting Exit, Out, Returned)
 
 ---
 
-## Rollout safety
-- First run silently registers whatever device each active employee uses next — no mass lockout on day one.
-- HR can reset any employee's device instantly if a phone is lost/replaced.
+## 3. Database Changes
+
+New tables (all under `public`, with GRANTs + RLS):
+
+**a) `gate_pass_requests`**
+- employee_id, branch_id, reason, destination, expected_out_at, expected_return_at
+- status: `pending_manager` | `pending_hr` | `approved` | `rejected` | `exited` | `returned` | `overdue` | `cancelled`
+- manager_id, manager_decision_at, manager_notes
+- hr_id, hr_decision_at, hr_notes
+- pass_code (unique, nullable until HR approves), pass_code_used_at
+- actual_exit_at, actual_return_at
+- exit_recorded_by (security user), return_recorded_by
+
+**b) `gate_pass_security_assignments`** — links security user → branch (multi-guard-per-branch supported)
+- user_id, branch_id, is_active
+
+**c) `gate_pass_settings`** — single-row HR config
+- require_manager_approval (bool, default true)
+- overdue_grace_minutes (default 30)
+- charge_on_overdue (bool, default true)
+
+**d) New role value:** extend `attendance_role` enum with `'security'`, or add app_role. Store via `attendance_user_roles`.
+
+**e) `has_attendance_role(_, 'security')`** already covers permission checks.
 
 ---
 
-Reply **"proceed"** to build this, or tell me what to change (e.g. also lock to IP subnet, allow 2 devices per employee, require HR pre-approval instead of auto-register on first use).
+## 4. Pass Code Generation
+
+Server-side (trigger or edge function on HR approve):
+- Format: `WORD-WORD-##` (e.g., `SWIFT-EAGLE-47`)
+- Word list: ~200 friendly, memorable, non-offensive words → ~50M combos
+- Unique per active request; regenerated if collision
+
+---
+
+## 5. Edge Functions
+
+- **`gate-pass-approve`** — validates approver role, transitions state, generates pass code, notifies next actor
+- **`gate-pass-verify-code`** — security enters code, checks employee+branch match, marks exit, writes to `attendance_logs`
+- **`gate-pass-mark-return`** — security marks return, links re-entry, computes overdue if past `expected_return_at + grace`
+- **`gate-pass-overdue-scan`** — cron every 15 min, flips overdue, triggers charge + push alert
+
+---
+
+## 6. UI Screens
+
+**Employee (`/attendance/gate-pass`)**
+- "Request Gate Pass" form (reason, destination, expected out/return)
+- My requests list with live status + pass code display when approved
+
+**Manager (`/attendance/gate-pass/team`)**
+- Pending team requests, approve/reject
+
+**HR (`/attendance/gate-pass/admin`)**
+- Tabs: Pending / Approved / Out / Returned / Rejected
+- Approve/reject actions
+- "Security Accounts" sub-tab: create security users (email + temp password), assign to branch(es), revoke
+
+**Security (`/security` — dedicated mobile-first layout)**
+- Header: today's date, branch
+- Tabs: **Awaiting Exit** (enter code), **Out** (mark return), **Returned today**, **Pending HR** (read-only)
+- Code entry: large input, live validate, big employee card on match
+- Push notifications on every new approved pass, overdue return
+
+---
+
+## 7. Notifications
+
+- Employee: on manager decision, HR decision, overdue reminder
+- Manager: on new request from direct report
+- HR: on manager approval, overdue events
+- Security (branch-scoped): on HR approval (code silent — only visible in dashboard, not push), on overdue
+
+---
+
+## 8. Technical Notes
+
+- Security dashboard uses same Supabase auth, gated by `has_attendance_role(uid, 'security')`
+- Security cannot see the pass code list until they type it (prevents shoulder-surf leakage from screenshots) — code shown only after successful validation of that specific code
+- Attendance linkage: exit writes an `attendance_logs` row of type `gate_pass_exit`, return writes `gate_pass_return`, both flagged so daily charge scheduler ignores them
+- Overdue = missed return → creates `attendance_charges` row (existing table) + push alert
+- RLS: employees see own requests; managers see reports; HR sees all; security sees only branch-scoped approved+ requests
+
+---
+
+## 9. Rollout Order
+
+1. Migration (tables, enum, RLS, GRANTs)
+2. Pass code word list + edge functions
+3. HR admin screen (incl. security account creation)
+4. Employee request screen + manager approval screen
+5. Security dashboard + code verification
+6. Overdue cron + charge/alert integration
+7. Notifications wiring
+8. Sidebar/route additions
+
+Reply **"proceed"** to build, or tell me anything to adjust first.
