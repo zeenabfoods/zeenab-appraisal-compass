@@ -48,17 +48,27 @@ export async function generateDeviceFingerprint(): Promise<DeviceFingerprint> {
  * Hash the fingerprint data to create a unique identifier
  */
 async function hashFingerprint(fingerprint: DeviceFingerprint): Promise<string> {
+  // STABLE fingerprint: only traits that don't change on browser updates,
+  // rotation, zoom, battery-saver, or language switches. Drastically reduces
+  // false "device changed" flags for legitimate users.
+  const ua = fingerprint.userAgent || '';
+  const osFamily = /Windows/i.test(ua) ? 'Windows'
+    : /Android/i.test(ua) ? 'Android'
+    : /iPhone|iPad|iPod/i.test(ua) ? 'iOS'
+    : /Mac OS X|Macintosh/i.test(ua) ? 'macOS'
+    : /Linux/i.test(ua) ? 'Linux'
+    : 'Unknown';
+  const deviceModelMatch = ua.match(/\(([^)]+)\)/);
+  const deviceModel = deviceModelMatch ? deviceModelMatch[1].split(';').slice(0, 2).join(';').trim() : '';
+
   const fingerprintString = JSON.stringify({
-    userAgent: fingerprint.userAgent,
-    screenResolution: fingerprint.screenResolution,
-    timezone: fingerprint.timezone,
+    osFamily,
+    deviceModel,
     platform: fingerprint.platform,
-    hardwareConcurrency: fingerprint.hardwareConcurrency,
-    deviceMemory: fingerprint.deviceMemory,
-    colorDepth: fingerprint.colorDepth,
-    pixelRatio: fingerprint.pixelRatio,
-    touchSupport: fingerprint.touchSupport,
     vendor: fingerprint.vendor,
+    touchSupport: fingerprint.touchSupport,
+    colorDepth: fingerprint.colorDepth,
+    timezone: fingerprint.timezone,
   });
 
   // Use SubtleCrypto API for hashing

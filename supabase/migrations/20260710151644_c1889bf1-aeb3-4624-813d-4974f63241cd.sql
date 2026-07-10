@@ -1,0 +1,1 @@
+UPDATE public.employee_trusted_devices SET is_active = false, updated_at = now() WHERE is_active = true;
