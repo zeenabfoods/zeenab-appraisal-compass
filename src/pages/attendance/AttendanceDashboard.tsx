@@ -37,9 +37,12 @@ import { AttendanceAuditLogs } from '@/components/attendance/AttendanceAuditLogs
 import { DeviceLockManagement } from '@/components/attendance/DeviceLockManagement';
 import { WeekendWorkPrompt } from '@/components/attendance/WeekendWorkPrompt';
 import { WeekendScheduleView } from '@/components/attendance/WeekendScheduleView';
+import { GatePassEmployee } from '@/components/attendance/GatePassEmployee';
+import { GatePassManager } from '@/components/attendance/GatePassManager';
+import { GatePassHRAdmin } from '@/components/attendance/GatePassHRAdmin';
 import { useWeekendWorkSchedule } from '@/hooks/attendance/useWeekendWorkSchedule';
 import FieldWorkDashboard from '@/pages/attendance/FieldWorkDashboard';
-import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText, Volume2, ClockAlert, Mic, Bell, Timer, UserCog, ScrollText, CalendarDays, Smartphone } from 'lucide-react';
+import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText, Volume2, ClockAlert, Mic, Bell, Timer, UserCog, ScrollText, CalendarDays, Smartphone, DoorOpen } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import {
   Sidebar,
@@ -71,6 +74,7 @@ export default function AttendanceDashboard() {
     { id: 'overview', label: 'Overview', icon: Clock },
     { id: 'breaks', label: 'Breaks', icon: Coffee },
     { id: 'field-work', label: 'Field Work', icon: MapPin },
+    { id: 'gate-pass', label: 'Gate Pass', icon: DoorOpen },
     { id: 'hr-admin', label: 'Staff Attendance', icon: Users },
     { id: 'lateness', label: 'Lateness Tracking', icon: ClockAlert },
     { id: 'history', label: 'My History', icon: Clock },
@@ -100,6 +104,9 @@ export default function AttendanceDashboard() {
     { id: 'overview', label: 'Overview', icon: Clock },
     { id: 'breaks', label: 'Breaks', icon: Coffee },
     { id: 'field-work', label: 'Field Work', icon: MapPin },
+    { id: 'gate-pass', label: 'Gate Pass', icon: DoorOpen },
+    { id: 'gate-pass-team', label: 'Team Gate Pass', icon: Users },
+    { id: 'gate-pass-admin', label: 'Gate Pass Admin', icon: Shield },
     { id: 'hr-admin', label: 'HR Admin', icon: Users },
     { id: 'lateness', label: 'Lateness Tracking', icon: ClockAlert },
     { id: 'weekend-schedule', label: 'Weekend Schedule', icon: CalendarDays },
@@ -132,6 +139,8 @@ export default function AttendanceDashboard() {
     { id: 'overview', label: 'Overview', icon: Clock },
     { id: 'breaks', label: 'Breaks', icon: Coffee },
     { id: 'field-work', label: 'Field Work', icon: MapPin },
+    { id: 'gate-pass', label: 'Gate Pass', icon: DoorOpen },
+    { id: 'gate-pass-team', label: 'Team Gate Pass', icon: Users },
     { id: 'overtime-history', label: 'Overtime History', icon: Timer },
     { id: 'history', label: 'History', icon: Clock },
     { id: 'stats', label: 'Statistics', icon: TrendingUp },
@@ -298,6 +307,12 @@ export default function AttendanceDashboard() {
           return <WeekendScheduleView />;
         case 'device-lock':
           return <DeviceLockManagement />;
+        case 'gate-pass':
+          return <GatePassEmployee />;
+        case 'gate-pass-team':
+          return <GatePassManager />;
+        case 'gate-pass-admin':
+          return <GatePassHRAdmin />;
         default:
           return renderOverviewContent();
       }

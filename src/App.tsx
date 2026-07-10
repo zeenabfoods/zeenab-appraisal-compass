@@ -37,6 +37,7 @@ import PushBroadcast from "./pages/PushBroadcast";
 import DepartmentRating from "./pages/DepartmentRating";
 import DepartmentRatingManagement from "./pages/DepartmentRatingManagement";
 import DepartmentRatingScores from "./pages/DepartmentRatingScores";
+import SecurityDashboard from "./pages/SecurityDashboard";
 
 
 // Create QueryClient with proper configuration
@@ -118,6 +119,7 @@ function App() {
                   <Route path="/training" element={<ProtectedRoute><Training /></ProtectedRoute>} />
                   <Route path="/training-management" element={<ProtectedRoute><Training /></ProtectedRoute>} />
                   <Route path="/attendance" element={<ProtectedRoute><AttendanceDashboard /></ProtectedRoute>} />
+                  <Route path="/security" element={<ProtectedRoute><SecurityDashboard /></ProtectedRoute>} />
                   <Route path="/recruitment" element={<ProtectedRoute><Recruitment /></ProtectedRoute>} />
                   <Route path="/push-broadcast" element={<ProtectedRoute><PushBroadcast /></ProtectedRoute>} />
                   <Route path="/department-rating" element={<ProtectedRoute><DepartmentRating /></ProtectedRoute>} />
