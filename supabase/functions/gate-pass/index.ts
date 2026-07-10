@@ -30,6 +30,64 @@ function generatePassCode() {
   return `${w1}-${w2}-${num}`;
 }
 
+async function notify(
+  admin: any,
+  userIds: string[],
+  type: string,
+  title: string,
+  message: string,
+  extra: Record<string, any> = {},
+) {
+  const rows = userIds.filter(Boolean).map((uid) => ({
+    user_id: uid,
+    type,
+    title,
+    message,
+    ...extra,
+  }));
+  if (rows.length === 0) return;
+  const { error } = await admin.from("notifications").insert(rows);
+  if (error) console.error("notify error:", error);
+}
+
+async function logGatePassAudit(
+  admin: any,
+  performed_by: string,
+  target_employee_id: string,
+  action_type: string,
+  request_id: string,
+  extra: Record<string, any> = {},
+) {
+  await admin.from("attendance_audit_logs").insert({
+    action_type,
+    action_category: "gate_pass",
+    performed_by,
+    target_employee_id,
+    target_record_id: request_id,
+    target_table: "gate_pass_requests",
+    new_values: extra,
+  });
+}
+
+async function getHrUserIds(admin: any): Promise<string[]> {
+  const { data } = await admin
+    .from("profiles")
+    .select("id")
+    .in("role", ["hr", "admin"])
+    .eq("is_active", true);
+  return (data || []).map((p: any) => p.id);
+}
+
+async function getSecurityUserIdsForBranch(admin: any, branch_id: string | null): Promise<string[]> {
+  if (!branch_id) return [];
+  const { data } = await admin
+    .from("gate_pass_security_assignments")
+    .select("user_id")
+    .eq("branch_id", branch_id)
+    .eq("is_active", true);
+  return (data || []).map((r: any) => r.user_id);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -116,6 +174,31 @@ Deno.serve(async (req) => {
         })
         .eq("id", request_id);
 
+      // Notify employee + HR (if approved)
+      const empName = `${caller?.first_name || "Manager"}`;
+      await notify(
+        admin,
+        [reqRow.employee_id],
+        "gate_pass_manager_decision",
+        action === "manager_approve" ? "Gate pass approved by manager" : "Gate pass rejected by manager",
+        action === "manager_approve"
+          ? "Your line manager approved your gate pass. Waiting on HR."
+          : `Rejected by ${empName}. ${notes || ""}`,
+        { related_employee_id: reqRow.employee_id },
+      );
+      if (newStatus === "pending_hr") {
+        const hrIds = await getHrUserIds(admin);
+        await notify(
+          admin,
+          hrIds,
+          "gate_pass_hr_pending",
+          "New gate pass awaiting HR",
+          "A gate pass request has been approved by the manager and needs your review.",
+          { related_employee_id: reqRow.employee_id },
+        );
+      }
+      await logGatePassAudit(admin, uid, reqRow.employee_id, action, request_id, { notes });
+
       return new Response(JSON.stringify({ ok: true, status: newStatus }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -152,6 +235,15 @@ Deno.serve(async (req) => {
             hr_notes: notes || null,
           })
           .eq("id", request_id);
+        await notify(
+          admin,
+          [reqRow.employee_id],
+          "gate_pass_hr_rejected",
+          "Gate pass rejected",
+          `HR rejected your gate pass request. ${notes || ""}`,
+          { related_employee_id: reqRow.employee_id },
+        );
+        await logGatePassAudit(admin, uid, reqRow.employee_id, "hr_reject", request_id, { notes });
         return new Response(JSON.stringify({ ok: true, status: "rejected" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -179,6 +271,26 @@ Deno.serve(async (req) => {
           pass_code: code,
         })
         .eq("id", request_id);
+
+      // Notify employee with code + security guards at branch
+      await notify(
+        admin,
+        [reqRow.employee_id],
+        "gate_pass_approved",
+        "Gate pass approved",
+        `Your gate pass is approved. Show this code at the gate: ${code}`,
+        { related_employee_id: reqRow.employee_id },
+      );
+      const secIds = await getSecurityUserIdsForBranch(admin, reqRow.branch_id);
+      await notify(
+        admin,
+        secIds,
+        "gate_pass_security_incoming",
+        "New approved gate pass",
+        "A new gate pass has been approved. Employee will present a code at the gate.",
+        { related_employee_id: reqRow.employee_id },
+      );
+      await logGatePassAudit(admin, uid, reqRow.employee_id, "hr_approve", request_id, { notes });
 
       return new Response(JSON.stringify({ ok: true, status: "approved", pass_code: code }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -246,6 +358,18 @@ Deno.serve(async (req) => {
         })
         .eq("id", reqRow.id);
 
+      // Notify employee + HR
+      const hrIds = await getHrUserIds(admin);
+      await notify(
+        admin,
+        [reqRow.employee_id, ...hrIds],
+        "gate_pass_exit",
+        "Gate exit recorded",
+        `${reqRow.profiles?.first_name || "Employee"} has exited the premises via gate pass.`,
+        { related_employee_id: reqRow.employee_id },
+      );
+      await logGatePassAudit(admin, uid, reqRow.employee_id, "gate_exit", reqRow.id, {});
+
       return new Response(JSON.stringify({ ok: true, request: reqRow }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -280,6 +404,17 @@ Deno.serve(async (req) => {
           return_recorded_by: uid,
         })
         .eq("id", request_id);
+
+      const hrIds2 = await getHrUserIds(admin);
+      await notify(
+        admin,
+        [reqRow.employee_id, ...hrIds2],
+        "gate_pass_return",
+        "Gate return recorded",
+        "Employee has returned to the premises via gate pass.",
+        { related_employee_id: reqRow.employee_id },
+      );
+      await logGatePassAudit(admin, uid, reqRow.employee_id, "gate_return", request_id, {});
 
       return new Response(JSON.stringify({ ok: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
