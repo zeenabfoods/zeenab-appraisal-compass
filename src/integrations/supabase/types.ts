@@ -1995,6 +1995,220 @@ export type Database = {
           },
         ]
       }
+      gate_pass_requests: {
+        Row: {
+          actual_exit_at: string | null
+          actual_return_at: string | null
+          branch_id: string | null
+          created_at: string
+          destination: string | null
+          employee_id: string
+          exit_recorded_by: string | null
+          expected_out_at: string
+          expected_return_at: string
+          hr_decision_at: string | null
+          hr_id: string | null
+          hr_notes: string | null
+          id: string
+          manager_decision_at: string | null
+          manager_id: string | null
+          manager_notes: string | null
+          overdue_charge_id: string | null
+          pass_code: string | null
+          pass_code_used_at: string | null
+          reason: string
+          return_recorded_by: string | null
+          status: Database["public"]["Enums"]["gate_pass_status"]
+          updated_at: string
+        }
+        Insert: {
+          actual_exit_at?: string | null
+          actual_return_at?: string | null
+          branch_id?: string | null
+          created_at?: string
+          destination?: string | null
+          employee_id: string
+          exit_recorded_by?: string | null
+          expected_out_at: string
+          expected_return_at: string
+          hr_decision_at?: string | null
+          hr_id?: string | null
+          hr_notes?: string | null
+          id?: string
+          manager_decision_at?: string | null
+          manager_id?: string | null
+          manager_notes?: string | null
+          overdue_charge_id?: string | null
+          pass_code?: string | null
+          pass_code_used_at?: string | null
+          reason: string
+          return_recorded_by?: string | null
+          status?: Database["public"]["Enums"]["gate_pass_status"]
+          updated_at?: string
+        }
+        Update: {
+          actual_exit_at?: string | null
+          actual_return_at?: string | null
+          branch_id?: string | null
+          created_at?: string
+          destination?: string | null
+          employee_id?: string
+          exit_recorded_by?: string | null
+          expected_out_at?: string
+          expected_return_at?: string
+          hr_decision_at?: string | null
+          hr_id?: string | null
+          hr_notes?: string | null
+          id?: string
+          manager_decision_at?: string | null
+          manager_id?: string | null
+          manager_notes?: string | null
+          overdue_charge_id?: string | null
+          pass_code?: string | null
+          pass_code_used_at?: string | null
+          reason?: string
+          return_recorded_by?: string | null
+          status?: Database["public"]["Enums"]["gate_pass_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gate_pass_requests_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gate_pass_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gate_pass_requests_exit_recorded_by_fkey"
+            columns: ["exit_recorded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gate_pass_requests_hr_id_fkey"
+            columns: ["hr_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gate_pass_requests_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gate_pass_requests_return_recorded_by_fkey"
+            columns: ["return_recorded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gate_pass_security_assignments: {
+        Row: {
+          assigned_by: string | null
+          branch_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          branch_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_by?: string | null
+          branch_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gate_pass_security_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gate_pass_security_assignments_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gate_pass_security_assignments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gate_pass_settings: {
+        Row: {
+          charge_on_overdue: boolean
+          created_at: string
+          id: string
+          overdue_charge_amount: number
+          overdue_grace_minutes: number
+          require_manager_approval: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          charge_on_overdue?: boolean
+          created_at?: string
+          id?: string
+          overdue_charge_amount?: number
+          overdue_grace_minutes?: number
+          require_manager_approval?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          charge_on_overdue?: boolean
+          created_at?: string
+          id?: string
+          overdue_charge_amount?: number
+          overdue_grace_minutes?: number
+          require_manager_approval?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gate_pass_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       line_managers: {
         Row: {
           created_at: string
@@ -3085,6 +3299,15 @@ export type Database = {
         | "completed"
         | "committee_review"
       attendance_role: "attendance_admin" | "security"
+      gate_pass_status:
+        | "pending_manager"
+        | "pending_hr"
+        | "approved"
+        | "rejected"
+        | "exited"
+        | "returned"
+        | "overdue"
+        | "cancelled"
       user_role: "staff" | "manager" | "hr" | "admin" | "recruiter"
     }
     CompositeTypes: {
@@ -3222,6 +3445,16 @@ export const Constants = {
         "committee_review",
       ],
       attendance_role: ["attendance_admin", "security"],
+      gate_pass_status: [
+        "pending_manager",
+        "pending_hr",
+        "approved",
+        "rejected",
+        "exited",
+        "returned",
+        "overdue",
+        "cancelled",
+      ],
       user_role: ["staff", "manager", "hr", "admin", "recruiter"],
     },
   },
