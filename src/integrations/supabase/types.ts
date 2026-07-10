@@ -3084,7 +3084,7 @@ export type Database = {
         | "hr_review"
         | "completed"
         | "committee_review"
-      attendance_role: "attendance_admin"
+      attendance_role: "attendance_admin" | "security"
       user_role: "staff" | "manager" | "hr" | "admin" | "recruiter"
     }
     CompositeTypes: {
@@ -3221,7 +3221,7 @@ export const Constants = {
         "completed",
         "committee_review",
       ],
-      attendance_role: ["attendance_admin"],
+      attendance_role: ["attendance_admin", "security"],
       user_role: ["staff", "manager", "hr", "admin", "recruiter"],
     },
   },
