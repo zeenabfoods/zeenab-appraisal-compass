@@ -239,7 +239,29 @@ export function QuestionTemplateManager() {
           <p className="text-gray-600">Manage appraisal questions and sections</p>
         </div>
         
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2 items-center">
+          {sections.length > 0 && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={expandAll}
+                disabled={allExpanded}
+              >
+                <ChevronDown className="h-4 w-4 mr-1" />
+                Expand all
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={collapseAll}
+                disabled={allCollapsed}
+              >
+                <ChevronUp className="h-4 w-4 mr-1" />
+                Collapse all
+              </Button>
+            </>
+          )}
           <Button variant="outline" onClick={openNewSectionDialog}>
             <Plus className="h-4 w-4 mr-2" />
             Add Section
