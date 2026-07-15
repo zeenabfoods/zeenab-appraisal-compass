@@ -43,12 +43,25 @@ interface SectionCardProps {
 export function SectionCard({
   section,
   questions,
+  isExpanded: controlledExpanded,
+  onToggle,
   onEditSection,
   onDeleteSection,
   onEditQuestion,
   onDeleteQuestion,
   onToggleQuestionStatus
 }: SectionCardProps) {
+  const [internalExpanded, setInternalExpanded] = React.useState(true);
+  const isExpanded = controlledExpanded !== undefined ? controlledExpanded : internalExpanded;
+
+  const handleToggle = () => {
+    if (onToggle) {
+      onToggle();
+    } else {
+      setInternalExpanded(prev => !prev);
+    }
+  };
+
   const handleDeleteSection = () => {
     if (questions.length > 0) {
       const confirmDelete = window.confirm(
