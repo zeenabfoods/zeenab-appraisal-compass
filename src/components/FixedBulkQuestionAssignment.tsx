@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { CheckSquare, Square, Info } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 
 interface Question {
   id: string;
@@ -54,6 +55,19 @@ export function FixedBulkQuestionAssignment({
   const [activeCycle, setActiveCycle] = useState<any>(null);
   // Only assignments for the ACTIVE cycle - not previous quarters
   const [activeCycleAssignedIds, setActiveCycleAssignedIds] = useState<string[]>([]);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
+  };
+
+  const expandAll = () => {
+    const map: Record<string, boolean> = {};
+    sections.forEach(s => { map[s.id] = true; });
+    setExpandedSections(map);
+  };
+
+  const collapseAll = () => setExpandedSections({});
 
   const assignedQuestionIds = activeCycleAssignedIds;
 
@@ -361,6 +375,10 @@ export function FixedBulkQuestionAssignment({
             Questions will remain in the question bank after assignment and can be reused for future cycles.
           </p>
         </div>
+        <div className="flex items-center gap-2 mt-3">
+          <Button variant="outline" size="sm" onClick={expandAll}>Expand all</Button>
+          <Button variant="outline" size="sm" onClick={collapseAll}>Collapse all</Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         {sections.map(section => {
@@ -371,18 +389,34 @@ export function FixedBulkQuestionAssignment({
             availableQuestions.every(q => selectedQuestions.includes(q.id));
           
           if (availableQuestions.length === 0) return null;
+          const isExpanded = !!expandedSections[section.id];
 
           return (
             <div key={section.id} className="border rounded-lg p-4">
               <div className="flex items-center justify-between mb-4">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-lg">{section.name}</h3>
-                  <p className="text-sm text-gray-600">{section.description}</p>
-                  <div className="flex items-center space-x-2 mt-2">
-                    <Badge variant="outline">Weight: {section.weight}</Badge>
-                    <Badge variant="outline">Max Score: {section.max_score}</Badge>
+                <button
+                  type="button"
+                  onClick={() => toggleSection(section.id)}
+                  className="flex-1 flex items-start gap-2 text-left"
+                >
+                  {isExpanded ? (
+                    <ChevronDown className="h-5 w-5 mt-1 text-gray-600 shrink-0" />
+                  ) : (
+                    <ChevronRight className="h-5 w-5 mt-1 text-gray-600 shrink-0" />
+                  )}
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg">{section.name}</h3>
+                    <p className="text-sm text-gray-600">{section.description}</p>
+                    <div className="flex items-center space-x-2 mt-2 flex-wrap">
+                      <Badge variant="outline">Weight: {section.weight}</Badge>
+                      <Badge variant="outline">Max Score: {section.max_score}</Badge>
+                      <Badge variant="secondary">{availableQuestions.length} available</Badge>
+                      {sectionSelectedCount > 0 && (
+                        <Badge className="bg-blue-600 text-white">{sectionSelectedCount} selected</Badge>
+                      )}
+                    </div>
                   </div>
-                </div>
+                </button>
                 <div className="flex items-center space-x-2">
                   <Button
                     variant="ghost"
@@ -402,6 +436,7 @@ export function FixedBulkQuestionAssignment({
                 </div>
               </div>
               
+              {isExpanded && (
               <div className="space-y-3">
                 {availableQuestions.map(question => {
                   const isSelected = selectedQuestions.includes(question.id);
@@ -433,6 +468,7 @@ export function FixedBulkQuestionAssignment({
                   );
                 })}
               </div>
+              )}
             </div>
           );
         })}
