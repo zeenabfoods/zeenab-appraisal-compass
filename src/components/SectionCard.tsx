@@ -116,25 +116,26 @@ export function SectionCard({
       </CardHeader>
       {isExpanded && (
         <CardContent>
-        <div className="space-y-3">
-          {questions.map((question, index) => (
-            <QuestionItem
-              key={question.id}
-              question={question}
-              index={index}
-              onEdit={onEditQuestion}
-              onDelete={onDeleteQuestion}
-              onToggleStatus={onToggleQuestionStatus}
-            />
-          ))}
-          
-          {questions.length === 0 && (
-            <p className="text-sm text-gray-500 text-center py-4">
-              No questions in this section yet.
-            </p>
-          )}
-        </div>
-      </CardContent>
+          <div className="space-y-3">
+            {questions.map((question, index) => (
+              <QuestionItem
+                key={question.id}
+                question={question}
+                index={index}
+                onEdit={onEditQuestion}
+                onDelete={onDeleteQuestion}
+                onToggleStatus={onToggleQuestionStatus}
+              />
+            ))}
+
+            {questions.length === 0 && (
+              <p className="text-sm text-gray-500 text-center py-4">
+                No questions in this section yet.
+              </p>
+            )}
+          </div>
+        </CardContent>
+      )}
     </Card>
   );
 }
