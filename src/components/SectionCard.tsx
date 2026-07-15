@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, GripVertical, Trash2 } from 'lucide-react';
+import { Edit, GripVertical, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { QuestionItem } from './QuestionItem';
 
 interface Section {
