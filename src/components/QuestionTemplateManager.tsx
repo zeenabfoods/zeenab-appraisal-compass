@@ -95,6 +95,26 @@ export function QuestionTemplateManager() {
     loadData(); // Reload data to get fresh state
   };
 
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [sectionId]: !prev[sectionId]
+    }));
+  };
+
+  const expandAll = () => {
+    const allExpanded: Record<string, boolean> = {};
+    sections.forEach(s => { allExpanded[s.id] = true; });
+    setExpandedSections(allExpanded);
+  };
+
+  const collapseAll = () => {
+    setExpandedSections({});
+  };
+
+  const allExpanded = sections.length > 0 && sections.every(s => expandedSections[s.id]);
+  const allCollapsed = sections.length > 0 && sections.every(s => !expandedSections[s.id]);
+
   const deleteSection = async (sectionId: string) => {
     try {
       const { error } = await supabase.rpc('delete_section_with_questions', {
