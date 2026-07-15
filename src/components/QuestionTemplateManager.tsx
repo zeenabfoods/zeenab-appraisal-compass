@@ -283,6 +283,8 @@ export function QuestionTemplateManager() {
             key={section.id}
             section={section}
             questions={sectionQuestions}
+            isExpanded={expandedSections[section.id] || false}
+            onToggle={() => toggleSection(section.id)}
             onEditSection={editSection}
             onDeleteSection={deleteSection}
             onEditQuestion={editQuestion}
