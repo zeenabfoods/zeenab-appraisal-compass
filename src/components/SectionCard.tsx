@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, GripVertical, Trash2 } from 'lucide-react';
+import { Edit, GripVertical, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { QuestionItem } from './QuestionItem';
 
 interface Section {
@@ -31,6 +31,8 @@ interface Question {
 interface SectionCardProps {
   section: Section;
   questions: Question[];
+  isExpanded?: boolean;
+  onToggle?: () => void;
   onEditSection: (section: Section) => void;
   onDeleteSection: (sectionId: string) => void;
   onEditQuestion: (question: Question) => void;
@@ -41,12 +43,25 @@ interface SectionCardProps {
 export function SectionCard({
   section,
   questions,
+  isExpanded: controlledExpanded,
+  onToggle,
   onEditSection,
   onDeleteSection,
   onEditQuestion,
   onDeleteQuestion,
   onToggleQuestionStatus
 }: SectionCardProps) {
+  const [internalExpanded, setInternalExpanded] = React.useState(true);
+  const isExpanded = controlledExpanded !== undefined ? controlledExpanded : internalExpanded;
+
+  const handleToggle = () => {
+    if (onToggle) {
+      onToggle();
+    } else {
+      setInternalExpanded(prev => !prev);
+    }
+  };
+
   const handleDeleteSection = () => {
     if (questions.length > 0) {
       const confirmDelete = window.confirm(
@@ -64,19 +79,33 @@ export function SectionCard({
           <div>
             <CardTitle className="flex items-center">
               <GripVertical className="h-4 w-4 mr-2 text-gray-400" />
-              {section.name}
+              <button
+                onClick={handleToggle}
+                className="flex items-center text-left hover:opacity-80 transition-opacity"
+                aria-expanded={isExpanded}
+              >
+                {section.name}
+                {isExpanded ? (
+                  <ChevronUp className="h-4 w-4 ml-2 text-gray-500" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 ml-2 text-gray-500" />
+                )}
+              </button>
             </CardTitle>
             <CardDescription>{section.description}</CardDescription>
           </div>
           <div className="flex items-center space-x-2">
             <Badge variant="outline">Weight: {section.weight}</Badge>
             <Badge variant="outline">Max: {section.max_score}</Badge>
+            <Badge variant="secondary" className="text-xs">
+              {questions.length} question{questions.length !== 1 ? 's' : ''}
+            </Badge>
             <Button size="sm" variant="ghost" onClick={() => onEditSection(section)}>
               <Edit className="h-4 w-4" />
             </Button>
-            <Button 
-              size="sm" 
-              variant="ghost" 
+            <Button
+              size="sm"
+              variant="ghost"
               onClick={handleDeleteSection}
               className="text-red-600 hover:text-red-800"
             >
@@ -85,26 +114,28 @@ export function SectionCard({
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {questions.map((question, index) => (
-            <QuestionItem
-              key={question.id}
-              question={question}
-              index={index}
-              onEdit={onEditQuestion}
-              onDelete={onDeleteQuestion}
-              onToggleStatus={onToggleQuestionStatus}
-            />
-          ))}
-          
-          {questions.length === 0 && (
-            <p className="text-sm text-gray-500 text-center py-4">
-              No questions in this section yet.
-            </p>
-          )}
-        </div>
-      </CardContent>
+      {isExpanded && (
+        <CardContent>
+          <div className="space-y-3">
+            {questions.map((question, index) => (
+              <QuestionItem
+                key={question.id}
+                question={question}
+                index={index}
+                onEdit={onEditQuestion}
+                onDelete={onDeleteQuestion}
+                onToggleStatus={onToggleQuestionStatus}
+              />
+            ))}
+
+            {questions.length === 0 && (
+              <p className="text-sm text-gray-500 text-center py-4">
+                No questions in this section yet.
+              </p>
+            )}
+          </div>
+        </CardContent>
+      )}
     </Card>
   );
 }

@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Plus } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { QuestionDialog } from './QuestionDialog';
 import { SectionDialog } from './SectionDialog';
 import { SectionCard } from './SectionCard';
@@ -42,6 +42,7 @@ export function QuestionTemplateManager() {
   const [showSectionDialog, setShowSectionDialog] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [editingSection, setEditingSection] = useState<Section | null>(null);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     loadData();
@@ -93,6 +94,26 @@ export function QuestionTemplateManager() {
     setEditingQuestion(null);
     loadData(); // Reload data to get fresh state
   };
+
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [sectionId]: !prev[sectionId]
+    }));
+  };
+
+  const expandAll = () => {
+    const allExpanded: Record<string, boolean> = {};
+    sections.forEach(s => { allExpanded[s.id] = true; });
+    setExpandedSections(allExpanded);
+  };
+
+  const collapseAll = () => {
+    setExpandedSections({});
+  };
+
+  const allExpanded = sections.length > 0 && sections.every(s => expandedSections[s.id]);
+  const allCollapsed = sections.length > 0 && sections.every(s => !expandedSections[s.id]);
 
   const deleteSection = async (sectionId: string) => {
     try {
@@ -218,7 +239,29 @@ export function QuestionTemplateManager() {
           <p className="text-gray-600">Manage appraisal questions and sections</p>
         </div>
         
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2 items-center">
+          {sections.length > 0 && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={expandAll}
+                disabled={allExpanded}
+              >
+                <ChevronDown className="h-4 w-4 mr-1" />
+                Expand all
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={collapseAll}
+                disabled={allCollapsed}
+              >
+                <ChevronUp className="h-4 w-4 mr-1" />
+                Collapse all
+              </Button>
+            </>
+          )}
           <Button variant="outline" onClick={openNewSectionDialog}>
             <Plus className="h-4 w-4 mr-2" />
             Add Section
@@ -240,6 +283,8 @@ export function QuestionTemplateManager() {
             key={section.id}
             section={section}
             questions={sectionQuestions}
+            isExpanded={expandedSections[section.id] || false}
+            onToggle={() => toggleSection(section.id)}
             onEditSection={editSection}
             onDeleteSection={deleteSection}
             onEditQuestion={editQuestion}
