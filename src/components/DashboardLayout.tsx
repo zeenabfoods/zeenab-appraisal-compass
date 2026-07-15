@@ -4,8 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { ResponsiveSidebar, SidebarProvider, useSidebarState } from '@/components/ResponsiveSidebar';
 import { NotificationBell } from '@/components/NotificationBell';
 import { BottomNavigation } from '@/components/BottomNavigation';
-import { LogOut, User, Search } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { LogOut, User } from 'lucide-react';
+import { GlobalEmployeeSearch } from '@/components/GlobalEmployeeSearch';
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -120,15 +120,7 @@ function DashboardLayoutContent({ children, showSearch = true, pageTitle = "Dash
           
           <div className="flex items-center space-x-2 md:space-x-4">
             {/* INTEGRATED SEARCH BAR - Desktop only */}
-            {showSearch && (
-              <div className="relative hidden md:block" data-testid="integrated-search">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input 
-                  placeholder="Search appraisals..." 
-                  className="pl-10 w-48 lg:w-64 xl:w-80 backdrop-blur-sm bg-white/70 border-white/40"
-                />
-              </div>
-            )}
+            {showSearch && <GlobalEmployeeSearch />}
             
             {/* Desktop-only items */}
             <div className="hidden md:flex items-center space-x-4">
