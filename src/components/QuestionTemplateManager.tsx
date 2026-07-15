@@ -42,6 +42,7 @@ export function QuestionTemplateManager() {
   const [showSectionDialog, setShowSectionDialog] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [editingSection, setEditingSection] = useState<Section | null>(null);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     loadData();
