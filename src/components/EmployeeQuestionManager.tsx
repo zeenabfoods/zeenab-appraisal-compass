@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { QuestionDialog } from './QuestionDialog';
@@ -44,6 +45,7 @@ interface Question {
 export function EmployeeQuestionManager() {
   const { profile } = useAuth();
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedStaff, setSelectedStaff] = useState<string>('');
   const [questionDialogOpen, setQuestionDialogOpen] = useState(false);
   const [sectionDialogOpen, setSectionDialogOpen] = useState(false);
@@ -69,6 +71,14 @@ export function EmployeeQuestionManager() {
     fetchStaff();
     fetchAllQuestions();
   }, []);
+
+  // Preselect employee from URL (?employee=<id>) e.g. from global search
+  useEffect(() => {
+    const empId = searchParams.get('employee');
+    if (empId && empId !== selectedStaff) {
+      setSelectedStaff(empId);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (selectedStaff) {
