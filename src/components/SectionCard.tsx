@@ -31,6 +31,8 @@ interface Question {
 interface SectionCardProps {
   section: Section;
   questions: Question[];
+  isExpanded: boolean;
+  onToggle: () => void;
   onEditSection: (section: Section) => void;
   onDeleteSection: (sectionId: string) => void;
   onEditQuestion: (question: Question) => void;
