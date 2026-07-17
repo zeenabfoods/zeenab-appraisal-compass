@@ -595,25 +595,6 @@ export function CommitteeAnalytics({
                           />
                         </div>
 
-                        {/* Training reference — only when it materially matters */}
-                        {(gap.performanceGap > 0 || gap.gapType === 'underconfidence') && (
-                          <div className="mt-2 flex items-start gap-1.5 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
-                            <GraduationCap className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-                            <span>
-                              {gap.gapType === 'performance'
-                                ? <>Training required — see <span className="font-medium">Training Needs</span> for a targeted course on <span className="font-medium">{gap.section}</span>.</>
-                                : <>Mentorship / exposure training recommended — the <span className="font-medium">Training Needs</span> card suggests suitable options.</>}
-                            </span>
-                          </div>
-                        )}
-                        {gap.gapType === 'overconfidence' && (
-                          <div className="mt-2 flex items-start gap-1.5 text-[11px] text-purple-800 bg-purple-50 border border-purple-200 rounded px-2 py-1.5">
-                            <Info className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-                            <span>
-                              Calibration session with line manager before enrolling in formal training — self-perception exceeds observed performance.
-                            </span>
-                          </div>
-                        )}
                       </div>
                     ))}
                   </div>
