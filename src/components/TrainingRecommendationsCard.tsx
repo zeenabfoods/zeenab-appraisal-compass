@@ -2,7 +2,13 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { GraduationCap, Sparkles, Loader2, CheckCircle } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { GraduationCap, Sparkles, Loader2, CheckCircle, Send, ExternalLink, ChevronDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -19,6 +25,12 @@ interface Props {
   employeeName?: string;
   position?: string;
   overallScore?: number;
+  onApply?: (payload: {
+    rec: any;
+    mode: 'internal' | 'external';
+    platform?: { name: string; url: string };
+    recommendationSource: 'rule' | 'ai';
+  }) => void;
 }
 
 // ---------- Rule-based recommendation engine ----------
@@ -60,10 +72,18 @@ const priorityColor = (p: string) =>
     ? 'bg-orange-100 text-orange-800 border-orange-200'
     : 'bg-blue-100 text-blue-800 border-blue-200';
 
-export function TrainingRecommendationsCard({ gaps, employeeName, position, overallScore }: Props) {
+const EXTERNAL_PLATFORMS = [
+  { name: 'Coursera', search: 'https://www.coursera.org/search?query=' },
+  { name: 'Udemy', search: 'https://www.udemy.com/courses/search/?q=' },
+  { name: 'LinkedIn Learning', search: 'https://www.linkedin.com/learning/search?keywords=' },
+  { name: 'edX', search: 'https://www.edx.org/search?q=' },
+];
+
+export function TrainingRecommendationsCard({ gaps, employeeName, position, overallScore, onApply }: Props) {
   const [mode, setMode] = useState<'rules' | 'ai'>('rules');
   const [aiRecs, setAiRecs] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [appliedKeys, setAppliedKeys] = useState<Record<string, string>>({});
 
   const ruleRecs = ruleBasedRecommendations(gaps);
 
@@ -90,6 +110,19 @@ export function TrainingRecommendationsCard({ gaps, employeeName, position, over
   };
 
   const recs = mode === 'ai' && aiRecs ? aiRecs : ruleRecs;
+  const recSource: 'rule' | 'ai' = mode === 'ai' && aiRecs ? 'ai' : 'rule';
+
+  const applyInternal = (rec: any, idx: number) => {
+    onApply?.({ rec, mode: 'internal', recommendationSource: recSource });
+    setAppliedKeys((s) => ({ ...s, [`${recSource}-${idx}`]: 'Internal' }));
+    toast.success('Prefilled Training Recommendation tab');
+  };
+  const applyExternal = (rec: any, idx: number, platform: { name: string; search: string }) => {
+    const url = platform.search + encodeURIComponent(rec.title);
+    onApply?.({ rec, mode: 'external', platform: { name: platform.name, url }, recommendationSource: recSource });
+    setAppliedKeys((s) => ({ ...s, [`${recSource}-${idx}`]: platform.name }));
+    toast.success(`Prefilled with ${platform.name} referral`);
+  };
 
   return (
     <Card className="shadow-lg">
@@ -152,10 +185,38 @@ export function TrainingRecommendationsCard({ gaps, employeeName, position, over
                   {r.format && <span className="px-2 py-0.5 bg-white border rounded">Format: {r.format}</span>}
                   {r.duration && <span className="px-2 py-0.5 bg-white border rounded">Duration: {r.duration}</span>}
                 </div>
+                {onApply && (
+                  <div className="flex flex-wrap items-center gap-2 mt-3 pt-2 border-t">
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => applyInternal(r, i)}>
+                      <Send className="h-3 w-3 mr-1" /> Assign Internally
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="sm" variant="outline" className="h-7 text-xs">
+                          <ExternalLink className="h-3 w-3 mr-1" /> Refer External
+                          <ChevronDown className="h-3 w-3 ml-1" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {EXTERNAL_PLATFORMS.map((p) => (
+                          <DropdownMenuItem key={p.name} onClick={() => applyExternal(r, i, p)}>
+                            {p.name}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    {appliedKeys[`${recSource}-${i}`] && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        <CheckCircle className="h-3 w-3 mr-1 text-green-600" />
+                        Sent to Training tab • {appliedKeys[`${recSource}-${i}`]}
+                      </Badge>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
             <p className="text-[11px] text-gray-400 italic pt-1">
-              Suggestions only — HR/Manager decides which to assign in the Training module.
+              Suggestions only — use <strong>Assign Internally</strong> to prefill the Training Recommendation tab for the internal Training module, or <strong>Refer External</strong> to prefill a link to an online learning platform. Committee still submits it to HR.
             </p>
           </div>
         )}
