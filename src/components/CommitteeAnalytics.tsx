@@ -53,8 +53,16 @@ export function CommitteeAnalytics({
     return acc;
   }, {} as Record<string, SectionPerformanceData>);
 
-  const cleanLabel = (name: string) =>
-    name.replace(/\s*SECTION\s*$/i, '').trim();
+  const cleanLabel = (name: string) => {
+    let out = name.trim();
+    // Strip role suffix like "- Staff", "- System Administrator", "- Manager"
+    out = out.replace(/\s*[-–—]\s*[^-–—]+$/, '');
+    // Strip the word "Section" anywhere
+    out = out.replace(/\bSection\b/gi, '').trim();
+    // Collapse extra whitespace
+    out = out.replace(/\s{2,}/g, ' ');
+    return out;
+  };
 
   const sectionData = sectionOrder.map((name) => {
     const data = sectionPerformance[name] as SectionPerformanceData;
@@ -264,21 +272,22 @@ export function CommitteeAnalytics({
                 employee: { label: "Employee Rating", color: "#3B82F6" },
                 manager: { label: "Manager Rating", color: "#10B981" }
               }}
-              className="h-80"
+              className="h-96"
             >
               <ResponsiveContainer>
-                <BarChart data={sectionData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <BarChart data={sectionData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis 
                     dataKey="name" 
-                    tick={{ fontSize: 12 }}
-                    angle={-45}
+                    tick={{ fontSize: 11 }}
+                    angle={-30}
                     textAnchor="end"
-                    height={80}
+                    height={110}
+                    interval={0}
                   />
                   <YAxis domain={[0, 5]} tick={{ fontSize: 12 }} />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Legend />
+                  <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: 8 }} />
                   <Bar 
                     dataKey="employee" 
                     fill="#3B82F6" 
@@ -332,17 +341,18 @@ export function CommitteeAnalytics({
                 target: { label: "Target", color: "#10B981" },
                 gap: { label: "Gap", color: "#EF4444" }
               }}
-              className="h-80"
+              className="h-96"
             >
               <ResponsiveContainer>
-                <LineChart data={weaknessData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <LineChart data={weaknessData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis 
                     dataKey="name" 
-                    tick={{ fontSize: 12 }}
-                    angle={-45}
+                    tick={{ fontSize: 11 }}
+                    angle={-30}
                     textAnchor="end"
-                    height={80}
+                    height={110}
+                    interval={0}
                   />
                   <YAxis domain={[0, 5]} tick={{ fontSize: 12 }} />
                   <ChartTooltip 
@@ -380,7 +390,7 @@ export function CommitteeAnalytics({
                       return null;
                     }}
                   />
-                  <Legend />
+                  <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: 8 }} />
                   <Line 
                     type="monotone" 
                     dataKey="target" 
