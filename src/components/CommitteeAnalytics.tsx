@@ -12,6 +12,12 @@ interface AnalyticsProps {
   appraisalHistory: any[];
   analytics: any;
   responses: any[];
+  onApplyRecommendation?: (payload: {
+    rec: any;
+    mode: 'internal' | 'external';
+    platform?: { name: string; url: string };
+    recommendationSource: 'rule' | 'ai';
+  }) => void;
 }
 
 interface SectionPerformanceData {
@@ -25,7 +31,8 @@ export function CommitteeAnalytics({
   appraisalData, 
   appraisalHistory, 
   analytics, 
-  responses 
+  responses,
+  onApplyRecommendation,
 }: AnalyticsProps) {
   // Derive sections dynamically from the actual responses so the analytics
   // always match the current cycle's section headers (no hardcoded legacy names).
@@ -655,6 +662,7 @@ export function CommitteeAnalytics({
           }
           position={appraisalData?.employee?.position}
           overallScore={appraisalData?.overall_score}
+          onApply={onApplyRecommendation}
         />
       </div>
 
