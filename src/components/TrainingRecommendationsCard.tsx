@@ -73,6 +73,7 @@ const priorityColor = (p: string) =>
     : 'bg-blue-100 text-blue-800 border-blue-200';
 
 const EXTERNAL_PLATFORMS = [
+  { name: 'NEXHUB Academy', search: 'https://nexhub.academy/search?q=' },
   { name: 'Coursera', search: 'https://www.coursera.org/search?query=' },
   { name: 'Udemy', search: 'https://www.udemy.com/courses/search/?q=' },
   { name: 'LinkedIn Learning', search: 'https://www.linkedin.com/learning/search?keywords=' },
