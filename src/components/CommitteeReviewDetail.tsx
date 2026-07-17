@@ -272,7 +272,13 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
               requested_by: (await supabase.auth.getUser()).data.user?.id,
               recommended_training_type: recommendedTrainingType,
               justification: trainingJustification,
-              status: 'pending'
+              status: 'pending',
+              source: trainingSource,
+              external_platform: trainingSource === 'external' ? externalPlatform || null : null,
+              external_url: trainingSource === 'external' ? externalUrl || null : null,
+              linked_gap_section: linkedGapSection || null,
+              priority: recPriority || null,
+              recommendation_source: recSource || null,
             });
 
           if (trainingError) {
