@@ -25,8 +25,60 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
   const [trainingRecommendation, setTrainingRecommendation] = useState('');
   const [recommendedTrainingType, setRecommendedTrainingType] = useState('');
   const [trainingJustification, setTrainingJustification] = useState('');
+  const [activeTab, setActiveTab] = useState('scores');
+  const [trainingSource, setTrainingSource] = useState<'internal' | 'external'>('internal');
+  const [externalPlatform, setExternalPlatform] = useState('');
+  const [externalUrl, setExternalUrl] = useState('');
+  const [linkedGapSection, setLinkedGapSection] = useState('');
+  const [recPriority, setRecPriority] = useState('');
+  const [recSource, setRecSource] = useState<'rule' | 'ai' | ''>('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Map an analytics gap section keyword to the dropdown training_type value
+  const mapSectionToTrainingType = (section: string): string => {
+    const s = (section || '').toLowerCase();
+    if (/leader|manage|supervis/.test(s)) return 'leadership';
+    if (/conduct|communicat|behaviour|behavior|interpersonal|team/.test(s)) return 'communication';
+    if (/safety|hse|hazard|complian/.test(s)) return 'compliance';
+    if (/custom|service|client/.test(s)) return 'customer_service';
+    if (/project|delivery|planning/.test(s)) return 'project_management';
+    if (/soft|attitude|conduct/.test(s)) return 'soft_skills';
+    if (/operation|efficien|process|productivity|technical|skill|tool|system/.test(s)) return 'technical_skills';
+    return 'other';
+  };
+
+  const handleApplyRecommendation = (payload: {
+    rec: any;
+    mode: 'internal' | 'external';
+    platform?: { name: string; url: string };
+    recommendationSource: 'rule' | 'ai';
+  }) => {
+    const { rec, mode, platform, recommendationSource } = payload;
+    setTrainingSource(mode);
+    setRecommendedTrainingType(mode === 'external' ? 'other' : mapSectionToTrainingType(rec.section));
+    setLinkedGapSection(rec.section || '');
+    setRecPriority(rec.priority || '');
+    setRecSource(recommendationSource);
+    if (mode === 'external' && platform) {
+      setExternalPlatform(platform.name);
+      setExternalUrl(platform.url);
+    } else {
+      setExternalPlatform('');
+      setExternalUrl('');
+    }
+    const header =
+      mode === 'external'
+        ? `External referral (${platform?.name}) — ${rec.title}\nLink: ${platform?.url}\n\n`
+        : `Suggested course: ${rec.title}\nFormat: ${rec.format || 'N/A'} • Duration: ${rec.duration || 'N/A'}\n\n`;
+    const rationale = `Gap area: ${rec.section} • Priority: ${rec.priority} • Source: ${recommendationSource === 'ai' ? 'AI' : 'Rule-based'}\nRationale: ${rec.rationale || ''}`;
+    setTrainingJustification(header + rationale);
+    setActiveTab('training');
+    toast({
+      title: 'Recommendation applied',
+      description: 'Review and click Send to HR to submit.',
+    });
+  };
 
   console.log('🔍 CommitteeReviewDetail: Loading appraisal ID:', appraisalId);
 
@@ -220,7 +272,13 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
               requested_by: (await supabase.auth.getUser()).data.user?.id,
               recommended_training_type: recommendedTrainingType,
               justification: trainingJustification,
-              status: 'pending'
+              status: 'pending',
+              source: trainingSource,
+              external_platform: trainingSource === 'external' ? externalPlatform || null : null,
+              external_url: trainingSource === 'external' ? externalUrl || null : null,
+              linked_gap_section: linkedGapSection || null,
+              priority: recPriority || null,
+              recommendation_source: recSource || null,
             });
 
           if (trainingError) {
@@ -369,7 +427,7 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
         </CardHeader>
       </Card>
 
-      <Tabs defaultValue="scores" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="scores" className="flex items-center space-x-2">
             <BarChart3 className="h-4 w-4" />
@@ -467,6 +525,39 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
+              {(linkedGapSection || trainingSource === 'external') && (
+                <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg text-xs text-purple-900 flex flex-wrap items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-purple-600" />
+                  <span>Prefilled from Analytics gap:</span>
+                  {linkedGapSection && <Badge variant="secondary">{linkedGapSection}</Badge>}
+                  {recPriority && <Badge className="bg-white border">Priority: {recPriority}</Badge>}
+                  {recSource && <Badge className="bg-white border">{recSource === 'ai' ? 'AI' : 'Rule-based'}</Badge>}
+                  <Badge className="bg-white border">{trainingSource === 'external' ? 'External Referral' : 'Internal'}</Badge>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>Assignment Source</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={trainingSource === 'internal' ? 'default' : 'outline'}
+                    onClick={() => setTrainingSource('internal')}
+                  >
+                    Internal Training Module
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={trainingSource === 'external' ? 'default' : 'outline'}
+                    onClick={() => setTrainingSource('external')}
+                  >
+                    External Online Platform
+                  </Button>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="training-type">Recommended Training Type</Label>
                 <select
@@ -486,6 +577,38 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
                   <option value="other">Other (specify in justification)</option>
                 </select>
               </div>
+
+              {trainingSource === 'external' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="external-platform">External Platform</Label>
+                    <select
+                      id="external-platform"
+                      value={externalPlatform}
+                      onChange={(e) => setExternalPlatform(e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                    >
+                      <option value="">Select platform...</option>
+                      <option value="Coursera">Coursera</option>
+                      <option value="Udemy">Udemy</option>
+                      <option value="LinkedIn Learning">LinkedIn Learning</option>
+                      <option value="edX">edX</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="external-url">Course / Search URL</Label>
+                    <input
+                      id="external-url"
+                      type="url"
+                      value={externalUrl}
+                      onChange={(e) => setExternalUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="training-justification">Training Justification & Details</Label>
@@ -549,15 +672,21 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
 
                         // 1) Create a training request record (so HR can see it in Training Center)
                         const userId = (await supabase.auth.getUser()).data.user?.id;
-                        const { error: requestError } = await supabase
-                          .from('training_requests' as any)
-                          .insert({
-                            employee_id: appraisalData?.employee_id,
-                            requested_by: userId,
-                            recommended_training_type: recommendedTrainingType,
-                            justification: trainingJustification,
-                            status: 'pending'
-                          });
+                         const { error: requestError } = await supabase
+                           .from('training_requests' as any)
+                           .insert({
+                             employee_id: appraisalData?.employee_id,
+                             requested_by: userId,
+                             recommended_training_type: recommendedTrainingType,
+                             justification: trainingJustification,
+                             status: 'pending',
+                             source: trainingSource,
+                             external_platform: trainingSource === 'external' ? externalPlatform || null : null,
+                             external_url: trainingSource === 'external' ? externalUrl || null : null,
+                             linked_gap_section: linkedGapSection || null,
+                             priority: recPriority || null,
+                             recommendation_source: recSource || null,
+                           });
                         if (requestError) throw requestError;
 
                         // 2) Create notifications for all HR users
@@ -584,6 +713,12 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
                         // Clear the form
                         setRecommendedTrainingType('');
                         setTrainingJustification('');
+                        setTrainingSource('internal');
+                        setExternalPlatform('');
+                        setExternalUrl('');
+                        setLinkedGapSection('');
+                        setRecPriority('');
+                        setRecSource('');
                       } catch (error) {
                         console.error('Error sending training recommendation:', error);
                         toast({
@@ -613,6 +748,7 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
             appraisalHistory={appraisalHistory || []}
             analytics={analytics}
             responses={responses}
+            onApplyRecommendation={handleApplyRecommendation}
           />
         </TabsContent>
 
