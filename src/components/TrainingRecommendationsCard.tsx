@@ -185,8 +185,7 @@ export function TrainingRecommendationsCard({ gaps, employeeName, position, over
                   {r.format && <span className="px-2 py-0.5 bg-white border rounded">Format: {r.format}</span>}
                   {r.duration && <span className="px-2 py-0.5 bg-white border rounded">Duration: {r.duration}</span>}
                 </div>
-                {onApply && (
-                  <div className="flex flex-wrap items-center gap-2 mt-3 pt-2 border-t">
+                <div className="flex flex-wrap items-center gap-2 mt-3 pt-2 border-t">
                     <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => applyInternal(r, i)}>
                       <Send className="h-3 w-3 mr-1" /> Assign Internally
                     </Button>
@@ -211,8 +210,7 @@ export function TrainingRecommendationsCard({ gaps, employeeName, position, over
                         Sent to Training tab • {appliedKeys[`${recSource}-${i}`]}
                       </Badge>
                     )}
-                  </div>
-                )}
+                </div>
               </div>
             ))}
             <p className="text-[11px] text-gray-400 italic pt-1">
