@@ -2875,36 +2875,54 @@ export type Database = {
           category_id: string | null
           created_at: string
           employee_id: string
+          external_platform: string | null
+          external_url: string | null
           id: string
           justification: string
+          linked_gap_section: string | null
+          priority: string | null
           processed_at: string | null
           processed_by: string | null
+          recommendation_source: string | null
           recommended_training_type: string | null
           requested_by: string
+          source: string
           status: string
         }
         Insert: {
           category_id?: string | null
           created_at?: string
           employee_id: string
+          external_platform?: string | null
+          external_url?: string | null
           id?: string
           justification: string
+          linked_gap_section?: string | null
+          priority?: string | null
           processed_at?: string | null
           processed_by?: string | null
+          recommendation_source?: string | null
           recommended_training_type?: string | null
           requested_by: string
+          source?: string
           status?: string
         }
         Update: {
           category_id?: string | null
           created_at?: string
           employee_id?: string
+          external_platform?: string | null
+          external_url?: string | null
           id?: string
           justification?: string
+          linked_gap_section?: string | null
+          priority?: string | null
           processed_at?: string | null
           processed_by?: string | null
+          recommendation_source?: string | null
           recommended_training_type?: string | null
           requested_by?: string
+          source?: string
           status?: string
         }
         Relationships: [
