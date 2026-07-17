@@ -26,35 +26,18 @@ export function CommitteeAnalytics({
   analytics, 
   responses 
 }: AnalyticsProps) {
-  // Define the main sections we want to track
-  const mainSections = ['FINANCIAL SECTION', 'OPERATIONAL SECTION', 'BEHAVIOURAL SECTION'];
-  
-  // Calculate section performance for main sections only
+  // Derive sections dynamically from the actual responses so the analytics
+  // always match the current cycle's section headers (no hardcoded legacy names).
+  const sectionOrder: string[] = [];
   const sectionPerformance = responses.reduce((acc, response) => {
-    if (!response.question?.section?.name) return acc;
-    
-    const sectionName = response.question.section.name.toUpperCase();
-    // More flexible matching for section names
-    let mainSection = mainSections.find(section => 
-      sectionName.includes(section) || 
-      sectionName.includes(section.replace(' SECTION', ''))
-    );
-    
-    // Handle variations in section names
-    if (!mainSection) {
-      if (sectionName.includes('FINANCIAL') || sectionName.includes('FINANCE')) {
-        mainSection = 'FINANCIAL SECTION';
-      } else if (sectionName.includes('OPERATIONAL') || sectionName.includes('OPERATION') || sectionName.includes('EFFICIENCY')) {
-        mainSection = 'OPERATIONAL SECTION';
-      } else if (sectionName.includes('BEHAVIOURAL') || sectionName.includes('BEHAVIORAL') || sectionName.includes('BEHAVIOUR') || sectionName.includes('BEHAVIOR')) {
-        mainSection = 'BEHAVIOURAL SECTION';
-      }
-    }
-    
+    const rawName = response.question?.section?.name;
+    if (!rawName) return acc;
+    const mainSection = String(rawName).trim();
     if (!mainSection) return acc;
-    
+
     if (!acc[mainSection]) {
       acc[mainSection] = { total: 0, count: 0, empTotal: 0, mgrTotal: 0 };
+      sectionOrder.push(mainSection);
     }
     
     const empScore = response.emp_rating || 0;
@@ -70,37 +53,27 @@ export function CommitteeAnalytics({
     return acc;
   }, {} as Record<string, SectionPerformanceData>);
 
-  const sectionData = Object.entries(sectionPerformance).map(([name, data]: [string, SectionPerformanceData]) => ({
-    name: name.replace(' SECTION', ''),
-    current: Number((data.total / data.count).toFixed(1)),
-    employee: Number((data.empTotal / data.count).toFixed(1)),
-    manager: Number((data.mgrTotal / data.count).toFixed(1)),
-    variance: Math.abs(Number(((data.empTotal - data.mgrTotal) / data.count).toFixed(1)))
-  }));
+  const cleanLabel = (name: string) =>
+    name.replace(/\s*SECTION\s*$/i, '').trim();
 
-  // Ensure all three main sections are represented in the chart
-  const allSectionsData = mainSections.map(sectionName => {
-    const sectionKey = sectionName.replace(' SECTION', '');
-    const existingSection = sectionData.find(s => s.name === sectionKey);
-    
-    if (existingSection) {
-      return {
-        name: sectionKey,
-        score: existingSection.current,
-        target: 4.0, // Target performance level
-        gap: Math.max(0, 4.0 - existingSection.current)
-      };
-    } else {
-      // If no data exists for this section, show as not evaluated
-      return {
-        name: sectionKey,
-        score: 0,
-        target: 4.0,
-        gap: 4.0,
-        noData: true
-      };
-    }
+  const sectionData = sectionOrder.map((name) => {
+    const data = sectionPerformance[name] as SectionPerformanceData;
+    return {
+      name: cleanLabel(name),
+      current: Number((data.total / data.count).toFixed(1)),
+      employee: Number((data.empTotal / data.count).toFixed(1)),
+      manager: Number((data.mgrTotal / data.count).toFixed(1)),
+      variance: Math.abs(Number(((data.empTotal - data.mgrTotal) / data.count).toFixed(1))),
+    };
   });
+
+  // Build the Performance vs Target dataset from the same live sections
+  const allSectionsData = sectionData.map((s) => ({
+    name: s.name,
+    score: s.current,
+    target: 4.0,
+    gap: Math.max(0, 4.0 - s.current),
+  }));
 
   const weaknessData = allSectionsData;
 
