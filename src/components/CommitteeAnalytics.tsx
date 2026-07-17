@@ -390,7 +390,7 @@ export function CommitteeAnalytics({
                       return null;
                     }}
                   />
-                  <Legend />
+                  <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: 8 }} />
                   <Line 
                     type="monotone" 
                     dataKey="target" 
