@@ -25,6 +25,13 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
   const [trainingRecommendation, setTrainingRecommendation] = useState('');
   const [recommendedTrainingType, setRecommendedTrainingType] = useState('');
   const [trainingJustification, setTrainingJustification] = useState('');
+  const [activeTab, setActiveTab] = useState('scores');
+  const [trainingSource, setTrainingSource] = useState<'internal' | 'external'>('internal');
+  const [externalPlatform, setExternalPlatform] = useState('');
+  const [externalUrl, setExternalUrl] = useState('');
+  const [linkedGapSection, setLinkedGapSection] = useState('');
+  const [recPriority, setRecPriority] = useState('');
+  const [recSource, setRecSource] = useState<'rule' | 'ai' | ''>('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -369,7 +376,7 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
         </CardHeader>
       </Card>
 
-      <Tabs defaultValue="scores" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="scores" className="flex items-center space-x-2">
             <BarChart3 className="h-4 w-4" />
