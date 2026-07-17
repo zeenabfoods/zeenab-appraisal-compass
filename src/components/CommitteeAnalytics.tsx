@@ -537,14 +537,17 @@ export function CommitteeAnalytics({
 
         {/* Employee Gap Analysis */}
         <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-red-600" />
-              Employee Gap Analysis
-            </CardTitle>
-            <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${gapRisk.bgColor} ${gapRisk.color}`}>
-              Gap Risk Level: {gapRisk.level}
+          <CardHeader className="flex flex-row items-start justify-between">
+            <div className="space-y-1.5">
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+                Employee Gap Analysis
+              </CardTitle>
+              <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${gapRisk.bgColor} ${gapRisk.color}`}>
+                Gap Risk Level: {gapRisk.level}
+              </div>
             </div>
+            <GapAnalysisGuide />
           </CardHeader>
           <CardContent>
             {employeeGaps.length > 0 ? (
