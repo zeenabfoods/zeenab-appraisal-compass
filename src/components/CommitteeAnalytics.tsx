@@ -7,7 +7,6 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, PieC
 import { TrendingUp, TrendingDown, Target, Award, AlertTriangle, CheckCircle } from 'lucide-react';
 import { TrainingRecommendationsCard } from './TrainingRecommendationsCard';
 import { GapAnalysisGuide } from './GapAnalysisGuide';
-import { Button } from '@/components/ui/button';
 
 interface AnalyticsProps {
   appraisalData: any;
