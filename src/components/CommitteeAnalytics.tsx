@@ -53,8 +53,16 @@ export function CommitteeAnalytics({
     return acc;
   }, {} as Record<string, SectionPerformanceData>);
 
-  const cleanLabel = (name: string) =>
-    name.replace(/\s*SECTION\s*$/i, '').trim();
+  const cleanLabel = (name: string) => {
+    let out = name.trim();
+    // Strip role suffix like "- Staff", "- System Administrator", "- Manager"
+    out = out.replace(/\s*[-–—]\s*[^-–—]+$/, '');
+    // Strip the word "Section" anywhere
+    out = out.replace(/\bSection\b/gi, '').trim();
+    // Collapse extra whitespace
+    out = out.replace(/\s{2,}/g, ' ');
+    return out;
+  };
 
   const sectionData = sectionOrder.map((name) => {
     const data = sectionPerformance[name] as SectionPerformanceData;
