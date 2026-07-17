@@ -29,7 +29,8 @@ const ALLOWED_DOMAINS = [
   '@zeenabgroup.com',
   '@zeenabfoods.com',
   '@habrisfoods.com',
-  '@azenaboroilpalms.com'
+  '@azenaboroilpalms.com',
+  '@zeenaboilandfatsltd.com'
 ];
 
 export function useAuth() {
