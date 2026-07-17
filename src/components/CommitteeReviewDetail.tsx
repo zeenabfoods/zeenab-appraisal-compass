@@ -35,6 +35,51 @@ export function CommitteeReviewDetail({ appraisalId }: CommitteeReviewDetailProp
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Map an analytics gap section keyword to the dropdown training_type value
+  const mapSectionToTrainingType = (section: string): string => {
+    const s = (section || '').toLowerCase();
+    if (/leader|manage|supervis/.test(s)) return 'leadership';
+    if (/conduct|communicat|behaviour|behavior|interpersonal|team/.test(s)) return 'communication';
+    if (/safety|hse|hazard|complian/.test(s)) return 'compliance';
+    if (/custom|service|client/.test(s)) return 'customer_service';
+    if (/project|delivery|planning/.test(s)) return 'project_management';
+    if (/soft|attitude|conduct/.test(s)) return 'soft_skills';
+    if (/operation|efficien|process|productivity|technical|skill|tool|system/.test(s)) return 'technical_skills';
+    return 'other';
+  };
+
+  const handleApplyRecommendation = (payload: {
+    rec: any;
+    mode: 'internal' | 'external';
+    platform?: { name: string; url: string };
+    recommendationSource: 'rule' | 'ai';
+  }) => {
+    const { rec, mode, platform, recommendationSource } = payload;
+    setTrainingSource(mode);
+    setRecommendedTrainingType(mode === 'external' ? 'other' : mapSectionToTrainingType(rec.section));
+    setLinkedGapSection(rec.section || '');
+    setRecPriority(rec.priority || '');
+    setRecSource(recommendationSource);
+    if (mode === 'external' && platform) {
+      setExternalPlatform(platform.name);
+      setExternalUrl(platform.url);
+    } else {
+      setExternalPlatform('');
+      setExternalUrl('');
+    }
+    const header =
+      mode === 'external'
+        ? `External referral (${platform?.name}) — ${rec.title}\nLink: ${platform?.url}\n\n`
+        : `Suggested course: ${rec.title}\nFormat: ${rec.format || 'N/A'} • Duration: ${rec.duration || 'N/A'}\n\n`;
+    const rationale = `Gap area: ${rec.section} • Priority: ${rec.priority} • Source: ${recommendationSource === 'ai' ? 'AI' : 'Rule-based'}\nRationale: ${rec.rationale || ''}`;
+    setTrainingJustification(header + rationale);
+    setActiveTab('training');
+    toast({
+      title: 'Recommendation applied',
+      description: 'Review and click Send to HR to submit.',
+    });
+  };
+
   console.log('🔍 CommitteeReviewDetail: Loading appraisal ID:', appraisalId);
 
   const { data: appraisalData, isLoading, error } = useQuery({
