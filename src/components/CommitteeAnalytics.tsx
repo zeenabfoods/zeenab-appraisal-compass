@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, CartesianGrid, Legend } from 'recharts';
 import { TrendingUp, TrendingDown, Target, Award, AlertTriangle, CheckCircle } from 'lucide-react';
+import { TrainingRecommendationsCard } from './TrainingRecommendationsCard';
 
 interface AnalyticsProps {
   appraisalData: any;
@@ -638,6 +639,24 @@ export function CommitteeAnalytics({
           </CardContent>
         </Card>
       </div>
+
+      {/* Training Needs & Recommendations (Rule-based + optional AI) */}
+      <TrainingRecommendationsCard
+        gaps={employeeGaps.map((g) => ({
+          section: g.section,
+          empScore: g.empScore,
+          mgrScore: g.mgrScore,
+          gapType: g.gapType,
+          severity: g.severity,
+        }))}
+        employeeName={
+          appraisalData?.employee
+            ? `${appraisalData.employee.first_name ?? ''} ${appraisalData.employee.last_name ?? ''}`.trim()
+            : undefined
+        }
+        position={appraisalData?.employee?.position}
+        overallScore={appraisalData?.overall_score}
+      />
 
       {/* AI Insights */}
       {analytics?.recommendations && (
