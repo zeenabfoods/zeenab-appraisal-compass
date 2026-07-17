@@ -5,8 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, CartesianGrid, Legend } from 'recharts';
 import { TrendingUp, TrendingDown, Target, Award, AlertTriangle, CheckCircle } from 'lucide-react';
-import { Info, GraduationCap } from 'lucide-react';
 import { TrainingRecommendationsCard } from './TrainingRecommendationsCard';
+import { GapAnalysisGuide } from './GapAnalysisGuide';
 
 interface AnalyticsProps {
   appraisalData: any;
@@ -536,39 +536,21 @@ export function CommitteeAnalytics({
 
         {/* Employee Gap Analysis */}
         <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-red-600" />
-              Employee Gap Analysis
-            </CardTitle>
-            <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${gapRisk.bgColor} ${gapRisk.color}`}>
-              Gap Risk Level: {gapRisk.level}
+          <CardHeader className="flex flex-row items-start justify-between">
+            <div className="space-y-1.5">
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+                Employee Gap Analysis
+              </CardTitle>
+              <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${gapRisk.bgColor} ${gapRisk.color}`}>
+                Gap Risk Level: {gapRisk.level}
+              </div>
             </div>
+            <GapAnalysisGuide />
           </CardHeader>
           <CardContent>
             {employeeGaps.length > 0 ? (
               <div className="space-y-4">
-                {/* How to read this card */}
-                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900 space-y-1.5">
-                  <div className="flex items-center gap-1.5 font-semibold">
-                    <Info className="h-3.5 w-3.5" /> How to read this analysis
-                  </div>
-                  <p>
-                    We compare the <span className="font-medium">Employee's self-rating</span> against the
-                    <span className="font-medium"> Manager's rating</span> per section (scale 1–5, target 4.0). Three gap types are detected:
-                  </p>
-                  <ul className="list-disc ml-5 space-y-0.5">
-                    <li><span className="font-medium">Performance Gap</span> — both ratings average below 3.5. <span className="italic">Training is required.</span></li>
-                    <li><span className="font-medium">Self-Assessment Gap</span> — employee rates self &gt;0.5 above manager (overconfidence). <span className="italic">Coaching / calibration recommended.</span></li>
-                    <li><span className="font-medium">Confidence Gap</span> — manager rates &gt;0.5 above employee (underconfidence). <span className="italic">Mentorship or exposure training.</span></li>
-                  </ul>
-                  <p>
-                    <span className="font-medium">Severity</span> = (Performance Gap × 2) + Self-Assessment Gap + Confidence Gap. Higher = more urgent.
-                    Risk level (High / Medium / Low) summarises total severity across all sections. Any section flagged here is auto-passed to the
-                    <span className="font-medium"> Training Needs</span> card on the right for actionable recommendations.
-                  </p>
-                </div>
-
                 {/* Top 3 Problem Areas */}
                 <div>
                   <h4 className="text-sm font-semibold text-gray-700 mb-3">Top Performance Issues</h4>
@@ -612,25 +594,6 @@ export function CommitteeAnalytics({
                           />
                         </div>
 
-                        {/* Training reference — only when it materially matters */}
-                        {(gap.performanceGap > 0 || gap.gapType === 'underconfidence') && (
-                          <div className="mt-2 flex items-start gap-1.5 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
-                            <GraduationCap className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-                            <span>
-                              {gap.gapType === 'performance'
-                                ? <>Training required — see <span className="font-medium">Training Needs</span> for a targeted course on <span className="font-medium">{gap.section}</span>.</>
-                                : <>Mentorship / exposure training recommended — the <span className="font-medium">Training Needs</span> card suggests suitable options.</>}
-                            </span>
-                          </div>
-                        )}
-                        {gap.gapType === 'overconfidence' && (
-                          <div className="mt-2 flex items-start gap-1.5 text-[11px] text-purple-800 bg-purple-50 border border-purple-200 rounded px-2 py-1.5">
-                            <Info className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-                            <span>
-                              Calibration session with line manager before enrolling in formal training — self-perception exceeds observed performance.
-                            </span>
-                          </div>
-                        )}
                       </div>
                     ))}
                   </div>
