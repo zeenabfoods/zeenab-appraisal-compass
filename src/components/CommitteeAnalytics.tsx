@@ -272,21 +272,22 @@ export function CommitteeAnalytics({
                 employee: { label: "Employee Rating", color: "#3B82F6" },
                 manager: { label: "Manager Rating", color: "#10B981" }
               }}
-              className="h-80"
+              className="h-96"
             >
               <ResponsiveContainer>
-                <BarChart data={sectionData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <BarChart data={sectionData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis 
                     dataKey="name" 
-                    tick={{ fontSize: 12 }}
-                    angle={-45}
+                    tick={{ fontSize: 11 }}
+                    angle={-30}
                     textAnchor="end"
-                    height={80}
+                    height={110}
+                    interval={0}
                   />
                   <YAxis domain={[0, 5]} tick={{ fontSize: 12 }} />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Legend />
+                  <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: 8 }} />
                   <Bar 
                     dataKey="employee" 
                     fill="#3B82F6" 
