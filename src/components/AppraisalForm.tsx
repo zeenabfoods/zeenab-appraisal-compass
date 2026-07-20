@@ -15,6 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { formatCycleName } from '@/utils/cycleFormatting';
 import { GroupedQuestionRenderer } from './GroupedQuestionRenderer';
+import { PerformanceCalculationService } from '@/services/performanceCalculationService';
 
 // Browser-native UUID generation with fallback
 const generateId = () => {
@@ -586,13 +587,33 @@ useEffect(() => {
       let updateData: any;
       let successMessage: string;
       let navigationPath: string;
+      let managerCalculation: { overallScore: number; performanceBand: string } | null = null;
 
       if (isManagerSubmission) {
+        const hasManagerRatings = responses.some((response) =>
+          typeof response.mgr_rating === 'number' && response.mgr_rating > 0
+        );
+
+        if (!hasManagerRatings) {
+          throw new Error('No manager ratings were found for this appraisal. Please rate at least one question before submitting to committee.');
+        }
+
+        managerCalculation = await PerformanceCalculationService.calculatePerformanceScore(
+          appraisalData.employee_id,
+          appraisalData.cycle_id
+        );
+
+        if (!managerCalculation) {
+          throw new Error('The system could not calculate a score from this manager review. Please confirm that assigned questions and manager ratings were saved.');
+        }
+
         // Manager submitting review to committee
         updateData = {
           status: 'committee_review' as any,
           manager_reviewed_at: new Date().toISOString(),
           manager_reviewed_by: profile?.id,
+          overall_score: managerCalculation.overallScore,
+          performance_band: managerCalculation.performanceBand,
           goals: goals,
           training_needs: trainingNeeds,
           noteworthy: noteworthy,
@@ -647,6 +668,14 @@ useEffect(() => {
       if (submitError) {
         console.error("Error submitting appraisal:", submitError);
         throw submitError;
+      }
+
+      if (isManagerSubmission && managerCalculation) {
+        await PerformanceCalculationService.savePerformanceAnalytics(
+          appraisalData.employee_id,
+          appraisalData.cycle_id,
+          managerCalculation as any
+        );
       }
 
       // Invalidate queries to refresh the data
