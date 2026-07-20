@@ -480,13 +480,29 @@ export default function EmployeeManagement() {
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Users className="h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No employees found</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {searchEmployeeId ? 'No matching employee found' : 'No employees found'}
+              </h3>
               <p className="text-gray-600 text-center">
-                Employees will appear here once they register and sign up.
+                {searchEmployeeId
+                  ? `No employee matches "${activeSearchEmployee ? `${activeSearchEmployee.first_name} ${activeSearchEmployee.last_name}` : searchEmployeeId}". Try a different name or email.`
+                  : 'Employees will appear here once they register and sign up.'}
               </p>
+              {searchEmployeeId && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearSearch}
+                  className="mt-4"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Clear Search
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}
+
 
         <EmployeeDialog
           open={dialogOpen}
