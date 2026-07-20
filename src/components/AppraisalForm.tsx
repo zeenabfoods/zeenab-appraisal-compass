@@ -587,7 +587,7 @@ useEffect(() => {
       let updateData: any;
       let successMessage: string;
       let navigationPath: string;
-      let managerCalculation: { overallScore: number; performanceBand: string } | null = null;
+      let managerCalculation: Awaited<ReturnType<typeof PerformanceCalculationService.calculatePerformanceScore>> = null;
 
       if (isManagerSubmission) {
         const hasManagerRatings = responses.some((response) =>
@@ -596,6 +596,10 @@ useEffect(() => {
 
         if (!hasManagerRatings) {
           throw new Error('No manager ratings were found for this appraisal. Please rate at least one question before submitting to committee.');
+        }
+
+        if (!appraisalData?.employee_id || !appraisalData?.cycle_id) {
+          throw new Error('Missing appraisal employee or cycle details. Please reload and try again.');
         }
 
         managerCalculation = await PerformanceCalculationService.calculatePerformanceScore(
@@ -674,7 +678,7 @@ useEffect(() => {
         await PerformanceCalculationService.savePerformanceAnalytics(
           appraisalData.employee_id,
           appraisalData.cycle_id,
-          managerCalculation as any
+          managerCalculation
         );
       }
 
