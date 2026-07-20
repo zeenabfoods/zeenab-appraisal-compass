@@ -350,12 +350,29 @@ export default function EmployeeManagement() {
             <h1 className="text-2xl font-bold text-gray-900">Employee Management</h1>
             <p className="text-gray-600">Manage employee profiles and assignments</p>
           </div>
-          <div className="text-sm text-gray-500">
-            Total Employees: {employees?.length || 0}
+          <div className="flex items-center gap-3">
+            {searchEmployeeId && (
+              <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-full px-3 py-1.5">
+                <span className="text-sm text-orange-800">
+                  Searching: <span className="font-medium">{activeSearchEmployee ? `${activeSearchEmployee.first_name} ${activeSearchEmployee.last_name}` : searchEmployeeId}</span>
+                </span>
+                <button
+                  onClick={clearSearch}
+                  className="text-orange-600 hover:text-orange-800 focus:outline-none"
+                  aria-label="Clear search"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+            <div className="text-sm text-gray-500">
+              Showing {filteredEmployees.length} of {employees?.length || 0} Employees
+            </div>
           </div>
         </div>
 
-        {employees && employees.length > 0 ? (
+        {filteredEmployees && filteredEmployees.length > 0 ? (
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
