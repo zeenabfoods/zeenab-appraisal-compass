@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, User as UserIcon } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -23,9 +23,11 @@ export function GlobalEmployeeSearch() {
   const [loading, setLoading] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const { profile } = useAuth();
 
   const canManage = profile?.role === 'hr' || profile?.role === 'admin' || profile?.role === 'manager';
+  const isEmployeeManagement = location.pathname === '/employee-management';
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -67,12 +69,16 @@ export function GlobalEmployeeSearch() {
   const handleSelect = (emp: EmployeeRow) => {
     setOpen(false);
     setQuery('');
-    if (canManage) {
+    if (isEmployeeManagement) {
+      // Filter the employee management table to the selected employee
+      navigate(`/employee-management?search=${encodeURIComponent(emp.id)}`);
+    } else if (canManage) {
       navigate(`/employee-questions?employee=${emp.id}`);
     } else {
       navigate('/employee-management');
     }
   };
+
 
   return (
     <div ref={wrapRef} className="relative hidden md:block" data-testid="integrated-search">
