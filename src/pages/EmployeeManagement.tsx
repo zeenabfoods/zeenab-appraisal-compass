@@ -377,7 +377,7 @@ export default function EmployeeManagement() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                All Employees ({employees.length})
+                All Employees ({filteredEmployees.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -395,7 +395,8 @@ export default function EmployeeManagement() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {employees.map((employee) => {
+                  {filteredEmployees.map((employee) => {
+
                     const lineManager = Array.isArray(employee.line_manager) && employee.line_manager.length > 0 
                       ? employee.line_manager[0] 
                       : null;
