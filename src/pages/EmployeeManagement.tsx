@@ -22,8 +22,12 @@ export default function EmployeeManagement() {
   const [deletingEmployeeId, setDeletingEmployeeId] = useState<string | null>(null);
   const [passwordResetEmployee, setPasswordResetEmployee] = useState<ExtendedProfile | null>(null);
   const [passwordResetDialogOpen, setPasswordResetDialogOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const searchEmployeeId = searchParams.get('search');
+
 
   const { data: employees, isLoading, refetch } = useQuery({
     queryKey: ['employees'],
