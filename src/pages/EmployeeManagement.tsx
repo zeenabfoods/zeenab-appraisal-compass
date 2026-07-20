@@ -7,11 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Users, Trash2, Key } from 'lucide-react';
+import { Edit, Users, Trash2, Key, X } from 'lucide-react';
 import { EmployeeDialog } from '@/components/EmployeeDialog';
 import { PasswordResetDialog } from '@/components/PasswordResetDialog';
 import { ExtendedProfile, EmployeeUpdateData } from '@/services/employeeProfileService';
 import { useToast } from '@/hooks/use-toast';
+import { useSearchParams } from 'react-router-dom';
+
 
 export default function EmployeeManagement() {
   const [editingEmployee, setEditingEmployee] = useState<ExtendedProfile | null>(null);
@@ -20,8 +22,12 @@ export default function EmployeeManagement() {
   const [deletingEmployeeId, setDeletingEmployeeId] = useState<string | null>(null);
   const [passwordResetEmployee, setPasswordResetEmployee] = useState<ExtendedProfile | null>(null);
   const [passwordResetDialogOpen, setPasswordResetDialogOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const searchEmployeeId = searchParams.get('search');
+
 
   const { data: employees, isLoading, refetch } = useQuery({
     queryKey: ['employees'],
@@ -82,7 +88,25 @@ export default function EmployeeManagement() {
     }
   });
 
+  const filteredEmployees = employees?.filter(employee => {
+    if (!searchEmployeeId) return true;
+    const matchId = employee.id === searchEmployeeId;
+    const fullName = `${employee.first_name || ''} ${employee.last_name || ''}`.toLowerCase().trim();
+    const email = (employee.email || '').toLowerCase();
+    const searchLower = searchEmployeeId.toLowerCase().trim();
+    const matchName = fullName.includes(searchLower);
+    const matchEmail = email.includes(searchLower);
+    return matchId || matchName || matchEmail;
+  }) || [];
+
+  const activeSearchEmployee = employees?.find(emp => emp.id === searchEmployeeId) || null;
+
+  const clearSearch = () => {
+    setSearchParams({});
+  };
+
   const { data: departments } = useQuery({
+
     queryKey: ['departments'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -326,17 +350,34 @@ export default function EmployeeManagement() {
             <h1 className="text-2xl font-bold text-gray-900">Employee Management</h1>
             <p className="text-gray-600">Manage employee profiles and assignments</p>
           </div>
-          <div className="text-sm text-gray-500">
-            Total Employees: {employees?.length || 0}
+          <div className="flex items-center gap-3">
+            {searchEmployeeId && (
+              <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-full px-3 py-1.5">
+                <span className="text-sm text-orange-800">
+                  Searching: <span className="font-medium">{activeSearchEmployee ? `${activeSearchEmployee.first_name} ${activeSearchEmployee.last_name}` : searchEmployeeId}</span>
+                </span>
+                <button
+                  onClick={clearSearch}
+                  className="text-orange-600 hover:text-orange-800 focus:outline-none"
+                  aria-label="Clear search"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+            <div className="text-sm text-gray-500">
+              Showing {filteredEmployees.length} of {employees?.length || 0} Employees
+            </div>
           </div>
         </div>
 
-        {employees && employees.length > 0 ? (
+        {filteredEmployees && filteredEmployees.length > 0 ? (
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                All Employees ({employees.length})
+                All Employees ({filteredEmployees.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -354,7 +395,8 @@ export default function EmployeeManagement() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {employees.map((employee) => {
+                  {filteredEmployees.map((employee) => {
+
                     const lineManager = Array.isArray(employee.line_manager) && employee.line_manager.length > 0 
                       ? employee.line_manager[0] 
                       : null;
@@ -438,13 +480,29 @@ export default function EmployeeManagement() {
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Users className="h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No employees found</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {searchEmployeeId ? 'No matching employee found' : 'No employees found'}
+              </h3>
               <p className="text-gray-600 text-center">
-                Employees will appear here once they register and sign up.
+                {searchEmployeeId
+                  ? `No employee matches "${activeSearchEmployee ? `${activeSearchEmployee.first_name} ${activeSearchEmployee.last_name}` : searchEmployeeId}". Try a different name or email.`
+                  : 'Employees will appear here once they register and sign up.'}
               </p>
+              {searchEmployeeId && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearSearch}
+                  className="mt-4"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Clear Search
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}
+
 
         <EmployeeDialog
           open={dialogOpen}
