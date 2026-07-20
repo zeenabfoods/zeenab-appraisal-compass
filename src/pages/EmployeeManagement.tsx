@@ -88,7 +88,25 @@ export default function EmployeeManagement() {
     }
   });
 
+  const filteredEmployees = employees?.filter(employee => {
+    if (!searchEmployeeId) return true;
+    const matchId = employee.id === searchEmployeeId;
+    const fullName = `${employee.first_name || ''} ${employee.last_name || ''}`.toLowerCase().trim();
+    const email = (employee.email || '').toLowerCase();
+    const searchLower = searchEmployeeId.toLowerCase().trim();
+    const matchName = fullName.includes(searchLower);
+    const matchEmail = email.includes(searchLower);
+    return matchId || matchName || matchEmail;
+  }) || [];
+
+  const activeSearchEmployee = employees?.find(emp => emp.id === searchEmployeeId) || null;
+
+  const clearSearch = () => {
+    setSearchParams({});
+  };
+
   const { data: departments } = useQuery({
+
     queryKey: ['departments'],
     queryFn: async () => {
       const { data, error } = await supabase
