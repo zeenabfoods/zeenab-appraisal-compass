@@ -363,6 +363,21 @@ export default function AttendanceDashboard() {
             </div>
             
             <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <Link to="/">
+                      <SidebarMenuButton className="w-full justify-start text-gray-700 hover:bg-orange-50 hover:text-orange-700 dark:text-gray-300 dark:hover:bg-orange-950/50 dark:hover:text-orange-400">
+                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                        <span>Back to Appraisal</span>
+                      </SidebarMenuButton>
+                    </Link>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+
+            <SidebarGroup>
               <SidebarGroupLabel>Navigation</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
