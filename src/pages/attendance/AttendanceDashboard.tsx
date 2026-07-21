@@ -136,9 +136,21 @@ export default function AttendanceDashboard() {
   ];
 
   // Determine which menu items to show based on role
-  const menuItems = isHRorAdmin 
-    ? hrMenuItems 
-    : (isAttendanceAdmin ? attendanceAdminMenuItems : staffMenuItems);
+  const superAdminOnlyItems = [
+    { id: 'branches', label: 'Branches', icon: MapPin },
+    { id: 'overrides', label: 'Manual Overrides', icon: Settings },
+    { id: 'device-lock', label: 'Device Lock', icon: Shield },
+    { id: 'geofence', label: 'Geofence Alerts', icon: MapPin },
+    { id: 'alert-sound', label: 'Alert Sounds', icon: Bell },
+    { id: 'voice-guides', label: 'Voice Guides', icon: Bell },
+    { id: 'audit-logs', label: 'Audit Logs', icon: FileText },
+  ];
+
+  const menuItems = isSuperAdmin
+    ? [...hrMenuItems, ...superAdminOnlyItems]
+    : isHRorAdmin
+      ? hrMenuItems
+      : (isAttendanceAdmin ? attendanceAdminMenuItems : staffMenuItems);
 
   const renderOverviewContent = () => (
     <div className="grid lg:grid-cols-3 gap-4 lg:gap-8 w-full max-w-full">
