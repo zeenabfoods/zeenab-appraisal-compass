@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Star,
   Send,
+  Shield,
 } from "lucide-react"
 
 import { useAuthContext } from "@/components/AuthProvider"
@@ -110,6 +111,12 @@ export function ResponsiveSidebar() {
 
     const hrAdminItems = [
       {
+        title: "Control Center",
+        url: "/control-center",
+        icon: Shield,
+        adminOnly: true,
+      },
+      {
         title: "Employee Management",
         url: "/employee-management",
         icon: Users,
@@ -194,7 +201,8 @@ export function ResponsiveSidebar() {
     }
 
     if (profile?.role === 'hr' || profile?.role === 'admin') {
-      items = [...items, ...managerItems, ...hrAdminItems]
+      const filtered = hrAdminItems.filter((it: any) => !it.adminOnly || profile?.role === 'admin')
+      items = [...items, ...managerItems, ...filtered]
     }
 
     return items
