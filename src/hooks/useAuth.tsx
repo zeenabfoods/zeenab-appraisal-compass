@@ -31,7 +31,6 @@ const ALLOWED_DOMAINS = [
   '@habrisfoods.com',
   '@azenaboroilpalms.com',
   '@zeenaboilandfatsltd.com'
-  ,'@gmail.com'
 ];
 
 export function useAuth() {
