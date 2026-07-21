@@ -42,7 +42,7 @@ import { GatePassManager } from '@/components/attendance/GatePassManager';
 import { GatePassHRAdmin } from '@/components/attendance/GatePassHRAdmin';
 import { useWeekendWorkSchedule } from '@/hooks/attendance/useWeekendWorkSchedule';
 import FieldWorkDashboard from '@/pages/attendance/FieldWorkDashboard';
-import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText, Volume2, ClockAlert, Mic, Bell, Timer, UserCog, ScrollText, CalendarDays, Smartphone, DoorOpen } from 'lucide-react';
+import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText, Volume2, ClockAlert, Mic, Bell, Timer, UserCog, ScrollText, CalendarDays, Smartphone, DoorOpen, LayoutDashboard } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import {
   Sidebar,
@@ -57,6 +57,7 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { useAuthContext } from '@/components/AuthProvider';
+import { Link } from 'react-router-dom';
 import { useAttendanceRoles } from '@/hooks/attendance/useAttendanceRoles';
 import { cn } from '@/lib/utils';
 
@@ -361,6 +362,21 @@ export default function AttendanceDashboard() {
               </p>
             </div>
             
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <Link to="/">
+                      <SidebarMenuButton className="w-full justify-start text-gray-700 hover:bg-orange-50 hover:text-orange-700 dark:text-gray-300 dark:hover:bg-orange-950/50 dark:hover:text-orange-400">
+                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                        <span>Back to Appraisal</span>
+                      </SidebarMenuButton>
+                    </Link>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+
             <SidebarGroup>
               <SidebarGroupLabel>Navigation</SidebarGroupLabel>
               <SidebarGroupContent>
