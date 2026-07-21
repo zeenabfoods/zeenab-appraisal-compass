@@ -67,6 +67,7 @@ export default function AttendanceDashboard() {
   const { isAttendanceAdmin, canManageAttendance } = useAttendanceRoles();
   const { showPrompt, promptDates, submitWeekendWork, dismissPrompt, loading: weekendLoading } = useWeekendWorkSchedule();
   const isHRorAdmin = profile?.role === 'hr' || profile?.role === 'admin';
+  const isSuperAdmin = profile?.role === 'super_admin';
   const [activeView, setActiveView] = useState('overview');
   const [weekendPromptOpen, setWeekendPromptOpen] = useState(true);
 
@@ -80,24 +81,17 @@ export default function AttendanceDashboard() {
     { id: 'lateness', label: 'Lateness Tracking', icon: ClockAlert },
     { id: 'history', label: 'My History', icon: Clock },
     { id: 'stats', label: 'Statistics', icon: TrendingUp },
-    { id: 'branches', label: 'Branches', icon: Building2 },
     { id: 'rules', label: 'Rules & Policies', icon: Settings },
     { id: 'charges', label: 'Charges', icon: DollarSign },
     { id: 'escalation', label: 'Escalation Rules', icon: ArrowUpCircle },
     { id: 'auto-charges', label: 'Auto Charge Engine', icon: Calculator },
     { id: 'overtime-report', label: 'Overtime Payroll', icon: FileText },
     { id: 'overtime-rates', label: 'Overtime Rates', icon: Timer },
-    { id: 'overrides', label: 'Manual Overrides', icon: Edit3 },
     { id: 'break-config', label: 'Break Config', icon: Settings },
     { id: 'break-compliance', label: 'Compliance', icon: AlertCircle },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-    { id: 'geofence', label: 'Geofence', icon: MapPin },
-    { id: 'alert-sound', label: 'Alert Sounds', icon: Volume2 },
-    { id: 'voice-guides', label: 'Voice Guides', icon: Mic },
     { id: 'push-notifications', label: 'Push Notifications', icon: Bell },
-    { id: 'audit-logs', label: 'Audit Logs', icon: ScrollText },
     { id: 'hr-security', label: 'Security Dashboard', icon: Shield },
-    { id: 'device-lock', label: 'Device Lock', icon: Smartphone },
     { id: 'eye-service', label: 'Eye Service', icon: Eye },
   ];
 
@@ -113,26 +107,19 @@ export default function AttendanceDashboard() {
     { id: 'weekend-schedule', label: 'Weekend Schedule', icon: CalendarDays },
     { id: 'history', label: 'My History', icon: Clock },
     { id: 'stats', label: 'Statistics', icon: TrendingUp },
-    { id: 'branches', label: 'Branches', icon: Building2 },
     { id: 'rules', label: 'Rules & Policies', icon: Settings },
     { id: 'charges', label: 'Charges', icon: DollarSign },
     { id: 'escalation', label: 'Escalation Rules', icon: ArrowUpCircle },
     { id: 'auto-charges', label: 'Auto Charge Engine', icon: Calculator },
     { id: 'overtime-report', label: 'Overtime Payroll', icon: FileText },
     { id: 'overtime-rates', label: 'Overtime Rates', icon: Timer },
-    { id: 'overrides', label: 'Manual Overrides', icon: Edit3 },
     { id: 'break-config', label: 'Break Config', icon: Settings },
     { id: 'break-compliance', label: 'Compliance', icon: AlertCircle },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-    { id: 'geofence', label: 'Geofence', icon: MapPin },
-    { id: 'alert-sound', label: 'Alert Sounds', icon: Volume2 },
-    { id: 'voice-guides', label: 'Voice Guides', icon: Mic },
     { id: 'push-notifications', label: 'Push Notifications', icon: Bell },
     { id: 'attendance-admins', label: 'Admin Roles', icon: UserCog },
-    { id: 'audit-logs', label: 'Audit Logs', icon: ScrollText },
     { id: 'security', label: 'My Security', icon: Shield },
     { id: 'hr-security', label: 'Security Dashboard', icon: Shield },
-    { id: 'device-lock', label: 'Device Lock', icon: Smartphone },
     { id: 'eye-service', label: 'Eye Service', icon: Eye },
   ];
 

@@ -1,0 +1,1 @@
+UPDATE public.profiles SET role='super_admin' WHERE email='kluka@zeenabgroup.com';
