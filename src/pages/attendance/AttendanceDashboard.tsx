@@ -42,7 +42,7 @@ import { GatePassManager } from '@/components/attendance/GatePassManager';
 import { GatePassHRAdmin } from '@/components/attendance/GatePassHRAdmin';
 import { useWeekendWorkSchedule } from '@/hooks/attendance/useWeekendWorkSchedule';
 import FieldWorkDashboard from '@/pages/attendance/FieldWorkDashboard';
-import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText, Volume2, ClockAlert, Mic, Bell, Timer, UserCog, ScrollText, CalendarDays, Smartphone, DoorOpen, ArrowLeft, LayoutDashboard } from 'lucide-react';
+import { MapPin, TrendingUp, Clock, AlertCircle, Building2, Users, Coffee, Settings, BarChart3, Eye, Shield, DollarSign, Edit3, ArrowUpCircle, Calculator, FileText, Volume2, ClockAlert, Mic, Bell, Timer, UserCog, ScrollText, CalendarDays, Smartphone, DoorOpen, LayoutDashboard } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import {
   Sidebar,
