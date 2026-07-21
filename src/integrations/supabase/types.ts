@@ -3326,7 +3326,13 @@ export type Database = {
         | "returned"
         | "overdue"
         | "cancelled"
-      user_role: "staff" | "manager" | "hr" | "admin" | "recruiter"
+      user_role:
+        | "staff"
+        | "manager"
+        | "hr"
+        | "admin"
+        | "recruiter"
+        | "super_admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3473,7 +3479,14 @@ export const Constants = {
         "overdue",
         "cancelled",
       ],
-      user_role: ["staff", "manager", "hr", "admin", "recruiter"],
+      user_role: [
+        "staff",
+        "manager",
+        "hr",
+        "admin",
+        "recruiter",
+        "super_admin",
+      ],
     },
   },
 } as const
