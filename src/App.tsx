@@ -38,6 +38,7 @@ import DepartmentRating from "./pages/DepartmentRating";
 import DepartmentRatingManagement from "./pages/DepartmentRatingManagement";
 import DepartmentRatingScores from "./pages/DepartmentRatingScores";
 import SecurityDashboard from "./pages/SecurityDashboard";
+import ControlCenter from "./pages/ControlCenter";
 
 
 // Create QueryClient with proper configuration
@@ -120,6 +121,7 @@ function App() {
                   <Route path="/training-management" element={<ProtectedRoute><Training /></ProtectedRoute>} />
                   <Route path="/attendance" element={<ProtectedRoute><AttendanceDashboard /></ProtectedRoute>} />
                   <Route path="/security" element={<ProtectedRoute><SecurityDashboard /></ProtectedRoute>} />
+                  <Route path="/control-center" element={<ProtectedRoute><ControlCenter /></ProtectedRoute>} />
                   <Route path="/recruitment" element={<ProtectedRoute><Recruitment /></ProtectedRoute>} />
                   <Route path="/push-broadcast" element={<ProtectedRoute><PushBroadcast /></ProtectedRoute>} />
                   <Route path="/department-rating" element={<ProtectedRoute><DepartmentRating /></ProtectedRoute>} />
