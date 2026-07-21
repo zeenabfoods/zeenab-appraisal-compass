@@ -3307,6 +3307,10 @@ export type Database = {
         Args: { appraisal_id_param: string; employee_id_param: string }
         Returns: undefined
       }
+      recalc_appraisal_overall_score: {
+        Args: { _appraisal_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       appraisal_status:
