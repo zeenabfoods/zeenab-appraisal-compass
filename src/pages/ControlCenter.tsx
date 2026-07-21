@@ -134,8 +134,8 @@ function AppraisalSubmissionControl() {
 export default function ControlCenter() {
   const { profile } = useAuthContext();
 
-  // Restrict to admin only (super admin control center)
-  if (profile && profile.role !== 'admin') {
+  // Restrict to super_admin only — even HR/Admin cannot access
+  if (profile && profile.role !== 'super_admin') {
     return <Navigate to="/" replace />;
   }
 
