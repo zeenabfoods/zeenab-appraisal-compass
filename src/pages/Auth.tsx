@@ -47,7 +47,9 @@ export default function Auth() {
     const password = formData.get('password') as string;
     const firstName = formData.get('firstName') as string;
     const lastName = formData.get('lastName') as string;
-    const role = formData.get('role') as 'staff' | 'manager' | 'hr' | 'admin';
+    const rawRole = formData.get('role') as string;
+    // SECURITY: Only staff/manager are self-serve. HR/Admin/Super Admin must be assigned by HR.
+    const role: 'staff' | 'manager' = rawRole === 'manager' ? 'manager' : 'staff';
 
     console.log('📝 Signing up with simplified data:', {
       email,

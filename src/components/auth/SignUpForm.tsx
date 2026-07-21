@@ -76,14 +76,12 @@ export function SignUpForm({
           <SelectContent className="backdrop-blur-md bg-white/90 z-50">
             <SelectItem value="staff">Staff</SelectItem>
             <SelectItem value="manager">Manager</SelectItem>
-            <SelectItem value="hr">HR</SelectItem>
-            <SelectItem value="admin">Admin</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       <div className="p-3 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-md">
-        📝 Your department and line manager will be assigned by HR after account creation.
+        📝 HR/Admin roles are assigned only by HR after account creation. Your department and line manager will also be assigned then.
       </div>
 
       <Button 
