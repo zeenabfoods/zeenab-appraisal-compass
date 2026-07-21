@@ -66,8 +66,8 @@ export default function AttendanceDashboard() {
   const { enhancedProfile, loading: profileLoading } = useEnhancedProfile();
   const { isAttendanceAdmin, canManageAttendance } = useAttendanceRoles();
   const { showPrompt, promptDates, submitWeekendWork, dismissPrompt, loading: weekendLoading } = useWeekendWorkSchedule();
-  const isHRorAdmin = profile?.role === 'hr' || profile?.role === 'admin';
   const isSuperAdmin = profile?.role === 'super_admin';
+  const isHRorAdmin = profile?.role === 'hr' || profile?.role === 'admin' || isSuperAdmin;
   const [activeView, setActiveView] = useState('overview');
   const [weekendPromptOpen, setWeekendPromptOpen] = useState(true);
 
@@ -360,6 +360,16 @@ export default function AttendanceDashboard() {
                       </SidebarMenuButton>
                     </Link>
                   </SidebarMenuItem>
+                  {isSuperAdmin && (
+                    <SidebarMenuItem>
+                      <Link to="/control-center">
+                        <SidebarMenuButton className="w-full justify-start text-orange-700 hover:bg-orange-50 dark:text-orange-400 dark:hover:bg-orange-950/50 font-semibold">
+                          <Shield className="mr-2 h-4 w-4" />
+                          <span>Control Center</span>
+                        </SidebarMenuButton>
+                      </Link>
+                    </SidebarMenuItem>
+                  )}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -406,7 +416,7 @@ export default function AttendanceDashboard() {
                         {enhancedProfile.first_name} {enhancedProfile.last_name}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {enhancedProfile.position || 'Staff'}
+                        {isSuperAdmin ? 'Super Admin' : (enhancedProfile.position || 'Staff')}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {enhancedProfile.department_name || 'No Department'}
