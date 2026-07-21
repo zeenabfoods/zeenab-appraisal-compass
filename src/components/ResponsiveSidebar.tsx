@@ -200,8 +200,9 @@ export function ResponsiveSidebar() {
       items = [...items, ...managerItems]
     }
 
-    if (profile?.role === 'hr' || profile?.role === 'admin') {
-      const filtered = hrAdminItems.filter((it: any) => !it.adminOnly || profile?.role === 'admin')
+    if (profile?.role === 'hr' || profile?.role === 'admin' || profile?.role === 'super_admin') {
+      // adminOnly items (e.g., Control Center) are reserved for super_admin — HR/Admin cannot see them
+      const filtered = hrAdminItems.filter((it: any) => !it.adminOnly || profile?.role === 'super_admin')
       items = [...items, ...managerItems, ...filtered]
     }
 
