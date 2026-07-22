@@ -342,9 +342,6 @@ export function HRAttendanceView() {
 
   return (
     <div className="space-y-6">
-      {/* API Demo Mode Settings */}
-      <ApiDemoModeSettings />
-      
       {/* Statistics Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
