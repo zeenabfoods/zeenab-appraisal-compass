@@ -20,6 +20,7 @@ import { AttendanceAuditLogs } from '@/components/attendance/AttendanceAuditLogs
 import { AlertSoundManager } from '@/components/attendance/AlertSoundManager';
 import { VoiceGuideManager } from '@/components/attendance/VoiceGuideManager';
 import { GeofenceAlertsList } from '@/components/attendance/GeofenceAlertsList';
+import { ApiDemoModeSettings } from '@/components/attendance/ApiDemoModeSettings';
 
 function AppraisalSubmissionControl() {
   const { profile } = useAuthContext();
@@ -169,7 +170,10 @@ export default function ControlCenter() {
           </TabsList>
 
           <TabsContent value="appraisal-lock" className="mt-6">
-            <AppraisalSubmissionControl />
+            <div className="space-y-6">
+              <AppraisalSubmissionControl />
+              <ApiDemoModeSettings />
+            </div>
           </TabsContent>
 
           <TabsContent value="branches" className="mt-6">
